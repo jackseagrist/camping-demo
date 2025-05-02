@@ -4,10 +4,8 @@ export function middleware(req) {
   const basicAuth = req.headers.get('authorization')
 
   if (basicAuth) {
-    const authValue = basicAuth.split(' ')[1]
-    const [user, password] = atob(authValue).split(':')
-
-    if (user === 'tester' && password === 'letmein') {
+    const [user, pass] = atob(basicAuth.split(' ')[1] || '').split(':')
+    if (user === 'tester' && pass === 'letmein') {
       return NextResponse.next()
     }
   }
@@ -20,3 +18,6 @@ export function middleware(req) {
   })
 }
 
+export const config = {
+  matcher: ['/plan'], // or ['/:path*'] for full-site protection
+}
