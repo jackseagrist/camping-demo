@@ -5,7 +5,7 @@ export function middleware(req) {
 
   if (basicAuth) {
     const [user, pass] = atob(basicAuth.split(' ')[1] || '').split(':')
-    if (user === 'tester' && pass === 'letmein') {
+    if (user === 'climbcovers' && pass === '$h2kf084;sj9fj..') {
       return NextResponse.next()
     }
   }
@@ -19,5 +19,5 @@ export function middleware(req) {
 }
 
 export const config = {
-  matcher: ['/plan'], // or ['/:path*'] for full-site protection
+  matcher: ['/:path*'], // applies to ALL routes
 }
