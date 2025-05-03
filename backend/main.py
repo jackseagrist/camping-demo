@@ -5,6 +5,7 @@ from openai import OpenAI
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
@@ -20,6 +21,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+RIDB_API_KEY = os.getenv("RIDB_API_KEY")
+
+@app.get("/api/campgrounds")
+def get_campgrounds():
+    headers = {"apikey": RIDB_API_KEY}
+    url = "https://ridb.recreation.gov/api/v1/facilities?state=CA&activity=CAMPING&limit=25"
+    response = requests.get(url, headers=headers)
+    return JSONResponse(content=response.json())
 
 class TripDetails(BaseModel):
     tripType: str
