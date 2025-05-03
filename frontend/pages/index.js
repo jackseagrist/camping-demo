@@ -87,25 +87,47 @@ export default function Home() {
   
         {/* Testimonials Section */}
         <section className="py-20 bg-[#F9FAFB] text-center px-6 overflow-hidden">
-        <h2 className="text-3xl font-semibold text-[#111827] mb-12">What Campers Are Saying</h2>
-        <div className="max-w-6xl mx-auto overflow-hidden">
-          <div className="flex gap-6 animate-marquee whitespace-nowrap">
-            {[...Array(2)].flatMap((_, i) => [
-              <div key={`card-1-${i}`} className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                <p className="italic text-[#4B5563]">“I found a last-minute campsite on three different platforms—BaseLodge made it a breeze.”</p>
-                <span className="block mt-4 text-sm text-[#6B7280]">– Marcus W.</span>
-              </div>,
-              <div key={`card-2-${i}`} className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                <p className="italic text-[#4B5563]">“As a beginner, I had no idea what to bring. The packing list was a game-changer.”</p>
-                <span className="block mt-4 text-sm text-[#6B7280]">– Taylor L.</span>
-              </div>,
-              <div key={`card-3-${i}`} className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                <p className="italic text-[#4B5563]">“It saved me hours of prep time. I’ll never plan a trip without it again.”</p>
-                <span className="block mt-4 text-sm text-[#6B7280]">– Casey M.</span>
+          <h2 className="text-3xl font-semibold text-[#111827] mb-12">What Campers Are Saying</h2>
+          <div className="max-w-6xl mx-auto overflow-hidden mb-12">
+            <div className="testimonial-container relative">
+              {/* First set of cards */}
+              <div className="testimonial-track flex gap-6">
+                <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I found a last-minute campsite on three different platforms—BaseLodge made it a breeze.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus W.</span>
+                </div>
+                <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;As a beginner, I had no idea what to bring. The packing list was a game-changer.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor L.</span>
+                </div>
+                <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;It saved me hours of prep time. I&rsquo;ll never plan a trip without it again.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey M.</span>
+                </div>
+                
+                {/* Duplicate set for seamless looping */}
+                <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I found a last-minute campsite on three different platforms—BaseLodge made it a breeze.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus W.</span>
+                </div>
+                <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;As a beginner, I had no idea what to bring. The packing list was a game-changer.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor L.</span>
+                </div>
+                <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;It saved me hours of prep time. I&rsquo;ll never plan a trip without it again.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey M.</span>
+                </div>
               </div>
-            ])}
+            </div>
           </div>
-        </div>
+          
+          {/* CTA Button */}
+          <div data-aos="fade-up">
+            <Link href="/signup">
+              <button className="bg-[#10B981] text-white font-semibold px-6 py-3 rounded-full shadow-lg hover:bg-[#14B8A6] transition">Join Now</button>
+            </Link>
+          </div>
         </section>
   
         {/* Footer */}
@@ -131,14 +153,24 @@ export default function Home() {
         .animate-zoom {
           animation: zoom 15s ease-in-out infinite alternate;
         }
-  
-        @keyframes marquee {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-100%); }
+        
+        .testimonial-container {
+          width: 100%;
+          overflow: hidden;
         }
-        .animate-marquee {
-          display: flex;
-          animation: marquee 80s linear infinite;
+        
+        .testimonial-track {
+          animation: scrollX 30s linear infinite;
+          width: fit-content;
+        }
+        
+        @keyframes scrollX {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(calc(-100% / 2));
+          }
         }
       `}</style>
     </>
