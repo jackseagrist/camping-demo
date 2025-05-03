@@ -9,7 +9,7 @@ import 'aos/dist/aos.css';
 import mapboxgl from 'mapbox-gl';
 
 const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
-mapboxgl.accessToken = 'pk.eyJ1IjoiamFja3NlYWdyaXN0IiwiYSI6ImNtYTd2NTV5czE4OGIybHE1b2hseHh0c3cifQ._XGBx51KSwTnAef4sWFLXA';
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 let currentMarker = null;
 
@@ -62,7 +62,7 @@ export default function Explore() {
     const lng = (campground.FacilityLongitude !== undefined && campground.FacilityLongitude !== null)
     ? parseFloat(campground.FacilityLongitude)
     : parseFloat(campground.GEOJSON?.COORDINATES?.[0]);
-
+    
     console.log("Map flying to:", { lat, lng });
 
     const name = campground.FacilityName;
