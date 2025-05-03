@@ -3,7 +3,7 @@
 import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '@/lib/supabase'
 import { Noto_Serif } from 'next/font/google';
@@ -12,21 +12,39 @@ const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif'
 
 export default function Login() {
   const router = useRouter()
+
+  // ✅ Move useState calls to the top
+  const [checkingSession, setCheckingSession] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setError(null)
-
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-    } else {
-      router.push('/explore')
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        router.replace('/explore')
+      } else {
+        setCheckingSession(false)
+      }
     }
+
+    checkSession()
+  }, [router])
+
+  // ✅ This now works — the state exists
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] text-[#10B981] text-xl font-semibold">
+        <div className="flex flex-col items-center space-y-4 animate-pulse">
+          <span className="text-4xl">🏕️</span>
+          <p>Pitching your tent...</p>
+        </div>
+      </div>
+    )
   }
+
+
   return (
     <div className={`${notoSerif.className} bg-[#F9FAFB] min-h-screen text-[#4B5563] pt-20 pb-10 px-6`}>
       <Head>
