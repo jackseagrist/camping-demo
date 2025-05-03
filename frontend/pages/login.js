@@ -3,11 +3,30 @@
 import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useState } from 'react'
+import { useRouter } from 'next/router'
+import { supabase } from '@/lib/supabase'
 import { Noto_Serif } from 'next/font/google';
 
 const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
 
 export default function Login() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState(null)
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setError(null)
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setError(error.message)
+    } else {
+      router.push('/explore')
+    }
+  }
   return (
     <div className={`${notoSerif.className} bg-[#F9FAFB] min-h-screen text-[#4B5563] pt-20 pb-10 px-6`}>
       <Head>
@@ -33,10 +52,30 @@ export default function Login() {
         <h1 className="text-3xl font-bold text-center text-[#111827] mb-6">Log in to Climbcovers</h1>
         <button className="bg-[#10B981] text-white w-full py-3 rounded-full font-semibold hover:bg-[#14B8A6] transition">Continue with Google</button>
         <p className="text-center my-4 text-sm text-[#6B7280]">or use email</p>
-        <form className="space-y-4">
-          <input type="email" placeholder="Email" className="w-full border border-[#D1D5DB] rounded-md px-4 py-2" />
-          <input type="password" placeholder="Password" className="w-full border border-[#D1D5DB] rounded-md px-4 py-2" />
-          <button type="submit" className="w-full bg-[#10B981] text-white py-2 rounded-full font-semibold hover:bg-[#14B8A6] transition">Sign In</button>
+        <form className="space-y-4" onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border border-[#D1D5DB] rounded-md px-4 py-2"
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border border-[#D1D5DB] rounded-md px-4 py-2"
+            required
+          />
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <button
+            type="submit"
+            className="w-full bg-[#10B981] text-white py-2 rounded-full font-semibold hover:bg-[#14B8A6] transition"
+          >
+            Sign In
+          </button>
         </form>
       </main>
 
