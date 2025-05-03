@@ -6,10 +6,24 @@ import Link from 'next/link';
 import { Noto_Serif } from 'next/font/google';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import { useRouter } from 'next/router'
+import { supabase } from '@/lib/supabase'
 
 const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
 
 export default function Plan() {
+  const router = useRouter()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.replace('/login')
+      }
+    }
+    checkAuth()
+  }, [router])
+
   const [formData, setFormData] = useState({
     tripType: '',
     groupSize: 1,
@@ -68,11 +82,12 @@ export default function Plan() {
       </Head>
 
       {/* Top Nav */}
-      <nav className="fixed w-full top-0 z-50 flex items-center justify-center px-6 py-4 bg-[#F9FAFB]/70 backdrop-blur-md shadow-sm gap-6 text-sm font-semibold text-[#10B981]">
-        <Link href="/#features" className="hover:text-[#14B8A6] transition-colors duration-300">Features</Link>
-        <Link href="/explore" className="hover:text-[#14B8A6] transition-colors duration-300">Explore Trips</Link>
-        <Link href="/plan" className="hover:text-[#14B8A6] transition-colors duration-300">Start Packing</Link>
-        <Link href="/login" className="hover:text-[#14B8A6] transition-colors duration-300">Log in / Sign up</Link>
+      <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 shadow-lg transition-all duration-300 w-[90%] max-w-4xl flex justify-between items-center text-sm font-semibold text-[#10B981]">
+        <Link href="/" className="hover:text-[#14B8A6] transition">🏕 Home</Link>
+        <div className="flex gap-6">
+          <Link href="/explore" className="hover:text-[#14B8A6] transition">Explore</Link>
+          <Link href="/plan" className="hover:text-[#14B8A6] transition">Plan</Link>
+        </div>
       </nav>
 
       <h1 className="text-5xl font-bold text-center text-[#111827] mb-12 mt-4" data-aos="fade-up">Plan Your Trip</h1>

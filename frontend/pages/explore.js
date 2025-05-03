@@ -7,6 +7,8 @@ import { Noto_Serif } from 'next/font/google';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import mapboxgl from 'mapbox-gl';
+import { useRouter } from 'next/router'
+import { supabase } from '@/lib/supabase'
 
 const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
@@ -14,6 +16,19 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 let currentMarker = null;
 
 export default function Explore() {
+
+  const router = useRouter()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.replace('/login')
+      }
+    }
+    checkAuth()
+  }, [router])
+
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [lng, setLng] = useState(-120.5542);
@@ -99,12 +114,13 @@ export default function Explore() {
       </Head>
 
       {/* Top Nav */}
-      <nav className="fixed w-full top-0 z-50 flex items-center justify-center px-6 py-4 bg-[#F9FAFB]/70 backdrop-blur-md shadow-sm gap-6 text-sm font-semibold text-[#10B981]">
-        <Link href="/#features" className="hover:text-[#14B8A6] transition-colors duration-300">Features</Link>
-        <Link href="/explore" className="hover:text-[#14B8A6] transition-colors duration-300">Explore Trips</Link>
-        <Link href="/plan" className="hover:text-[#14B8A6] transition-colors duration-300">Start Packing</Link>
-        <Link href="/login" className="hover:text-[#14B8A6] transition-colors duration-300">Log in / Sign up</Link>
-      </nav>
+    <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 shadow-lg transition-all duration-300 w-[90%] max-w-4xl flex justify-between items-center text-sm font-semibold text-[#10B981]">
+    <Link href="/" className="hover:text-[#14B8A6] transition">🏕 Home</Link>
+    <div className="flex gap-6">
+        <Link href="/explore" className="hover:text-[#14B8A6] transition">Explore</Link>
+        <Link href="/plan" className="hover:text-[#14B8A6] transition">Plan</Link>
+    </div>
+    </nav>
 
       <h1 data-aos="fade-up" className="text-5xl font-bold text-center text-[#111827] mb-6">Explore California Campsites</h1>
       <p data-aos="fade-up" data-aos-delay="100" className="text-center mb-8 text-[#4B5563] text-lg">📍 Find inspiration and check availability across parks and campgrounds</p>
