@@ -11,6 +11,8 @@ import mapboxgl from 'mapbox-gl';
 const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
 mapboxgl.accessToken = 'pk.eyJ1IjoiamFja3NlYWdyaXN0IiwiYSI6ImNtYTd2NTV5czE4OGIybHE1b2hseHh0c3cifQ._XGBx51KSwTnAef4sWFLXA';
 
+let currentMarker = null;
+
 export default function Explore() {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -51,16 +53,39 @@ export default function Explore() {
   const handleCampgroundSelect = (e) => {
     const id = e.target.value;
     const campground = campgrounds.find(c => c.FacilityID === id);
-    if (!campground) return;
+    if (!campground || !map.current) return;
 
-    const { FacilityLatitude: lat, FacilityLongitude: lng, FacilityName: name, FacilityURL: url } = campground;
-    setSelectedCampground({ name, url });
+    const lat = (campground.FacilityLatitude !== undefined && campground.FacilityLatitude !== null)
+    ? parseFloat(campground.FacilityLatitude)
+    : parseFloat(campground.GEOJSON?.COORDINATES?.[1]);
+  
+    const lng = (campground.FacilityLongitude !== undefined && campground.FacilityLongitude !== null)
+    ? parseFloat(campground.FacilityLongitude)
+    : parseFloat(campground.GEOJSON?.COORDINATES?.[0]);
+
+    console.log("Map flying to:", { lat, lng });
+
+    const name = campground.FacilityName;
+    const url = campground.FacilityReservationURL || `https://www.recreation.gov/camping/campgrounds/${campground.FacilityID}`;
+
+    if (isNaN(lat) || isNaN(lng)) {
+      console.warn('Invalid lat/lng for selected campground');
+      return;
+    }
+
     map.current.flyTo({ center: [lng, lat], zoom: 10 });
 
-    new mapboxgl.Marker()
+    if (currentMarker) {
+      currentMarker.remove();
+    }
+
+    const marker = new mapboxgl.Marker()
       .setLngLat([lng, lat])
-      .setPopup(new mapboxgl.Popup().setHTML(`<h3>${name}</h3><a href='${url}' target='_blank'>View on Recreation.gov</a>`))
+      .setPopup(new mapboxgl.Popup().setHTML(`<h3>${name}</h3><a href="${url}" target="_blank">View on Recreation.gov</a>`))
       .addTo(map.current);
+
+    currentMarker = marker;
+    setSelectedCampground({ name, url });
   };
 
   useEffect(() => {
@@ -90,11 +115,11 @@ export default function Explore() {
           <option value="">Select a campground...</option>
           {campgrounds.length > 0 ? (
             campgrounds.map(c => (
-                <option key={c.FacilityID} value={c.FacilityID}>{c.FacilityName}</option>
+              <option key={c.FacilityID} value={c.FacilityID}>{c.FacilityName}</option>
             ))
-        ) : (
+          ) : (
             <option disabled>Loading campgrounds...</option>
-            )}
+          )}
         </select>
       </div>
 
