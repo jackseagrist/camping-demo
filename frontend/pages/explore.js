@@ -36,7 +36,7 @@ export default function Explore() {
     });
 
     map.current.addControl(new mapboxgl.NavigationControl());
-  }, []);
+  }, [lat, lng, zoom]);
 
   const fetchCampgrounds = async () => {
     try {
