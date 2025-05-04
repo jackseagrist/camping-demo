@@ -1,6 +1,18 @@
-import 'mapbox-gl/dist/mapbox-gl.css'; // Mapbox styles
-import '@/styles/globals.css';         // Your global styles (if applicable)
+import 'mapbox-gl/dist/mapbox-gl.css';
+import '@/styles/globals.css';
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
+import { SessionContextProvider } from '@supabase/auth-helpers-react';
+import { useState } from 'react';
 
 export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />;
+  const [supabaseClient] = useState(() => createPagesBrowserClient());
+
+  return (
+    <SessionContextProvider
+      supabaseClient={supabaseClient}
+      initialSession={pageProps.initialSession}
+    >
+      <Component {...pageProps} />
+    </SessionContextProvider>
+  );
 }
