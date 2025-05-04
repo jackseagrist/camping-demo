@@ -1,3 +1,5 @@
+/* commenting out, May 4 2025, we have supabase user auth now
+
 import { NextResponse } from 'next/server'
 
 export function middleware(req) {
@@ -21,3 +23,5 @@ export function middleware(req) {
 export const config = {
   matcher: ['/:path*'], // applies to ALL routes
 }
+
+*/
