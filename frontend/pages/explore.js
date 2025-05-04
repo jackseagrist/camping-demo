@@ -8,8 +8,8 @@ import AOS from 'aos';
 import 'aos/dist/aos.css';
 import mapboxgl from 'mapbox-gl';
 import { useRouter } from 'next/router'
-import { supabase } from '@/lib/supabase'
-import SidebarLayout from '@/components/SidebarLayout';
+import { supabase } from '../lib/supabase'
+import SidebarLayout from '../components/SidebarLayout';
 
 const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;

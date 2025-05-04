@@ -1,5 +1,5 @@
 // pages/dashboard.js
-import SidebarLayout from '@/components/SidebarLayout';
+import SidebarLayout from '../components/SidebarLayout';
 
 export default function Dashboard() {
   return (
