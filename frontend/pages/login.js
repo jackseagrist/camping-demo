@@ -23,7 +23,7 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        router.replace('/explore')
+        router.replace('/dashboard')
       } else {
         setCheckingSession(false)
       }
