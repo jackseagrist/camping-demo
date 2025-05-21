@@ -11,6 +11,7 @@ const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif'
 export default function Login() {
   const router = useRouter();
   const supabase = createClientComponentClient();
+  const { redirectTo } = router.query;
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState('');
@@ -21,14 +22,14 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace('/dashboard');
+        router.replace(redirectTo as string || '/dashboard');
       } else {
         setCheckingSession(false);
       }
     };
 
     checkSession();
-  }, [router, supabase]);
+  }, [router, supabase, redirectTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +41,20 @@ export default function Login() {
       console.error(error);
       setError(error.message);
     } else {
-      router.push('/dashboard');
+      router.push(redirectTo as string || '/dashboard');
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo || '/dashboard'}`
+      }
+    });
+    if (error) {
+      console.error('Google login error:', error.message);
+      setError(error.message);
     }
   };
 
@@ -77,7 +91,7 @@ export default function Login() {
 
       <main className="max-w-md mx-auto mt-24 bg-white p-8 rounded-xl shadow-lg border border-[#D1D5DB]">
         <h1 className="text-3xl font-bold text-center text-[#111827] mb-6">Log in to Climbcovers</h1>
-        <button className="bg-[#10B981] text-white w-full py-3 rounded-full font-semibold hover:bg-[#14B8A6] transition">Continue with Google</button>
+        <button onClick={signInWithGoogle} className="bg-[#10B981] text-white w-full py-3 rounded-full font-semibold hover:bg-[#14B8A6] transition">Continue with Google</button>
         <p className="text-center my-4 text-sm text-[#6B7280]">or use email</p>
         <form className="space-y-4" onSubmit={handleLogin}>
           <input
