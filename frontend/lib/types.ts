@@ -15,5 +15,8 @@ export interface Trip {
   location: string;
   packing_list: Item[];
   created_at: Date;
-  view_type?: 'card' | 'list';
+  trip_type?: string;
+  group_size?: number;
+  duration?: number;
+  experience_level?: string;
 } 

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Inter } from 'next/font/google';
+import { getSiteURL } from '../lib/utils';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -12,6 +13,7 @@ export default function Login() {
   const router = useRouter();
   const supabase = createClientComponentClient();
   const { redirectTo } = router.query;
+  const siteURL = getSiteURL();
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState('');
@@ -35,13 +37,16 @@ export default function Login() {
     e.preventDefault();
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
     if (error) {
       console.error(error);
       setError(error.message);
     } else {
-      router.push('/dashboard');
+      router.push(`${siteURL}/dashboard`);
     }
   };
 
@@ -49,7 +54,7 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${siteURL}/dashboard`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
+import TripDetailsEdit from '../../components/TripDetailsEdit';
 import { Trip, Item } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
@@ -194,6 +195,9 @@ export default function TripDetail() {
             )}
           </div>
         </div>
+
+        {/* Trip Details Edit Section */}
+        <TripDetailsEdit trip={trip} onUpdate={setTrip} />
 
         {/* Packing List Section */}
         <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
