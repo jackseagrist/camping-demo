@@ -1,28 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# 🏕️ Camping Trip Planner Frontend
 
-## Getting Started
+This is the frontend portion of the Camping Trip Planner application, built with Next.js and Tailwind CSS.
 
-First, run the development server:
+## 🚀 Getting Started
 
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Create a `.env.local` file with your Supabase credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-You can start editing the page by modifying `pages/index.js`. The page auto-updates as you edit the file.
+3. Run the development server:
+```bash
+npm run dev
+```
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+## 📱 Available Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/` - Landing page
+- `/login` - Authentication page
+- `/dashboard` - Trip management dashboard
+- `/trips/[id]` - Individual trip view
+- `/plan` - Trip planning and packing list generation
+- `/explore` - Campground exploration (future feature)
+
+## 🎨 Components
+
+Key components in the `/components` directory:
+- `TripCard.tsx` - Card view for trips
+- `TripList.tsx` - List view for trips
+- `NewTripModal.tsx` - Create new trips
+- `SidebarLayout.js` - Main application layout
+
+## 🔒 Authentication
+
+Authentication is handled through Supabase Auth, supporting:
+- Email/password login
+- Google OAuth
+- Protected routes
+- Session management
+
+## 📦 Data Structure
+
+The application uses Supabase as the backend, with the following table structure:
+
+```sql
+create table trips (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  title text not null,
+  location text not null,
+  start_date date,
+  end_date date,
+  packing_list jsonb default '[]'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+```
+
+## 🚀 Deployment
+
+Deploy the application using Vercel:
+
+1. Push to GitHub
+2. Connect to Vercel
+3. Add environment variables
+4. Deploy!
 
 ## Learn More
 

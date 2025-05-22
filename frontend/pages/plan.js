@@ -4,11 +4,11 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
-import { Noto_Serif } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 
-const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export default function Plan() {
   const [isLoading, setIsLoading] = useState(true);
@@ -28,6 +28,8 @@ export default function Plan() {
   const [loading, setLoading] = useState(false);
   const [packingList, setPackingList] = useState(null);
   const [error, setError] = useState(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [parsedPackingList, setParsedPackingList] = useState([]);
 
   const addDebugMessage = (message) => {
     console.log(`DEBUG: ${message}`);
@@ -81,6 +83,68 @@ export default function Plan() {
     AOS.init({ duration: 700, once: true });
   }, []);
 
+  // Parse packing list into categories when it updates
+  useEffect(() => {
+    if (!packingList) return;
+    
+    try {
+      // Parse the packing list into categories and items
+      const categories = [];
+      let currentCategory = null;
+      
+      // Split the packing list by lines and process each line
+      const lines = packingList.split('\n');
+      
+      lines.forEach(line => {
+        // Trim the line
+        const trimmedLine = line.trim();
+        
+        // Skip empty lines
+        if (!trimmedLine) return;
+        
+        // Check if this line is a category header (we assume it ends with a colon)
+        if (trimmedLine.endsWith(':') || /^[A-Z][\w\s]+:$/.test(trimmedLine)) {
+          // Create a new category
+          const title = trimmedLine.replace(/:$/, '');
+          currentCategory = {
+            title: title,
+            emoji: getCategoryEmoji(title),
+            items: []
+          };
+          categories.push(currentCategory);
+        } 
+        // If we have a current category, add this line as an item
+        else if (currentCategory) {
+          // Check if the line has a reason (separated by a dash or parentheses)
+          let item = trimmedLine;
+          let reason = '';
+          
+          if (trimmedLine.includes(' - ')) {
+            const parts = trimmedLine.split(' - ');
+            item = parts[0].trim();
+            reason = parts[1].trim();
+          } else if (trimmedLine.includes(' (') && trimmedLine.endsWith(')')) {
+            const openParenIndex = trimmedLine.lastIndexOf(' (');
+            item = trimmedLine.substring(0, openParenIndex).trim();
+            reason = trimmedLine.substring(openParenIndex + 2, trimmedLine.length - 1).trim();
+          }
+          
+          // Add the item to the current category
+          currentCategory.items.push({
+            name: item,
+            reason: reason,
+            optional: item.toLowerCase().includes('optional') || reason.toLowerCase().includes('optional')
+          });
+        }
+      });
+      
+      setParsedPackingList(categories);
+      addDebugMessage(`Parsed ${categories.length} categories with items`);
+    } catch (error) {
+      addDebugMessage(`Error parsing packing list: ${error.message}`);
+    }
+  }, [packingList]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     addDebugMessage(`Form field changed: ${name} = ${value}`);
@@ -92,6 +156,8 @@ export default function Plan() {
     setLoading(true);
     setError(null);
     setPackingList(null);
+    setParsedPackingList([]);
+    setCopySuccess(false);
     
     addDebugMessage('Generating packing list...');
     addDebugMessage(`Form data: ${JSON.stringify(formData)}`);
@@ -120,6 +186,66 @@ export default function Plan() {
       setLoading(false);
     }
   };
+  
+  // Helper function to get emoji for a category
+  const getCategoryEmoji = (category) => {
+    const categoryLower = category.toLowerCase();
+    
+    if (categoryLower.includes('shelter') || categoryLower.includes('sleep')) return '📦';
+    if (categoryLower.includes('cook') || categoryLower.includes('food') || categoryLower.includes('kitchen')) return '🔥';
+    if (categoryLower.includes('cloth')) return '🎒';
+    if (categoryLower.includes('hiking') || categoryLower.includes('footwear')) return '👟';
+    if (categoryLower.includes('hygiene') || categoryLower.includes('toiletries')) return '🧼';
+    if (categoryLower.includes('first aid') || categoryLower.includes('medical') || categoryLower.includes('emergency')) return '🩹';
+    if (categoryLower.includes('electronic') || categoryLower.includes('tech')) return '🔋';
+    if (categoryLower.includes('water')) return '💧';
+    if (categoryLower.includes('navigation') || categoryLower.includes('map')) return '🧭';
+    if (categoryLower.includes('tool')) return '🔧';
+    if (categoryLower.includes('accessory')) return '🧢';
+    if (categoryLower.includes('light')) return '🔦';
+    if (categoryLower.includes('personal')) return '📱';
+    
+    // Default emoji if no match is found
+    return '🏕️';
+  };
+  
+  // Create notes-friendly text format for clipboard
+  const formatForNotes = () => {
+    let notesText = `📝 Packing List for ${formData.tripType || 'Trip'} (${formData.duration || 1} days)\n\n`;
+    
+    parsedPackingList.forEach(category => {
+      notesText += `${category.emoji} ${category.title}\n`;
+      
+      category.items.forEach(item => {
+        notesText += `☐ ${item.name}`;
+        if (item.reason) {
+          notesText += ` – ${item.reason}`;
+        }
+        notesText += '\n';
+      });
+      
+      notesText += '\n'; // Add empty line between categories
+    });
+    
+    return notesText;
+  };
+  
+  // Copy formatted list to clipboard
+  const copyToNotes = async () => {
+    try {
+      const formattedList = formatForNotes();
+      await navigator.clipboard.writeText(formattedList);
+      
+      setCopySuccess(true);
+      addDebugMessage('Copied packing list to clipboard');
+      
+      // Reset success message after 3 seconds
+      setTimeout(() => setCopySuccess(false), 3000);
+    } catch (error) {
+      addDebugMessage(`Error copying to clipboard: ${error.message}`);
+      alert('Failed to copy to clipboard. Please try again.');
+    }
+  };
 
   if (isLoading) {
     return (
@@ -131,7 +257,7 @@ export default function Plan() {
 
   return (
     <SidebarLayout>
-      <div className={`${notoSerif.className} bg-[#F9FAFB] min-h-screen`}>
+      <div className={`${inter.className} bg-[#F9FAFB] min-h-screen`}>
         <Head>
           <title>Plan Your Trip - BaseLodge</title>
         </Head>
@@ -197,11 +323,67 @@ export default function Plan() {
 
           {packingList && (
             <div 
-              className="max-w-3xl mx-auto mt-8 bg-[#E6FFF4] p-6 rounded-lg border border-[#D1D5DB] text-left whitespace-pre-wrap shadow-md" 
+              className="max-w-3xl mx-auto mt-8 bg-[#E6FFF4] p-6 rounded-lg border border-[#D1D5DB] shadow-md" 
               data-aos="fade-up"
             >
-              <h2 className="text-xl font-bold mb-4 text-[#111827]">Your Packing List</h2>
-              <div className="text-[#4B5563]">{packingList}</div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-[#111827]">Your Packing List</h2>
+                <button
+                  onClick={copyToNotes}
+                  className="flex items-center px-4 py-2 bg-[#10B981] text-white rounded-full hover:bg-[#14B8A6] transition"
+                >
+                  {copySuccess ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                      <span>Copy to Notes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="text-[#4B5563] whitespace-pre-wrap">
+                {parsedPackingList.length > 0 ? (
+                  <div className="space-y-6">
+                    {parsedPackingList.map((category, catIndex) => (
+                      <div key={catIndex} className="border-b border-[#D1D5DB] pb-4 last:border-b-0">
+                        <h3 className="font-semibold text-lg mb-2">
+                          {category.emoji} {category.title}
+                        </h3>
+                        <ul className="space-y-2 pl-6">
+                          {category.items.map((item, itemIndex) => (
+                            <li key={itemIndex} className="flex items-start">
+                              <input
+                                type="checkbox"
+                                className="mt-1 mr-2"
+                                id={`item-${catIndex}-${itemIndex}`}
+                              />
+                              <label htmlFor={`item-${catIndex}-${itemIndex}`} className="flex-1">
+                                <span>{item.name}</span>
+                                {item.reason && (
+                                  <span className="text-gray-500 text-sm ml-2">
+                                    – {item.reason}
+                                  </span>
+                                )}
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  packingList
+                )}
+              </div>
             </div>
           )}
           

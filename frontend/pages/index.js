@@ -33,18 +33,16 @@ export default function Home() {
         </Head>
   
         {/* Simplified Sticky Nav with just logo and CTA */}
-        <nav className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 shadow-lg transition-all duration-300 w-[90%] max-w-4xl">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <Image src="/baselodge-logo.png" alt="BaseLodge logo" width={28} height={28} />
-              <span className="text-[#10B981] font-bold text-lg">BaseLodge</span>
-            </Link>
-            <Link href="/login">
-              <button className="bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-lg hover:bg-[#14B8A6] transition-all hover:shadow-xl">
-                Try for Free
-              </button>
-            </Link>
-          </div>
+        <nav className="fixed w-full top-0 z-50 flex items-center justify-between px-6 py-4 bg-[#F9FAFB]/70 backdrop-blur-md shadow-sm">
+          <Link href="/" className="flex items-center space-x-2">
+            <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
+            <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
+          </Link>
+          <Link href="/login">
+            <button className="bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-lg hover:bg-[#14B8A6] transition-all hover:shadow-xl">
+              Try for Free
+            </button>
+          </Link>
         </nav>
   
         {/* Hero Section */}
@@ -143,8 +141,8 @@ export default function Home() {
               {/* Logo and company info */}
               <div className="mb-8 md:mb-0">
                 <div className="flex items-center mb-4">
-                  <Image src="/baselodge-logo.png" alt="BaseLodge logo" width={32} height={32} />
-                  <span className="text-[#10B981] font-bold text-xl ml-2">BaseLodge</span>
+                  <Image src="/new-logo.png" alt="BaseLodge logo" width={32} height={32} />
+                  <span className="text-[#10B981] font-bold text-lg">BaseLodge</span>
                 </div>
                 <p className="text-sm max-w-xs">Your AI-powered camping companion for perfect outdoor adventures.</p>
               </div>

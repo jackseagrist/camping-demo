@@ -3,13 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
-import { Noto_Serif } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const notoSerif = Noto_Serif({ subsets: ['latin'], variable: '--font-noto-serif' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export default function Explore() {
@@ -183,7 +183,7 @@ export default function Explore() {
 
   return (
     <SidebarLayout>
-      <div className={`${notoSerif.className} bg-[#F9FAFB] min-h-screen`}>
+      <div className={`${inter.className} bg-[#F9FAFB] min-h-screen`}>
         <Head>
           <title>Explore - BaseLodge</title>
         </Head>
