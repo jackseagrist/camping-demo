@@ -24,41 +24,42 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace(redirectURL);
+        router.replace('/dashboard');
       } else {
         setCheckingSession(false);
       }
     };
 
     checkSession();
-  }, [router, supabase, redirectURL]);
+  }, [router, supabase]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    if (error) {
-      console.error(error);
+      if (signInError) {
+        throw signInError;
+      }
+
+      // Redirect to dashboard after successful login
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
       setError(error.message);
-    } else {
-      router.push(redirectURL);
     }
   };
 
   const signInWithGoogle = async () => {
-    // Debug logging
-    console.log('Initiating Google sign in');
-    console.log('Redirect URL:', getRedirectURL(redirectURL));
-    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: getRedirectURL(redirectURL),
+        redirectTo: getRedirectURL('/dashboard'),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
