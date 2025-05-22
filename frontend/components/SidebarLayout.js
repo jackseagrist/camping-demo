@@ -61,10 +61,15 @@ export default function SidebarLayout({ children }) {
 
   const handleSignOut = async () => {
     try {
-      await supabase.auth.signOut();
-      window.location.href = '/';
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
+      router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
+      // Fallback to window.location if router fails
+      window.location.href = '/';
     }
   };
 
