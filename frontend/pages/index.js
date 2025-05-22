@@ -15,7 +15,13 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    AOS.init({ duration: 800, once: true });
+    AOS.init({
+      duration: 800,
+      once: true,
+      offset: 100,
+      delay: 100,
+      disable: 'mobile'
+    });
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -66,22 +72,34 @@ export default function Home() {
         </header>
   
         {/* How it works */}
-        <section id="features" className="py-24 bg-[#E6FFF4]">
-          <div className="max-w-6xl mx-auto px-6 text-center">
-            <h2 className="text-4xl font-semibold text-[#111827] mb-6">How It Works</h2>
-            <p className="text-lg text-[#4B5563] mb-16 max-w-2xl mx-auto">Plan smarter, pack lighter, and get outside with confidence.</p>
+        <section id="features" className="relative py-24 bg-[#E6FFF4]">
+          <div className="container max-w-6xl mx-auto px-6">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-semibold text-[#111827] mb-6">
+                How It Works
+              </h2>
+              <p className="text-lg text-[#4B5563] max-w-2xl mx-auto">
+                Plan smarter, pack lighter, and get outside with confidence.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div data-aos="fade-up" className="bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md hover:shadow-xl transform hover:-translate-y-1 transition">
-                <h3 className="text-xl font-semibold mb-2 text-[#111827]">📝 Plan your trip</h3>
-                <p className="text-sm text-[#4B5563]">Choose your location, season, and trip type. We pull from recreation.gov, hipcamp, and other to get you the latest availability for sites.</p>
+              <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
+                <div className="text-4xl mb-4">📝</div>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Plan your trip</h3>
+                <p className="text-[#4B5563]">Choose your location, season, and trip type. We pull from recreation.gov, hipcamp, and other to get you the latest availability for sites.</p>
               </div>
-              <div data-aos="fade-up" data-aos-delay="100" className="bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md hover:shadow-xl transform hover:-translate-y-1 transition">
-                <h3 className="text-xl font-semibold mb-2 text-[#111827]">🎒 Get a custom packing list</h3>
-                <p className="text-sm text-[#4B5563]">We generate everything you&apos;ll need — no forgetting the bug spray. To make it easy for everyone to get outside.</p>
+
+              <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
+                <div className="text-4xl mb-4">🎒</div>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Get a custom packing list</h3>
+                <p className="text-[#4B5563]">We generate everything you&apos;ll need — no forgetting the bug spray. To make it easy for everyone to get outside.</p>
               </div>
-              <div data-aos="fade-up" data-aos-delay="200" className="bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md hover:shadow-xl transform hover:-translate-y-1 transition">
-                <h3 className="text-xl font-semibold mb-2 text-[#111827]">🌲 Hit the trail</h3>
-                <p className="text-sm text-[#4B5563]">Put on airplane mode and enjoy the great outdoors.</p>
+
+              <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
+                <div className="text-4xl mb-4">🌲</div>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Hit the trail</h3>
+                <p className="text-[#4B5563]">Put on airplane mode and enjoy the great outdoors.</p>
               </div>
             </div>
           </div>

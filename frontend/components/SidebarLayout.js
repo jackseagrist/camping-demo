@@ -106,75 +106,123 @@ export default function SidebarLayout({ children }) {
   });
 
   return (
-    <div className={`${inter.className} flex bg-[#F9FAFB] min-h-screen h-screen w-full relative`}>
-      {/* Sidebar */}
-      <aside
-        className={`bg-white border-r border-gray-200 absolute left-0 top-0 h-full transition-all duration-300 flex flex-col ${
-          collapsed ? 'w-20' : 'w-64'
-        }`}
-      >
-        {/* Collapse/Expand Button - vertically centered, only visible on hover */}
-        <button
-          onClick={() => setCollapsed((prev) => !prev)}
-          className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 p-2 rounded transition text-gray-400 hover:bg-gray-100 hover:text-gray-600 opacity-0 hover:opacity-100 focus:opacity-100 z-10 bg-white"
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{ pointerEvents: 'auto' }}
+    <div className={`${inter.className} min-h-screen h-screen w-full relative bg-[#F9FAFB]`}>
+      <div className="flex h-full">
+        {/* Sidebar - Only visible on desktop */}
+        <aside
+          className={`bg-white border-r border-gray-200 hidden lg:block lg:fixed left-0 top-0 h-full transition-all duration-300 ${
+            collapsed ? 'lg:w-20' : 'lg:w-64'
+          } z-40`}
         >
-          {collapsed ? (
-            <span className="text-2xl">»</span>
-          ) : (
-            <span className="text-2xl">«</span>
-          )}
-        </button>
-        <div className="p-6 flex flex-col h-full justify-between">
-          <div>
-            <div
-              onClick={() => handleNavigation('/dashboard')}
-              className="flex items-center mb-12 space-x-2 cursor-pointer"
-            >
-              <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
-              {!collapsed && (
-                <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
-              )}
-            </div>
-            <nav className="space-y-4 flex-1">
-              {navLinks}
-            </nav>
-          </div>
-          {/* Settings Dropdown at the bottom */}
-          <div className="relative" ref={settingsRef}>
-            <button
-              onClick={() => setSettingsOpen((open) => !open)}
-              className="w-full text-left flex items-center gap-2 text-[#4B5563] font-medium px-2 py-1 rounded transition-colors hover:text-[#10B981] focus:outline-none group"
-            >
-              <span className={`text-gray-500 transition-colors group-hover:text-[#10B981] ${settingsOpen ? 'text-[#10B981]' : ''}`}>
-                <SettingsIcon />
-              </span>
-              {!collapsed && <span className="transition-colors">Settings</span>}
-            </button>
-            {settingsOpen && !collapsed && (
-              <div className="absolute left-0 bottom-12 w-40 bg-white border border-gray-200 rounded shadow-lg z-20">
-                <button
-                  onClick={handleSettings}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                >
-                  Settings
-                </button>
-                <button
-                  onClick={handleSignOut}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
-                >
-                  Sign Out
-                </button>
-              </div>
+          {/* Collapse/Expand Button - only visible on desktop */}
+          <button
+            onClick={() => setCollapsed((prev) => !prev)}
+            className="hidden lg:block absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 p-2 rounded transition text-gray-400 hover:bg-gray-100 hover:text-gray-600 opacity-0 hover:opacity-100 focus:opacity-100 z-10 bg-white"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? (
+              <span className="text-2xl">»</span>
+            ) : (
+              <span className="text-2xl">«</span>
             )}
+          </button>
+          
+          <div className="flex flex-col h-full p-4">
+            <div>
+              <Link
+                href="/"
+                className="flex items-center mb-12 space-x-2 hover:opacity-90 transition-opacity"
+              >
+                <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
+                {!collapsed && (
+                  <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
+                )}
+              </Link>
+              <nav className="space-y-4 flex-1">
+                {navLinks}
+              </nav>
+            </div>
+            
+            {/* Settings Button - Desktop */}
+            <div className="relative mt-auto" ref={settingsRef}>
+              <button
+                onClick={() => setSettingsOpen((open) => !open)}
+                className="w-full text-left flex items-center gap-2 text-[#4B5563] font-medium px-2 py-1 rounded transition-colors hover:text-[#10B981] focus:outline-none group"
+              >
+                <span className={`text-gray-500 transition-colors group-hover:text-[#10B981] ${settingsOpen ? 'text-[#10B981]' : ''}`}>
+                  <SettingsIcon />
+                </span>
+                {!collapsed && <span className="transition-colors">Settings</span>}
+              </button>
+            </div>
+          </div>
+        </aside>
+        
+        {/* Main Content */}
+        <div className={`flex-1 transition-all duration-300 ${
+          collapsed ? 'lg:ml-20' : 'lg:ml-64'
+        } pb-20 lg:pb-0`}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 md:py-8 lg:py-10">
+            {children}
           </div>
         </div>
-      </aside>
-      {/* Main content */}
-      <main className={`flex-1 transition-all duration-300 ${collapsed ? 'ml-20' : 'ml-64'} p-8 h-screen overflow-y-auto`}>
-        {children}
-      </main>
+
+        {/* Bottom Navigation Bar - Mobile Only */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
+          <div className="flex justify-around items-center h-16">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const isActive = router.pathname === href;
+              return (
+                <button
+                  key={href}
+                  onClick={() => handleNavigation(href)}
+                  className={`flex flex-col items-center justify-center w-full h-full ${
+                    isActive ? 'text-[#10B981]' : 'text-gray-500'
+                  }`}
+                >
+                  <Icon />
+                  <span className="text-xs mt-1">{label}</span>
+                </button>
+              );
+            })}
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className={`flex flex-col items-center justify-center w-full h-full ${
+                settingsOpen ? 'text-[#10B981]' : 'text-gray-500'
+              }`}
+            >
+              <SettingsIcon />
+              <span className="text-xs mt-1">Settings</span>
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      {/* Settings Dropdown */}
+      {settingsOpen && (
+        <div 
+          className={`absolute ${
+            collapsed ? 'lg:left-20' : 'lg:left-64'
+          } lg:bottom-16 bottom-20 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 transition-all duration-300`}
+          style={{ 
+            transform: collapsed && window.innerWidth >= 1024 ? 'translateX(-25%)' : 'none',
+            [window.innerWidth >= 1024 ? 'left' : 'right']: window.innerWidth >= 1024 ? undefined : '1rem'
+          }}
+        >
+          <button
+            onClick={handleSettings}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors"
+          >
+            Settings
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

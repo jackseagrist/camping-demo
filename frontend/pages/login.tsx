@@ -22,14 +22,14 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace(redirectTo as string || '/dashboard');
+        router.replace('/dashboard');
       } else {
         setCheckingSession(false);
       }
     };
 
     checkSession();
-  }, [router, supabase, redirectTo]);
+  }, [router, supabase]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +41,7 @@ export default function Login() {
       console.error(error);
       setError(error.message);
     } else {
-      router.push(redirectTo as string || '/dashboard');
+      router.push('/dashboard');
     }
   };
 
@@ -49,7 +49,11 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?redirect=${redirectTo || '/dashboard'}`
+        redirectTo: `${window.location.origin}/dashboard`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       }
     });
     if (error) {
@@ -62,30 +66,33 @@ export default function Login() {
     return (
       <div className={`${inter.className} min-h-screen flex items-center justify-center bg-[#F9FAFB] text-[#10B981] text-xl font-semibold`}>
         <div className="flex flex-col items-center space-y-4 animate-pulse">
-          <span className="text-4xl">🏕️</span>
-          <p>Pitching your tent...</p>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12">
+            <path d="M12 2c-1.7 0-3 1.2-3 2.7v4.5c0 .4.1.7.3 1.1.3.5.7.9 1.2 1.2.2.1.3.2.5.2V22h2v-10.3c.2 0 .3-.1.5-.2.5-.3.9-.7 1.2-1.2.2-.3.3-.7.3-1.1V4.7C15 3.2 13.7 2 12 2zm0 2c.6 0 1 .4 1 .7v4.5c0 .1 0 .2-.1.3-.1.2-.2.3-.4.4-.3.2-.7.2-1 0-.2-.1-.3-.2-.4-.4-.1-.1-.1-.2-.1-.3V4.7c0-.3.4-.7 1-.7z"/>
+          </svg>
+          <p>Get your mallows ready...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`${inter.className} bg-[#F9FAFB] min-h-screen text-[#4B5563] p-6`}>
+    <div className={`${inter.className} bg-[#F9FAFB] min-h-screen text-[#4B5563] p-4 sm:p-6`}>
       <Head>
         <title>Login – BaseLodge</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
 
       {/* Logo in upper left corner */}
-      <div className="absolute top-6 left-6">
+      <div className="absolute top-4 sm:top-6 left-4 sm:left-6">
         <Link href="/" className="flex items-center space-x-2">
           <Image src="/new-logo.png" alt="BaseLodge logo" width={32} height={32} unoptimized />
           <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
         </Link>
       </div>
 
-      <main className="max-w-md mx-auto pt-24 pb-10">
-        <div className="bg-white p-8 rounded-xl shadow-lg border border-[#D1D5DB]">
-          <h1 className="text-3xl font-bold text-center text-[#111827] mb-6">Log in to BaseLodge</h1>
+      <main className="max-w-md mx-auto mt-16 sm:mt-20">
+        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-[#D1D5DB]">
+          <h1 className="text-2xl sm:text-3xl font-bold text-center text-[#111827] mb-6">Log in to BaseLodge</h1>
           <button 
             onClick={signInWithGoogle} 
             className="flex items-center justify-center w-full py-2.5 px-4 border border-gray-300 rounded-full text-[#3c4043] font-medium bg-white shadow-sm hover:shadow transition"
@@ -100,7 +107,7 @@ export default function Login() {
             Continue with Google
           </button>
           <p className="text-center my-4 text-sm text-[#6B7280]">or use email</p>
-          <form className="space-y-4" onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="email"
               name="email"

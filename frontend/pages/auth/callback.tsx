@@ -1,74 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import Head from 'next/head'
 
 export default function AuthCallback() {
   const router = useRouter()
   const supabase = createClientComponentClient()
-  const [debugMessages, setDebugMessages] = useState<string[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  const addDebugMessage = (message: string) => {
-    console.log(`AUTH CALLBACK: ${message}`);
-    setDebugMessages(prev => [...prev, `${new Date().toISOString()}: ${message}`])
-  }
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      addDebugMessage('Auth callback starting')
-      const { redirect } = router.query
-      
-      addDebugMessage(`Redirect URL: ${redirect || '/dashboard'}`)
-
       try {
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          addDebugMessage(`Auth error: ${error.message}`)
-          setError(error.message)
-          return
+          throw error
         }
 
         if (!session) {
-          addDebugMessage('No session found')
-          setError('No session found')
-          return
+          throw new Error('No session')
         }
 
-        addDebugMessage(`Session found, user: ${session.user.email}`)
-        addDebugMessage(`Redirecting to: ${redirect || '/dashboard'}`)
-        
-        // Use direct navigation
-        window.location.href = (redirect as string) || '/dashboard'
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-        addDebugMessage(`Exception: ${errorMessage}`)
-        setError(errorMessage)
+        // Always redirect to dashboard after successful authentication
+        router.replace('/dashboard')
+      } catch (error) {
+        router.replace('/login')
       }
     }
 
-    if (router.isReady) {
-      handleAuthCallback()
-    }
-  }, [router, router.isReady, supabase])
+    handleAuthCallback()
+  }, [router, supabase])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9FAFB] p-4">
-      <h1 className="text-[#10B981] text-xl font-semibold mb-4">Setting up your session...</h1>
-      
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4 max-w-lg w-full">
-          <h2 className="font-bold">Error</h2>
-          <p>{error}</p>
-        </div>
-      )}
-      
-      <div className="bg-gray-50 p-4 rounded-lg max-w-lg w-full text-sm font-mono">
-        <h2 className="font-bold mb-2 text-gray-700">Debug Log</h2>
-        {debugMessages.map((msg, i) => (
-          <div key={i} className="py-1 text-gray-600">{msg}</div>
-        ))}
-        {debugMessages.length === 0 && <div className="text-gray-400">Waiting...</div>}
+    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] p-4">
+      <Head>
+        <title>Logging you in – BaseLodge</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+      </Head>
+      <div className="flex flex-col items-center space-y-4 animate-pulse">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#10B981" className="w-10 h-10 sm:w-12 sm:h-12">
+          <path d="M12 2c-1.7 0-3 1.2-3 2.7v4.5c0 .4.1.7.3 1.1.3.5.7.9 1.2 1.2.2.1.3.2.5.2V22h2v-10.3c.2 0 .3-.1.5-.2.5-.3.9-.7 1.2-1.2.2-.3.3-.7.3-1.1V4.7C15 3.2 13.7 2 12 2zm0 2c.6 0 1 .4 1 .7v4.5c0 .1 0 .2-.1.3-.1.2-.2.3-.4.4-.3.2-.7.2-1 0-.2-.1-.3-.2-.4-.4-.1-.1-.1-.2-.1-.3V4.7c0-.3.4-.7 1-.7z"/>
+        </svg>
+        <h1 className="text-lg sm:text-xl font-semibold text-[#10B981]">Get your mallows ready...</h1>
       </div>
     </div>
   )

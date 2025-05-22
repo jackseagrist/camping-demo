@@ -12,10 +12,11 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
   const supabase = createClientComponentClient();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    title: '',
+    tripType: '',
+    groupSize: 1,
+    duration: 1,
+    experienceLevel: '',
     location: '',
-    start_date: '',
-    end_date: '',
   });
 
   if (!isOpen) return null;
@@ -36,10 +37,8 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
         .insert([
           {
             user_id: user.id,
-            title: formData.title,
+            title: `${formData.location} - ${formData.tripType}`,
             location: formData.location,
-            start_date: formData.start_date || null,
-            end_date: formData.end_date || null,
             packing_list: [],
           },
         ])
@@ -49,6 +48,7 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
       if (error) throw error;
 
       router.push(`/trips/${trip.id}`);
+      onClose();
     } catch (error) {
       console.error('Error creating trip:', error);
       alert('Failed to create trip. Please try again.');
@@ -57,11 +57,14 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
     }
   };
 
+  const tripTypes = ['Backpacking', 'Car Camping', 'RV'];
+  const experienceLevels = ['Novice', 'Intermediate', 'Expert'];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl max-w-md w-full p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900">New Trip</h2>
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-semibold text-gray-900">Where should we go?</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
@@ -72,62 +75,105 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Trip Type */}
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-              Trip Name
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Trip Type
             </label>
-            <input
-              type="text"
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              required
-            />
+            <div className="flex gap-3">
+              {tripTypes.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, tripType: type })}
+                  className={`flex-1 py-2 px-4 rounded-full border ${
+                    formData.tripType === type
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  } transition-colors`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* Group Size */}
           <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Group Size
+            </label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="1"
+                max="15"
+                value={formData.groupSize}
+                onChange={(e) => setFormData({ ...formData, groupSize: parseInt(e.target.value) })}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+              <span className="text-gray-700 min-w-[2rem] text-center">{formData.groupSize}</span>
+            </div>
+          </div>
+
+          {/* Duration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Duration
+            </label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min="1"
+                max="7"
+                value={formData.duration}
+                onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+              />
+              <span className="text-gray-700 min-w-[4rem]">{formData.duration} days</span>
+            </div>
+          </div>
+
+          {/* Experience Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Experience Level
+            </label>
+            <div className="flex gap-3">
+              {experienceLevels.map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, experienceLevel: level })}
+                  className={`flex-1 py-2 px-4 rounded-full border ${
+                    formData.experienceLevel === level
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                      : 'border-gray-300 hover:border-gray-400'
+                  } transition-colors`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Location
             </label>
             <input
               type="text"
-              id="location"
+              placeholder="e.g. Yosemite"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               required
             />
           </div>
 
-          <div>
-            <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">
-              Start Date
-            </label>
-            <input
-              type="date"
-              id="start_date"
-              value={formData.start_date}
-              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-1">
-              End Date
-            </label>
-            <input
-              type="date"
-              id="end_date"
-              value={formData.end_date}
-              onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-6">
+          <div className="flex justify-end space-x-3 mt-8">
             <button
               type="button"
               onClick={onClose}
@@ -137,8 +183,8 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
             </button>
             <button
               type="submit"
-              disabled={isLoading}
-              className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50"
+              disabled={isLoading || !formData.tripType || !formData.experienceLevel || !formData.location}
+              className="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isLoading ? 'Creating...' : 'Create Trip'}
             </button>

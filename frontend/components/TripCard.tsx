@@ -1,16 +1,80 @@
 import { Trip } from '../lib/types';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { useState } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface TripCardProps {
   trip: Trip;
+  onDelete?: () => void;
 }
 
-export default function TripCard({ trip }: TripCardProps) {
+export default function TripCard({ trip, onDelete }: TripCardProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const supabase = createClientComponentClient();
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (window.confirm('Are you sure you want to delete this trip?')) {
+      setIsDeleting(true);
+      try {
+        const { error } = await supabase
+          .from('trips')
+          .delete()
+          .eq('id', trip.id);
+
+        if (error) throw error;
+        
+        onDelete?.();
+        setShowMenu(false);
+      } catch (error) {
+        console.error('Error deleting trip:', error);
+        alert('Failed to delete trip. Please try again.');
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowMenu(!showMenu);
+  };
+
   return (
     <Link href={`/trips/${trip.id}`}>
-      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 cursor-pointer">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">{trip.title}</h3>
+      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 cursor-pointer relative group">
+        {/* Ellipsis Menu Button */}
+        <button
+          onClick={toggleMenu}
+          className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+          </svg>
+        </button>
+
+        {/* Dropdown Menu */}
+        {showMenu && (
+          <div className="absolute top-12 right-4 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 flex items-center space-x-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span>{isDeleting ? 'Deleting...' : 'Delete Trip'}</span>
+            </button>
+          </div>
+        )}
+
+        <h3 className="text-xl font-semibold text-gray-900 mb-2 pr-8">{trip.title}</h3>
         <div className="space-y-2">
           <p className="text-gray-600 flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
