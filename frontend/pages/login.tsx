@@ -5,15 +5,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Inter } from 'next/font/google';
-import { getSiteURL } from '../lib/utils';
+import { getRedirectURL } from '../lib/utils';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export default function Login() {
   const router = useRouter();
   const supabase = createClientComponentClient();
-  const { redirectTo } = router.query;
-  const siteURL = getSiteURL();
+  const { redirectTo = '/dashboard' } = router.query;
+  const redirectURL = typeof redirectTo === 'string' ? redirectTo : '/dashboard';
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState('');
@@ -24,14 +24,14 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace('/dashboard');
+        router.replace(redirectURL);
       } else {
         setCheckingSession(false);
       }
     };
 
     checkSession();
-  }, [router, supabase]);
+  }, [router, supabase, redirectURL]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +46,7 @@ export default function Login() {
       console.error(error);
       setError(error.message);
     } else {
-      router.push(`${siteURL}/dashboard`);
+      router.push(redirectURL);
     }
   };
 
@@ -54,7 +54,7 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${siteURL}/dashboard`,
+        redirectTo: getRedirectURL(redirectURL),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

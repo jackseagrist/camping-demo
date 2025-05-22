@@ -92,3 +92,22 @@ Create a `.env` file in the backend directory and add your RIDB API key:
 
 ```env
 RIDB_API_KEY=your-api-key-here
+```
+
+# BaseLodge Frontend
+
+Last deployed: ${new Date().toISOString()}
+
+## Environment Setup
+
+This application requires the following environment variables:
+
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- NEXT_PUBLIC_SITE_URL
+
+## Development
+
+```bash
+npm install
+npm run dev

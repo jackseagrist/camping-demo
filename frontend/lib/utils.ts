@@ -14,4 +14,15 @@ export const getSiteURL = () => {
   return process.env.NODE_ENV === 'development' 
     ? 'http://localhost:3000' 
     : 'https://baselodge.vercel.app';
+};
+
+export const getRedirectURL = (path: string = '/dashboard') => {
+  // Always use relative URLs in production
+  if (process.env.NODE_ENV === 'production') {
+    return path;
+  }
+
+  // In development, we can use the full URL
+  const baseUrl = getSiteURL();
+  return `${baseUrl}${path}`;
 }; 
