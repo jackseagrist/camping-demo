@@ -65,10 +65,11 @@ export default function SidebarLayout({ children }) {
       if (error) {
         throw error;
       }
-      router.push('/');
+      // Force a hard redirect to ensure complete session cleanup
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
-      // Fallback to window.location if router fails
+      // Still attempt to redirect even if there's an error
       window.location.href = '/';
     }
   };
@@ -157,8 +158,34 @@ export default function SidebarLayout({ children }) {
                 <span className={`text-gray-500 transition-colors group-hover:text-[#10B981] ${settingsOpen ? 'text-[#10B981]' : ''}`}>
                   <SettingsIcon />
                 </span>
-                {!collapsed && <span className="transition-colors">Settings</span>}
+                {!collapsed && <span className="transition-colors">Profile</span>}
               </button>
+
+              {/* Settings Dropdown - Moved inside the settings button container */}
+              {settingsOpen && (
+                <div 
+                  className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 transition-all duration-300"
+                  style={{ 
+                    bottom: '100%',
+                    marginBottom: '0.5rem',
+                    left: '0',
+                    width: collapsed ? '10rem' : '100%'
+                  }}
+                >
+                  <button
+                    onClick={handleSettings}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors"
+                  >
+                    Profile
+                  </button>
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </aside>
@@ -197,37 +224,11 @@ export default function SidebarLayout({ children }) {
               }`}
             >
               <SettingsIcon />
-              <span className="text-xs mt-1">Settings</span>
+              <span className="text-xs mt-1">Profile</span>
             </button>
           </div>
         </nav>
       </div>
-
-      {/* Settings Dropdown */}
-      {settingsOpen && (
-        <div 
-          className={`absolute ${
-            collapsed ? 'lg:left-20' : 'lg:left-64'
-          } lg:bottom-16 bottom-20 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 transition-all duration-300`}
-          style={{ 
-            transform: collapsed && window.innerWidth >= 1024 ? 'translateX(-25%)' : 'none',
-            [window.innerWidth >= 1024 ? 'left' : 'right']: window.innerWidth >= 1024 ? undefined : '1rem'
-          }}
-        >
-          <button
-            onClick={handleSettings}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors"
-          >
-            Settings
-          </button>
-          <button
-            onClick={handleSignOut}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors"
-          >
-            Sign Out
-          </button>
-        </div>
-      )}
     </div>
   );
 }
