@@ -49,7 +49,7 @@ export default function Login() {
 
       // Redirect to dashboard after successful login
       router.push('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       setError(error.message);
     }
@@ -59,7 +59,7 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: getRedirectURL('/dashboard'),
+        redirectTo: getRedirectURL('/auth/callback'),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

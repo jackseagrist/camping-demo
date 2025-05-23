@@ -25,15 +25,9 @@ export const getRedirectURL = (path: string = '/dashboard') => {
   // Debug logging
   console.log('Getting redirect URL for path:', path);
   
-  // Always use relative URLs in production
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Production environment - using relative path:', path);
-    return path;
-  }
-
-  // In development, we can use the full URL
+  // OAuth providers require full URLs, so always return complete URLs
   const baseUrl = getSiteURL();
   const fullUrl = `${baseUrl}${path}`;
-  console.log('Development environment - using full URL:', fullUrl);
+  console.log('Returning full URL for OAuth:', fullUrl);
   return fullUrl;
 }; 
