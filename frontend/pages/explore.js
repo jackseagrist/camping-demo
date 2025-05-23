@@ -84,201 +84,6 @@ export default function Explore() {
     }, 100);
   };
 
-  // Fetch campsites from Supabase
-  useEffect(() => {
-    const fetchCampsites = async () => {
-      console.log('Fetching campsites...');
-      
-      try {
-        // Call the custom function for getting campsites with coordinates
-        console.log('Calling get_all_campsites() function...');
-        const { data: campsiteData, error: campsiteError } = await supabase.rpc('get_all_campsites');
-        
-        if (campsiteError) {
-          console.error('Error fetching campsites using RPC function:', campsiteError);
-          // Fallback to direct query if function fails
-          console.log('Trying direct query as fallback...');
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('campsites')
-            .select('*')
-            .not('lat', 'is', null)
-            .not('lon', 'is', null)
-            .limit(100);
-            
-          if (fallbackError) {
-            console.error('Fallback query also failed:', fallbackError);
-            setIsLoading(false);
-            return;
-          }
-          
-          console.log('Fallback query succeeded with', fallbackData?.length || 0, 'records');
-          processData(fallbackData || []);
-        } else {
-          console.log('RPC function succeeded with', campsiteData?.length || 0, 'records');
-          processData(campsiteData || []);
-        }
-      } catch (error) {
-        console.error('Unexpected error in fetchCampsites:', error);
-        setIsLoading(false);
-      }
-    };
-    
-    fetchCampsites();
-  }, []);
-
-  // Function to load test data
-  const loadTestData = async (e) => {
-    // Prevent default form submission which would refresh the page
-    if (e) e.preventDefault();
-    
-    console.log('🔍 Load All Campsites button clicked');
-    setIsLoading(true);
-    
-    try {
-      // Use hard-coded test data since database approaches are failing
-      const testCampsites = [
-        {
-          id: 'test1',
-          name: 'Test Campsite 1',
-          type: 'Tent',
-          description: 'A test campsite near San Francisco',
-          normalizedLat: 37.7749,
-          normalizedLon: -122.4194
-        },
-        {
-          id: 'test2',
-          name: 'Test Campsite 2 - Yosemite',
-          type: 'RV',
-          description: 'A test campsite in Yosemite National Park',
-          normalizedLat: 37.8651,
-          normalizedLon: -119.5383
-        },
-        {
-          id: 'test3',
-          name: 'Test Campsite 3 - Los Angeles',
-          type: 'Tent',
-          description: 'A test campsite in Los Angeles',
-          normalizedLat: 34.0522,
-          normalizedLon: -118.2437
-        },
-        {
-          id: 'test4',
-          name: 'Test Campsite 4 - Lake Tahoe',
-          type: 'Cabin',
-          description: 'A beautiful cabin by Lake Tahoe',
-          normalizedLat: 39.0968,
-          normalizedLon: -120.0324
-        },
-        {
-          id: 'test5',
-          name: 'Test Campsite 5 - San Diego',
-          type: 'Tent',
-          description: 'Beach camping in San Diego',
-          normalizedLat: 32.7157,
-          normalizedLon: -117.1611
-        }
-      ];
-      
-      console.log('🔍 Using test data with', testCampsites.length, 'campsites');
-      
-      // This is like calling processData but skips the validation since our data is pre-normalized
-      console.log('🔍 Setting campsites directly from test data');
-      setCampsites(testCampsites);
-      
-      // Wait a moment for the state to update before attempting to add markers
-      setTimeout(() => {
-        if (map.current) {
-          console.log('✅ Adding markers for test data manually');
-          updateMarkers();
-        } else {
-          console.warn('⚠️ Map not ready yet, markers will be added when map loads');
-        }
-      }, 500);
-      
-    } catch (error) {
-      console.error('❌ Error in loadTestData:', error);
-      alert(`An error occurred: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Initialize map
-  useEffect(() => {
-    if (isLoading || !mapContainer.current || map.current) return;
-
-    console.log('🔍 Initializing map...');
-    try {
-      // Initialize map
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/outdoors-v12',
-        center: [-120.5542, 37.2345],
-        zoom: 6
-      });
-
-      console.log('✅ Map object created successfully');
-
-      map.current.addControl(new mapboxgl.NavigationControl());
-      console.log('✅ Map controls added');
-
-      // Wait for map to load before setting mapLoaded to true
-      map.current.on('load', () => {
-        console.log('✅ Map loaded event fired');
-        setMapLoaded(true);
-        console.log('✅ mapLoaded state set to true');
-        
-        // If we already have campsites data, update the markers now
-        if (campsites.length > 0) {
-          console.log('🔍 Found existing campsites, updating markers after map load');
-          updateMarkers();
-        }
-      });
-      
-      // Add additional debug events
-      map.current.on('error', (e) => {
-        console.error('❌ Mapbox error:', e.error);
-      });
-      
-      console.log('✅ Map initialization complete, waiting for load event');
-    } catch (error) {
-      console.error('❌ Error initializing map:', error);
-    }
-
-    // Clean up on unmount
-    return () => {
-      if (map.current) {
-        console.log('🔍 Cleaning up map instance');
-        map.current.remove();
-        map.current = null;
-        setMapLoaded(false);
-      }
-    };
-  }, [isLoading]);
-
-  // Update markers when campsites change
-  useEffect(() => {
-    console.log('🔄 Campsites state changed, length:', campsites.length);
-    
-    if (!map.current) {
-      console.warn('⚠️ Map not initialized yet, cannot update markers');
-      return;
-    }
-    
-    if (!mapLoaded) {
-      console.warn('⚠️ Map initialized but not fully loaded yet, waiting for load event');
-      return;
-    }
-    
-    if (!campsites.length) {
-      console.warn('⚠️ No campsites to display on map');
-      return;
-    }
-
-    console.log('✅ Calling updateMarkers with', campsites.length, 'campsites');
-    updateMarkers();
-  }, [campsites, mapLoaded]);
-
   const updateMarkers = () => {
     console.log('🔍 updateMarkers called');
     
@@ -411,6 +216,201 @@ export default function Explore() {
       console.error(`❌ Critical error in updateMarkers:`, error);
     }
   };
+
+  // Fetch campsites from Supabase
+  useEffect(() => {
+    const fetchCampsites = async () => {
+      console.log('Fetching campsites...');
+      
+      try {
+        // Call the custom function for getting campsites with coordinates
+        console.log('Calling get_all_campsites() function...');
+        const { data: campsiteData, error: campsiteError } = await supabase.rpc('get_all_campsites');
+        
+        if (campsiteError) {
+          console.error('Error fetching campsites using RPC function:', campsiteError);
+          // Fallback to direct query if function fails
+          console.log('Trying direct query as fallback...');
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('campsites')
+            .select('*')
+            .not('lat', 'is', null)
+            .not('lon', 'is', null)
+            .limit(100);
+            
+          if (fallbackError) {
+            console.error('Fallback query also failed:', fallbackError);
+            setIsLoading(false);
+            return;
+          }
+          
+          console.log('Fallback query succeeded with', fallbackData?.length || 0, 'records');
+          processData(fallbackData || []);
+        } else {
+          console.log('RPC function succeeded with', campsiteData?.length || 0, 'records');
+          processData(campsiteData || []);
+        }
+      } catch (error) {
+        console.error('Unexpected error in fetchCampsites:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    fetchCampsites();
+  }, [supabase]);
+
+  // Function to load test data
+  const loadTestData = async (e) => {
+    // Prevent default form submission which would refresh the page
+    if (e) e.preventDefault();
+    
+    console.log('🔍 Load All Campsites button clicked');
+    setIsLoading(true);
+    
+    try {
+      // Use hard-coded test data since database approaches are failing
+      const testCampsites = [
+        {
+          id: 'test1',
+          name: 'Test Campsite 1',
+          type: 'Tent',
+          description: 'A test campsite near San Francisco',
+          normalizedLat: 37.7749,
+          normalizedLon: -122.4194
+        },
+        {
+          id: 'test2',
+          name: 'Test Campsite 2 - Yosemite',
+          type: 'RV',
+          description: 'A test campsite in Yosemite National Park',
+          normalizedLat: 37.8651,
+          normalizedLon: -119.5383
+        },
+        {
+          id: 'test3',
+          name: 'Test Campsite 3 - Los Angeles',
+          type: 'Tent',
+          description: 'A test campsite in Los Angeles',
+          normalizedLat: 34.0522,
+          normalizedLon: -118.2437
+        },
+        {
+          id: 'test4',
+          name: 'Test Campsite 4 - Lake Tahoe',
+          type: 'Cabin',
+          description: 'A beautiful cabin by Lake Tahoe',
+          normalizedLat: 39.0968,
+          normalizedLon: -120.0324
+        },
+        {
+          id: 'test5',
+          name: 'Test Campsite 5 - San Diego',
+          type: 'Tent',
+          description: 'Beach camping in San Diego',
+          normalizedLat: 32.7157,
+          normalizedLon: -117.1611
+        }
+      ];
+      
+      console.log('🔍 Using test data with', testCampsites.length, 'campsites');
+      
+      // This is like calling processData but skips the validation since our data is pre-normalized
+      console.log('🔍 Setting campsites directly from test data');
+      setCampsites(testCampsites);
+      
+      // Wait a moment for the state to update before attempting to add markers
+      setTimeout(() => {
+        if (map.current) {
+          console.log('✅ Adding markers for test data manually');
+          updateMarkers();
+        } else {
+          console.warn('⚠️ Map not ready yet, markers will be added when map loads');
+        }
+      }, 500);
+      
+    } catch (error) {
+      console.error('❌ Error in loadTestData:', error);
+      alert(`An error occurred: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initialize map
+  useEffect(() => {
+    if (isLoading || !mapContainer.current || map.current) return;
+
+    console.log('🔍 Initializing map...');
+    try {
+      // Initialize map
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/outdoors-v12',
+        center: [-120.5542, 37.2345],
+        zoom: 6
+      });
+
+      console.log('✅ Map object created successfully');
+
+      map.current.addControl(new mapboxgl.NavigationControl());
+      console.log('✅ Map controls added');
+
+      // Wait for map to load before setting mapLoaded to true
+      map.current.on('load', () => {
+        console.log('✅ Map loaded event fired');
+        setMapLoaded(true);
+        console.log('✅ mapLoaded state set to true');
+        
+        // If we already have campsites data, update the markers now
+        if (campsites.length > 0) {
+          console.log('🔍 Found existing campsites, updating markers after map load');
+          updateMarkers();
+        }
+      });
+      
+      // Add additional debug events
+      map.current.on('error', (e) => {
+        console.error('❌ Mapbox error:', e.error);
+      });
+      
+      console.log('✅ Map initialization complete, waiting for load event');
+    } catch (error) {
+      console.error('❌ Error initializing map:', error);
+    }
+
+    // Clean up on unmount
+    return () => {
+      if (map.current) {
+        console.log('🔍 Cleaning up map instance');
+        map.current.remove();
+        map.current = null;
+        setMapLoaded(false);
+      }
+    };
+  }, [isLoading, campsites.length]);
+
+  // Update markers when campsites change
+  useEffect(() => {
+    console.log('🔄 Campsites state changed, length:', campsites.length);
+    
+    if (!map.current) {
+      console.warn('⚠️ Map not initialized yet, cannot update markers');
+      return;
+    }
+    
+    if (!mapLoaded) {
+      console.warn('⚠️ Map initialized but not fully loaded yet, waiting for load event');
+      return;
+    }
+    
+    if (!campsites.length) {
+      console.warn('⚠️ No campsites to display on map');
+      return;
+    }
+
+    console.log('✅ Calling updateMarkers with', campsites.length, 'campsites');
+    updateMarkers();
+  }, [campsites, mapLoaded]);
 
   if (isLoading) {
     return (
