@@ -1,0 +1,122 @@
+# Node.js dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (all variants)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.*.local
+*.env
+**/.env*
+
+# API Keys and Secrets
+config/keys.js
+config/secrets.js
+secrets/
+keys/
+credentials/
+*.key
+*.pem
+*.p12
+*.crt
+*.cer
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+db.json
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.vercel/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.npm/
+.yarn/cache/
+.pnp/
+
+# Temporary folders
+tmp/
+temp/
+
+# Testing
+.nyc_output
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env.test
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Supabase
+.supabase/
+
+# Local development files
+local.settings.json
+appsettings.local.json 
