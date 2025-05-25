@@ -193,7 +193,7 @@ export default function Plan() {
         
         <h1 className="text-4xl font-bold text-center text-[#111827] mb-6" data-aos="fade-up">Trip Planner</h1>
         <p className="text-center mb-8 text-[#4B5563] text-lg" data-aos="fade-up" data-aos-delay="100">
-          Describe your ideal trip and we'll suggest options for you
+          Describe your ideal trip and we&apos;ll suggest options for you
         </p>
 
         <div 
