@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export default function CampsiteCard({ campsite, onClick }) {
   return (
     <div 
@@ -6,10 +8,12 @@ export default function CampsiteCard({ campsite, onClick }) {
     >
       {campsite.media && campsite.media[0] ? (
         <div className="relative h-48 w-full">
-          <img
+          <Image
             src={campsite.media[0].URL}
             alt={campsite.name}
-            className="object-cover w-full h-full"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 33vw"
           />
           {campsite.demand_assessment && (
             <div className="absolute top-3 left-3 bg-black bg-opacity-60 text-white px-2 py-1 rounded-full text-xs">

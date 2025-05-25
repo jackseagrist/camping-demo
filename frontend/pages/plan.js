@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
@@ -255,11 +256,13 @@ export default function Plan() {
                   className="bg-white rounded-xl shadow-md border border-[#D1D5DB] overflow-hidden hover:shadow-lg transition cursor-pointer"
                   onClick={() => !isCreatingTrip && handleCreateTrip(trip)}
                 >
-                  <div className="h-40 overflow-hidden">
-                    <img 
+                  <div className="h-40 overflow-hidden relative">
+                    <Image 
                       src={trip.image} 
                       alt={trip.title} 
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 33vw"
                     />
                   </div>
                   <div className="p-5">
@@ -274,7 +277,7 @@ export default function Plan() {
                       className="w-full bg-[#10B981] text-white font-medium py-2 rounded-lg hover:bg-[#14B8A6] transition"
                       disabled={isCreatingTrip}
                     >
-                      {isCreatingTrip ? 'Creating...' : 'Select This Trip'}
+                      {isCreatingTrip ? "Creating..." : "Select This Trip"}
                     </button>
                   </div>
                 </div>
