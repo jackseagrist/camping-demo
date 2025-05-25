@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
 import { Inter } from 'next/font/google';
@@ -11,52 +12,34 @@ import 'aos/dist/aos.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export default function Plan() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [debugMessages, setDebugMessages] = useState([]);
   const supabase = createClientComponentClient();
-
-  const [formData, setFormData] = useState({
-    tripType: '',
-    groupSize: 1,
-    duration: 1,
-    location: '',
-    month: '',
-    experienceLevel: '',
-    sustainability: '',
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [packingList, setPackingList] = useState(null);
+  
+  // Chat interface state
+  const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [tripOptions, setTripOptions] = useState([]);
   const [error, setError] = useState(null);
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [parsedPackingList, setParsedPackingList] = useState([]);
-
-  const addDebugMessage = (message) => {
-    console.log(`DEBUG: ${message}`);
-    setDebugMessages(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
-  };
+  const [isCreatingTrip, setIsCreatingTrip] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
-      addDebugMessage('Starting auth check in PLAN page');
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          addDebugMessage(`Auth error: ${error.message}`);
           return;
         }
 
         if (!session) {
-          addDebugMessage('No session found, redirecting to login');
           window.location.href = '/login';
           return;
         }
 
-        addDebugMessage('Auth check successful in PLAN page');
         setIsLoading(false);
       } catch (error) {
-        addDebugMessage(`Exception during auth check: ${error.message}`);
+        console.error("Auth check error:", error);
       }
     };
 
@@ -70,10 +53,7 @@ export default function Plan() {
 
     checkAuth();
     
-    addDebugMessage('Plan component mounted');
-    
     return () => {
-      addDebugMessage('Plan component unmounting');
       if (subscription) subscription.unsubscribe();
     };
   }, [supabase.auth]);
@@ -83,167 +63,115 @@ export default function Plan() {
     AOS.init({ duration: 700, once: true });
   }, []);
 
-  // Parse packing list into categories when it updates
-  useEffect(() => {
-    if (!packingList) return;
-    
-    try {
-      // Parse the packing list into categories and items
-      const categories = [];
-      let currentCategory = null;
-      
-      // Split the packing list by lines and process each line
-      const lines = packingList.split('\n');
-      
-      lines.forEach(line => {
-        // Trim the line
-        const trimmedLine = line.trim();
-        
-        // Skip empty lines
-        if (!trimmedLine) return;
-        
-        // Check if this line is a category header (we assume it ends with a colon)
-        if (trimmedLine.endsWith(':') || /^[A-Z][\w\s]+:$/.test(trimmedLine)) {
-          // Create a new category
-          const title = trimmedLine.replace(/:$/, '');
-          currentCategory = {
-            title: title,
-            emoji: getCategoryEmoji(title),
-            items: []
-          };
-          categories.push(currentCategory);
-        } 
-        // If we have a current category, add this line as an item
-        else if (currentCategory) {
-          // Check if the line has a reason (separated by a dash or parentheses)
-          let item = trimmedLine;
-          let reason = '';
-          
-          if (trimmedLine.includes(' - ')) {
-            const parts = trimmedLine.split(' - ');
-            item = parts[0].trim();
-            reason = parts[1].trim();
-          } else if (trimmedLine.includes(' (') && trimmedLine.endsWith(')')) {
-            const openParenIndex = trimmedLine.lastIndexOf(' (');
-            item = trimmedLine.substring(0, openParenIndex).trim();
-            reason = trimmedLine.substring(openParenIndex + 2, trimmedLine.length - 1).trim();
-          }
-          
-          // Add the item to the current category
-          currentCategory.items.push({
-            name: item,
-            reason: reason,
-            optional: item.toLowerCase().includes('optional') || reason.toLowerCase().includes('optional')
-          });
-        }
-      });
-      
-      setParsedPackingList(categories);
-      addDebugMessage(`Parsed ${categories.length} categories with items`);
-    } catch (error) {
-      addDebugMessage(`Error parsing packing list: ${error.message}`);
-    }
-  }, [packingList]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    addDebugMessage(`Form field changed: ${name} = ${value}`);
-    setFormData({ ...formData, [name]: value });
+  const handlePromptChange = (e) => {
+    setPrompt(e.target.value);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setPackingList(null);
-    setParsedPackingList([]);
-    setCopySuccess(false);
+    if (!prompt.trim()) return;
     
-    addDebugMessage('Generating packing list...');
-    addDebugMessage(`Form data: ${JSON.stringify(formData)}`);
+    setIsGenerating(true);
+    setError(null);
 
     try {
-      const res = await fetch('http://localhost:8000/packing-list/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await res.json();
+      // In a real implementation, this would be an API call to your AI model
+      // For now, we're mocking the response with sample data
       
-      if (res.ok) {
-        addDebugMessage('Packing list generated successfully');
-        setPackingList(data.result);
-      } else {
-        throw new Error(data.error || 'Something went wrong');
-      }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock response with three trip options
+      const mockResponse = generateMockTrips(prompt);
+      setTripOptions(mockResponse);
     } catch (err) {
-      addDebugMessage(`Error generating packing list: ${err.message}`);
-      setError(err.message);
+      setError('Failed to generate trip options. Please try again.');
+      console.error("Error generating trip options:", err);
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
     }
   };
-  
-  // Helper function to get emoji for a category
-  const getCategoryEmoji = (category) => {
-    const categoryLower = category.toLowerCase();
+
+  // Mock function to generate trip options based on the prompt
+  const generateMockTrips = (prompt) => {
+    const promptLower = prompt.toLowerCase();
     
-    if (categoryLower.includes('shelter') || categoryLower.includes('sleep')) return '📦';
-    if (categoryLower.includes('cook') || categoryLower.includes('food') || categoryLower.includes('kitchen')) return '🔥';
-    if (categoryLower.includes('cloth')) return '🎒';
-    if (categoryLower.includes('hiking') || categoryLower.includes('footwear')) return '👟';
-    if (categoryLower.includes('hygiene') || categoryLower.includes('toiletries')) return '🧼';
-    if (categoryLower.includes('first aid') || categoryLower.includes('medical') || categoryLower.includes('emergency')) return '🩹';
-    if (categoryLower.includes('electronic') || categoryLower.includes('tech')) return '🔋';
-    if (categoryLower.includes('water')) return '💧';
-    if (categoryLower.includes('navigation') || categoryLower.includes('map')) return '🧭';
-    if (categoryLower.includes('tool')) return '🔧';
-    if (categoryLower.includes('accessory')) return '🧢';
-    if (categoryLower.includes('light')) return '🔦';
-    if (categoryLower.includes('personal')) return '📱';
+    // Basic pattern matching to generate somewhat relevant results
+    const locationKeywords = {
+      'beach': ['Myrtle Beach', 'Outer Banks', 'Big Sur'],
+      'mountain': ['Yosemite', 'Rocky Mountain', 'Great Smoky Mountains'],
+      'desert': ['Joshua Tree', 'Moab', 'Grand Canyon'],
+      'lake': ['Lake Tahoe', 'Finger Lakes', 'Lake Michigan'],
+      'forest': ['Redwood Forest', 'Olympic National Park', 'White Mountain']
+    };
     
-    // Default emoji if no match is found
-    return '🏕️';
+    // Default location type if none found in prompt
+    let locationType = 'mountain';
+    
+    // Find location type in prompt
+    for (const type in locationKeywords) {
+      if (promptLower.includes(type)) {
+        locationType = type;
+        break;
+      }
+    }
+    
+    // Extract month if mentioned
+    const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    let month = 'summer';
+    
+    for (const m of months) {
+      if (promptLower.includes(m)) {
+        month = m;
+        break;
+      }
+    }
+    
+    // Generate mock trips based on location type and month
+    return locationKeywords[locationType].map((location, index) => ({
+      id: index + 1,
+      title: `${location} ${locationType.charAt(0).toUpperCase() + locationType.slice(1)} Adventure`,
+      location: location,
+      description: `A perfect ${locationType} getaway in ${location} during ${month}. This trip offers spectacular views, great hiking trails, and unforgettable memories.`,
+      tripType: promptLower.includes('rv') ? 'RV' : 
+                promptLower.includes('backpack') ? 'Backpacking' : 'Car Camping',
+      duration: 3,
+      groupSize: 4,
+      experienceLevel: 'Intermediate',
+      image: `https://source.unsplash.com/random/300x200?${locationType},camping`
+    }));
   };
-  
-  // Create notes-friendly text format for clipboard
-  const formatForNotes = () => {
-    let notesText = `📝 Packing List for ${formData.tripType || 'Trip'} (${formData.duration || 1} days)\n\n`;
-    
-    parsedPackingList.forEach(category => {
-      notesText += `${category.emoji} ${category.title}\n`;
-      
-      category.items.forEach(item => {
-        notesText += `☐ ${item.name}`;
-        if (item.reason) {
-          notesText += ` – ${item.reason}`;
-        }
-        notesText += '\n';
-      });
-      
-      notesText += '\n'; // Add empty line between categories
-    });
-    
-    return notesText;
-  };
-  
-  // Copy formatted list to clipboard
-  const copyToNotes = async () => {
+
+  const handleCreateTrip = async (tripOption) => {
+    setIsCreatingTrip(true);
+
     try {
-      const formattedList = formatForNotes();
-      await navigator.clipboard.writeText(formattedList);
+      const { data: { user } } = await supabase.auth.getUser();
       
-      setCopySuccess(true);
-      addDebugMessage('Copied packing list to clipboard');
-      
-      // Reset success message after 3 seconds
-      setTimeout(() => setCopySuccess(false), 3000);
-    } catch (error) {
-      addDebugMessage(`Error copying to clipboard: ${error.message}`);
-      alert('Failed to copy to clipboard. Please try again.');
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: trip, error } = await supabase
+        .from('trips')
+        .insert([
+          {
+            user_id: user.id,
+            title: tripOption.title,
+            location: tripOption.location,
+            packing_list: [], // Empty packing list to start
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      router.push(`/trips/${trip.id}`);
+    } catch (err) {
+      setError('Failed to create trip. Please try again.');
+      console.error("Error creating trip:", err);
+      setIsCreatingTrip(false);
     }
   };
 
@@ -262,57 +190,54 @@ export default function Plan() {
           <title>Plan Your Trip - BaseLodge</title>
         </Head>
         
-        <h1 className="text-4xl font-bold text-center text-[#111827] mb-8" data-aos="fade-up">Plan Your Trip</h1>
+        <h1 className="text-4xl font-bold text-center text-[#111827] mb-6" data-aos="fade-up">Trip Planner</h1>
         <p className="text-center mb-8 text-[#4B5563] text-lg" data-aos="fade-up" data-aos-delay="100">
-          Create a custom packing list for your next adventure
+          Describe your ideal trip and we'll suggest options for you
         </p>
 
-        <form 
-          onSubmit={handleSubmit} 
-          className="bg-white p-8 rounded-xl shadow-lg border border-[#D1D5DB] space-y-6 mb-8" 
+        <div 
+          className="bg-white p-8 rounded-xl shadow-lg border border-[#D1D5DB] mb-8" 
           data-aos="fade-up"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {Object.entries({
-              tripType: 'Trip Type',
-              groupSize: 'Group Size',
-              duration: 'Duration (Days)',
-              location: 'Location',
-              month: 'Month',
-              experienceLevel: 'Experience Level',
-              sustainability: 'Sustainability Preference',
-            }).map(([name, label]) => (
-              <div key={name} className="flex flex-col">
-                <label className="text-sm mb-1 font-medium text-[#111827]">{label}</label>
-                {name === 'tripType' || name === 'experienceLevel' || name === 'sustainability' ? (
-                  <select name={name} value={formData[name]} onChange={handleChange} className="w-full border border-[#D1D5DB] rounded-md px-3 py-2 bg-[#F9FAFB]">
-                    <option value="">Select</option>
-                    {name === 'tripType' && ["Car Camping", "Backpacking", "RV"].map(option => <option key={option} value={option}>{option}</option>)}
-                    {name === 'experienceLevel' && ["Beginner", "Intermediate", "Advanced"].map(option => <option key={option} value={option}>{option}</option>)}
-                    {name === 'sustainability' && ["High", "Moderate", "Low"].map(option => <option key={option} value={option}>{option}</option>)}
-                  </select>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                value={prompt}
+                onChange={handlePromptChange}
+                placeholder="Find me a beach camping spot for July..."
+                className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 pr-28 bg-[#F9FAFB] focus:ring-2 focus:ring-[#10B981] focus:border-transparent"
+                disabled={isGenerating}
+              />
+              <button 
+                type="submit" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#10B981] text-white font-medium px-4 py-1.5 rounded-lg shadow hover:bg-[#14B8A6] transition"
+                disabled={isGenerating || !prompt.trim()}
+              >
+                {isGenerating ? (
+                  <div className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Thinking...</span>
+                  </div>
                 ) : (
-                  <input
-                    type={name === 'groupSize' || name === 'duration' ? 'number' : 'text'}
-                    name={name}
-                    value={formData[name]}
-                    onChange={handleChange}
-                    min={name === 'groupSize' || name === 'duration' ? 1 : undefined}
-                    className="w-full border border-[#D1D5DB] rounded-md px-3 py-2 bg-[#F9FAFB]"
-                  />
+                  <span>Generate</span>
                 )}
-              </div>
-            ))}
-          </div>
+              </button>
+            </div>
+          </form>
+        </div>
 
-          <button 
-            type="submit" 
-            className="bg-[#10B981] text-white font-semibold px-6 py-3 rounded-full shadow hover:bg-[#14B8A6] transition w-full text-lg" 
-            disabled={loading}
-          >
-            {loading ? 'Generating...' : 'Generate Packing List'}
-          </button>
-        </form>
+        {isGenerating && (
+          <div className="flex justify-center items-center py-12" data-aos="fade-up">
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="w-16 h-16 border-4 border-[#10B981] border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-[#4B5563]">Generating trip suggestions...</p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200" data-aos="fade-up">
@@ -320,88 +245,43 @@ export default function Plan() {
           </div>
         )}
 
-        {packingList && (
-          <div 
-            className="mt-8 bg-[#E6FFF4] p-6 rounded-lg border border-[#D1D5DB] shadow-md" 
-            data-aos="fade-up"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-[#111827]">Your Packing List</h2>
-              <button
-                onClick={copyToNotes}
-                className="flex items-center px-4 py-2 bg-[#10B981] text-white rounded-full hover:bg-[#14B8A6] transition"
-              >
-                {copySuccess ? (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                    </svg>
-                    <span>Copy to Notes</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <div className="text-[#4B5563] whitespace-pre-wrap">
-              {parsedPackingList.length > 0 ? (
-                <div className="space-y-6">
-                  {parsedPackingList.map((category, catIndex) => (
-                    <div key={catIndex} className="border-b border-[#D1D5DB] pb-4 last:border-b-0">
-                      <h3 className="font-semibold text-lg mb-2">
-                        {category.emoji} {category.title}
-                      </h3>
-                      <ul className="space-y-2 pl-6">
-                        {category.items.map((item, itemIndex) => (
-                          <li key={itemIndex} className="flex items-start">
-                            <input
-                              type="checkbox"
-                              className="mt-1 mr-2"
-                              id={`item-${catIndex}-${itemIndex}`}
-                            />
-                            <label htmlFor={`item-${catIndex}-${itemIndex}`} className="flex-1">
-                              <span>{item.name}</span>
-                              {item.reason && (
-                                <span className="text-gray-500 text-sm ml-2">
-                                  – {item.reason}
-                                </span>
-                              )}
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
+        {!isGenerating && tripOptions.length > 0 && (
+          <div className="mt-8" data-aos="fade-up">
+            <h2 className="text-2xl font-bold text-[#111827] mb-6">Suggested Trips</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {tripOptions.map((trip) => (
+                <div 
+                  key={trip.id} 
+                  className="bg-white rounded-xl shadow-md border border-[#D1D5DB] overflow-hidden hover:shadow-lg transition cursor-pointer"
+                  onClick={() => !isCreatingTrip && handleCreateTrip(trip)}
+                >
+                  <div className="h-40 overflow-hidden">
+                    <img 
+                      src={trip.image} 
+                      alt={trip.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <h3 className="font-bold text-lg text-[#111827] mb-2">{trip.title}</h3>
+                    <p className="text-[#4B5563] text-sm mb-3">{trip.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="text-xs bg-[#E6FFF4] text-[#10B981] px-2 py-1 rounded-full">{trip.tripType}</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{trip.duration} days</span>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{trip.experienceLevel}</span>
                     </div>
-                  ))}
+                    <button 
+                      className="w-full bg-[#10B981] text-white font-medium py-2 rounded-lg hover:bg-[#14B8A6] transition"
+                      disabled={isCreatingTrip}
+                    >
+                      {isCreatingTrip ? 'Creating...' : 'Select This Trip'}
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                packingList
-              )}
+              ))}
             </div>
           </div>
         )}
-        
-        {/* Debug Information */}
-        <div className="mt-8">
-          <details>
-            <summary className="font-semibold text-gray-600 cursor-pointer">Debug Information</summary>
-            {debugMessages.length > 0 && (
-              <div className="mt-2 p-4 bg-gray-100 rounded-lg">
-                <h2 className="font-semibold mb-2">Debug Log:</h2>
-                <div className="font-mono text-sm">
-                  {debugMessages.map((msg, i) => (
-                    <div key={i} className="py-1">{msg}</div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </details>
-        </div>
       </div>
     </SidebarLayout>
   );
