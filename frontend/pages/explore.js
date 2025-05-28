@@ -10,8 +10,14 @@ mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export default function Explore() {
   const [isLoading, setIsLoading] = useState(true);
-  const [campsites, setCampsites] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const [displayMode, setDisplayMode] = useState('demand'); // 'demand' or 'cost'
+  const [filteredFacilities, setFilteredFacilities] = useState([]);
+  const [filters, setFilters] = useState({
+    demand: [],
+    cost: []
+  });
   const supabase = createClientComponentClient();
 
   // Map state
@@ -19,81 +25,252 @@ export default function Explore() {
   const map = useRef(null);
   const markers = useRef({});
 
-  // Helper function to process and normalize campsite data
+  // Filter facilities based on selected criteria
+  useEffect(() => {
+    if (!facilities.length) return;
+
+    let filtered = [...facilities];
+    
+    // Apply demand filters if any are selected
+    if (filters.demand.length > 0) {
+      filtered = filtered.filter(facility => 
+        filters.demand.includes(facility.demand_assessment)
+      );
+    }
+    
+    // Apply cost filters if any are selected
+    if (filters.cost.length > 0) {
+      filtered = filtered.filter(facility => 
+        filters.cost.includes(facility.cost_assessment_2)
+      );
+    }
+    
+    setFilteredFacilities(filtered);
+  }, [facilities, filters]);
+
+  // Toggle a filter value
+  const toggleFilter = (filterType, value) => {
+    setFilters(prevFilters => {
+      const currentValues = [...prevFilters[filterType]];
+      
+      if (currentValues.includes(value)) {
+        // Remove the value if it's already selected
+        return {
+          ...prevFilters,
+          [filterType]: currentValues.filter(v => v !== value)
+        };
+      } else {
+        // Add the value if it's not selected
+        return {
+          ...prevFilters,
+          [filterType]: [...currentValues, value]
+        };
+      }
+    });
+  };
+
+  // Helper function to process and normalize facility data
   const processData = (data) => {
-    console.log('🔍 processData called with', data?.length || 0, 'campsites');
+    console.log('🔍 processData called with', data?.length || 0, 'facilities');
     
     if (!data || !Array.isArray(data) || data.length === 0) {
       console.warn('⚠️ processData received no data or invalid data');
-      setCampsites([]);
+      setFacilities([]);
       setIsLoading(false);
       return;
     }
     
     if (data.length > 0) {
-      console.log('🔍 Sample campsite structure:', JSON.stringify(data[0], null, 2));
+      console.log('🔍 Sample facility structure:', JSON.stringify(data[0], null, 2));
     }
     
-    const validCampsites = data.filter(campsite => {
-      if (!campsite) {
-        console.warn('⚠️ Skipping undefined/null campsite');
+    const validFacilities = data.filter(facility => {
+      if (!facility) {
+        console.warn('⚠️ Skipping undefined/null facility');
         return false;
       }
       
-      // Log full campsite for debugging
-      console.log('🔍 Processing campsite:', JSON.stringify(campsite));
+      // Log full facility for debugging
+      console.log('🔍 Processing facility:', JSON.stringify(facility));
       
       // Normalize coordinates
-      const latitude = campsite.lat || campsite.Lat || campsite.latitude || campsite.Latitude;
-      const longitude = campsite.lon || campsite.Lon || campsite.longitude || campsite.Longitude;
+      const latitude = facility.lat || facility.Lat || facility.latitude || facility.Latitude;
+      const longitude = facility.lon || facility.Lon || facility.longitude || facility.Longitude;
       
       const hasLat = latitude !== null && latitude !== undefined;
       const hasLon = longitude !== null && longitude !== undefined;
       const latValid = hasLat && !isNaN(parseFloat(latitude));
       const lonValid = hasLon && !isNaN(parseFloat(longitude));
       
-      console.log(`🔍 Campsite ${campsite.name || campsite.id || 'unnamed'} - lat: ${latitude} (${latValid}), lon: ${longitude} (${lonValid})`);
+      console.log(`🔍 Facility ${facility.name || facility.id || 'unnamed'} - lat: ${latitude} (${latValid}), lon: ${longitude} (${lonValid})`);
       
       if (latValid && lonValid) {
         // Add normalized lat/lon to make sure we use consistent fields
-        campsite.normalizedLat = parseFloat(latitude);
-        campsite.normalizedLon = parseFloat(longitude);
+        facility.normalizedLat = parseFloat(latitude);
+        facility.normalizedLon = parseFloat(longitude);
         return true;
       }
       
-      console.warn(`⚠️ Skipping campsite with invalid coordinates: ${campsite.name || campsite.id}`);
+      console.warn(`⚠️ Skipping facility with invalid coordinates: ${facility.name || facility.id}`);
       return false;
     });
     
-    console.log(`✅ Found ${validCampsites.length} valid campsites out of ${data.length} total`);
+    console.log(`✅ Found ${validFacilities.length} valid facilities out of ${data.length} total`);
     
-    if (validCampsites.length > 0) {
-      console.log('✅ First valid campsite:', JSON.stringify(validCampsites[0], null, 2));
+    if (validFacilities.length > 0) {
+      console.log('✅ First valid facility:', JSON.stringify(validFacilities[0], null, 2));
     } else {
-      console.warn('⚠️ No valid campsites with coordinates found');
+      console.warn('⚠️ No valid facilities with coordinates found');
     }
     
     // Update state to trigger map update
-    console.log('🔍 Setting campsites state:', validCampsites.length, 'items');
-    setCampsites(validCampsites);
+    console.log('🔍 Setting facilities state:', validFacilities.length, 'items');
+    setFacilities(validFacilities);
     setIsLoading(false);
     
     // Add a slight delay and log to confirm state was updated
     setTimeout(() => {
-      console.log('✅ Current campsites state:', campsites.length, 'items');
+      console.log('✅ Current facilities state:', facilities.length, 'items');
     }, 100);
+  };
+
+  // Create a custom marker element
+  const createCustomMarker = (facility, assessmentValue) => {
+    // Create wrapper div (main container that mapbox will position)
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.className = 'marker-wrapper';
+    // The wrapper must have zero dimensions to allow proper positioning
+    wrapperDiv.style.width = '0';
+    wrapperDiv.style.height = '0';
+    wrapperDiv.style.position = 'relative';
+    wrapperDiv.style.overflow = 'visible'; // Allow the bubble to be visible outside wrapper
+    
+    // Create marker bubble div
+    const markerEl = document.createElement('div');
+    markerEl.className = 'marker-bubble';
+    
+    // Determine color based on assessment value
+    let bgColor = '#FFFFFF';
+    let textColor = '#222222';
+    
+    if (displayMode === 'demand') {
+      // Colors for demand levels
+      if (assessmentValue === 'High') {
+        bgColor = '#EF4444'; // Red for high demand
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Medium') {
+        bgColor = '#F59E0B'; // Amber for medium demand
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Low') {
+        bgColor = '#10B981'; // Green for low demand
+        textColor = '#FFFFFF';
+      }
+    } else {
+      // Colors for cost levels - using more appropriate cost categories
+      if (assessmentValue === 'Very Expensive') {
+        bgColor = '#EF4444'; // Red for premium/luxury
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Expensive') {
+        bgColor = '#F59E0B'; // Amber for moderate/standard
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Affordable') {
+        bgColor = '#10B981'; // Green for bargain/affordable
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Bargain') {
+        bgColor = '#3B82F6'; // Blue for free
+        textColor = '#FFFFFF';
+      }
+    }
+    
+    // Add a small pin/point indicator at the exact location
+    const pinPoint = document.createElement('div');
+    pinPoint.style.position = 'absolute';
+    pinPoint.style.width = '6px';
+    pinPoint.style.height = '6px';
+    pinPoint.style.borderRadius = '50%';
+    pinPoint.style.backgroundColor = bgColor;
+    pinPoint.style.border = '1px solid rgba(0, 0, 0, 0.2)';
+    pinPoint.style.left = '0';
+    pinPoint.style.top = '0';
+    pinPoint.style.transform = 'translate(-50%, -50%)';
+    pinPoint.style.zIndex = '0';
+    
+    // Apply styles similar to Airbnb bubble with custom colors
+    markerEl.style.backgroundColor = bgColor;
+    markerEl.style.color = textColor;
+    markerEl.style.borderRadius = '28px';
+    markerEl.style.boxShadow = '0px 3px 10px rgba(0, 0, 0, 0.1), 0px 2px 4px 0px rgba(0, 0, 0, 0.18), 0px 0px 0px 1px rgba(0, 0, 0, 0.08)';
+    markerEl.style.height = '28px';
+    markerEl.style.padding = '0px 8px';
+    markerEl.style.position = 'absolute';
+    markerEl.style.left = '0';
+    markerEl.style.top = '-20px'; // Position bubble above the pin point
+    markerEl.style.transform = 'translate(-50%, -50%)'; // Center the bubble
+    markerEl.style.transformOrigin = '50% 50%';
+    markerEl.style.transition = 'background-color 200ms, transform 200ms, box-shadow 200ms';
+    markerEl.style.cursor = 'pointer';
+    markerEl.style.width = 'auto'; // Allow width to fit content
+    markerEl.style.display = 'inline-block'; // Prevent full-width behavior
+    markerEl.style.minWidth = '28px'; // Minimum width for small values
+    markerEl.style.maxWidth = '60px'; // Maximum width to prevent overflow
+    markerEl.style.textAlign = 'center'; // Center the text
+    markerEl.style.zIndex = '1'; // Ensure it shows above other elements
+    
+    // Create inner content div
+    const contentDiv = document.createElement('div');
+    contentDiv.style.alignItems = 'center';
+    contentDiv.style.display = 'flex';
+    contentDiv.style.height = '100%';
+    contentDiv.style.justifyContent = 'center';
+    contentDiv.style.opacity = '1';
+    contentDiv.style.transition = 'opacity 200ms';
+    contentDiv.style.whiteSpace = 'nowrap';
+    
+    // Create span for text
+    const textSpan = document.createElement('span');
+    textSpan.style.fontWeight = '700';
+    textSpan.style.fontSize = '12px'; // Make text size smaller
+    textSpan.style.overflow = 'hidden';
+    textSpan.style.textOverflow = 'ellipsis';
+    textSpan.innerText = assessmentValue;
+    
+    // Assemble elements
+    contentDiv.appendChild(textSpan);
+    markerEl.appendChild(contentDiv);
+    wrapperDiv.appendChild(pinPoint);
+    wrapperDiv.appendChild(markerEl);
+    
+    // Add hover effects
+    markerEl.addEventListener('mouseenter', () => {
+      markerEl.style.transform = 'translate(-50%, -50%) scale(1.05)';
+      markerEl.style.boxShadow = '0px 6px 16px rgba(0, 0, 0, 0.12), 0px 2px 4px 0px rgba(0, 0, 0, 0.18), 0px 0px 0px 1px rgba(0, 0, 0, 0.08)';
+      markerEl.style.zIndex = '2'; // Bring to front on hover
+      pinPoint.style.width = '8px'; // Make pin point slightly larger on hover
+      pinPoint.style.height = '8px';
+    });
+    
+    markerEl.addEventListener('mouseleave', () => {
+      markerEl.style.transform = 'translate(-50%, -50%) scale(1)';
+      markerEl.style.boxShadow = '0px 3px 10px rgba(0, 0, 0, 0.1), 0px 2px 4px 0px rgba(0, 0, 0, 0.18), 0px 0px 0px 1px rgba(0, 0, 0, 0.08)';
+      markerEl.style.zIndex = '1';
+      pinPoint.style.width = '6px'; // Reset pin point size
+      pinPoint.style.height = '6px';
+    });
+    
+    return wrapperDiv;
   };
 
   const updateMarkers = () => {
     console.log('🔍 updateMarkers called');
     
-    if (!map.current || !campsites.length) {
-      console.warn('⚠️ Cannot update markers - map or campsites not ready');
+    if (!map.current || !filteredFacilities.length) {
+      console.warn('⚠️ Cannot update markers - map or facilities not ready');
       return;
     }
 
-    console.log('🔍 Updating map with', campsites.length, 'campsites');
+    console.log('🔍 Updating map with', filteredFacilities.length, 'facilities');
     console.log('🔍 Map object status:', map.current ? 'Available' : 'Not available');
+    console.log('🔍 Current display mode:', displayMode);
     
     try {
       // Clear existing markers
@@ -106,79 +283,88 @@ export default function Explore() {
       // If we have a lot of markers, adjust the map zoom to fit them all
       const bounds = new mapboxgl.LngLatBounds();
       
-      console.log('🔍 Looping through campsites to create markers...');
+      console.log('🔍 Looping through facilities to create markers...');
       
-      campsites.forEach((campsite, index) => {
-        console.log(`🔍 Processing campsite ${index+1}/${campsites.length}: ${campsite.name || 'Unnamed'}`);
+      filteredFacilities.forEach((facility, index) => {
+        console.log(`🔍 Processing facility ${index+1}/${filteredFacilities.length}: ${facility.name || 'Unnamed'}`);
         
         // Use normalized coordinates that we added during filtering
-        const lat = campsite.normalizedLat;
-        const lon = campsite.normalizedLon;
+        const lat = facility.normalizedLat;
+        const lon = facility.normalizedLon;
         
         if (isNaN(lat) || isNaN(lon)) {
-          console.warn(`⚠️ Skipping campsite with invalid coordinates:`, campsite);
+          console.warn(`⚠️ Skipping facility with invalid coordinates:`, facility);
           return;
         }
 
-        console.log(`🔍 Adding marker at [${lon}, ${lat}] for "${campsite.name || 'Unnamed'}"`);
+        console.log(`🔍 Adding marker at [${lon}, ${lat}] for "${facility.name || 'Unnamed'}"`);
         
         // Extend bounds for auto-fitting the map view
         try {
           bounds.extend([lon, lat]);
-          console.log(`🔍 Extended bounds to include campsite at [${lon}, ${lat}]`);
+          console.log(`🔍 Extended bounds to include facility at [${lon}, ${lat}]`);
         } catch (boundsError) {
           console.error(`❌ Error extending bounds:`, boundsError);
         }
 
         try {
+          // Get the assessment value based on the current display mode
+          const assessmentValue = displayMode === 'demand' 
+            ? (facility.demand_assessment || 'N/A')
+            : (facility.cost_assessment_2 || 'N/A');
+          
           // Create a popup that shows on hover
-          console.log(`🔍 Creating popup for "${campsite.name || 'Unnamed'}"`);
+          console.log(`🔍 Creating popup for "${facility.name || 'Unnamed'}"`);
           const popup = new mapboxgl.Popup({
             closeButton: false,
             closeOnClick: false,
             offset: 25,
-            className: 'campsite-popup'
+            className: 'facility-popup'
           }).setHTML(`
             <div class="p-2">
-              <h3 class="font-semibold text-base">${campsite.name || campsite.Name || 'Unnamed Campsite'}</h3>
-              <p class="text-sm text-gray-600">${campsite.type || campsite.Type || 'Campsite'}</p>
-              ${campsite.description ? `<p class="text-xs mt-1">${campsite.description}</p>` : ''}
+              <h3 class="font-semibold text-base">${facility.name || 'Unnamed Facility'}</h3>
+              <p class="text-sm text-gray-600">${facility.type || 'Campground'}</p>
+              ${facility.description ? `<p class="text-xs mt-1">${facility.description.substring(0, 150)}${facility.description.length > 150 ? '...' : ''}</p>` : ''}
               <div class="text-xs mt-2 text-gray-500">
-                <p>Coordinates: ${lat.toFixed(4)}, ${lon.toFixed(4)}</p>
+                <p>${facility.city}${facility.city && facility.state ? ', ' : ''}${facility.state || ''}</p>
+                <p class="mt-1 font-medium">${displayMode === 'demand' ? 'Demand' : 'Cost'}: ${assessmentValue}</p>
               </div>
             </div>
           `);
 
-          // Create marker with popup
-          console.log(`🔍 Creating marker for "${campsite.name || 'Unnamed'}"`);
-          const marker = new mapboxgl.Marker({ 
-            color: '#10B981',
-            scale: 0.8
+          // Create custom marker element
+          const customMarkerElement = createCustomMarker(facility, assessmentValue);
+          
+          // Create marker with popup and custom element
+          console.log(`🔍 Creating marker for "${facility.name || 'Unnamed'}"`);
+          const marker = new mapboxgl.Marker({
+            element: customMarkerElement
           })
           .setLngLat([lon, lat])
           .setPopup(popup)
           .addTo(map.current);
           
-          console.log(`🔍 Successfully added marker to map for "${campsite.name || 'Unnamed'}"`);
+          console.log(`🔍 Successfully added marker to map for "${facility.name || 'Unnamed'}"`);
           
-          // Show popup on hover
-          const markerElement = marker.getElement();
-          markerElement.addEventListener('mouseenter', () => {
-            marker.togglePopup();
-          });
-          markerElement.addEventListener('mouseleave', () => {
-            setTimeout(() => {
-              if (popup.isOpen()) {
-                popup.remove();
-              }
-            }, 300);
-          });
+          // Show popup on click - update to target the bubble inside the wrapper
+          const bubbleElement = customMarkerElement.querySelector('.marker-bubble');
+          if (bubbleElement) {
+            bubbleElement.addEventListener('click', () => {
+              marker.togglePopup();
+            });
+          } else {
+            console.warn(`⚠️ Could not find bubble element for "${facility.name || 'Unnamed'}"`);
+            // Fallback to the wrapper if bubble not found
+            customMarkerElement.addEventListener('click', () => {
+              marker.togglePopup();
+            });
+          }
 
-          markers.current[campsite.campsite_id || campsite.id] = marker;
+          markers.current[facility.facility_id || facility.id] = marker;
           addedCount++;
-          console.log(`✅ Marker ${addedCount} added successfully for "${campsite.name || 'Unnamed'}"`);
+          console.log(`✅ Marker ${addedCount} added successfully for "${facility.name || 'Unnamed'}"`);
         } catch (error) {
-          console.error(`❌ Error adding marker for campsite "${campsite.name || 'Unnamed'}":`, error);
+          console.error(`❌ Error adding marker for facility "${facility.name || 'Unnamed'}":`, error);
         }
       });
 
@@ -198,10 +384,10 @@ export default function Explore() {
           
           try {
             // Fallback to center on first marker
-            console.log(`🔍 Fallback: centering on first campsite`);
-            const firstCampsite = campsites[0];
+            console.log(`🔍 Fallback: centering on first facility`);
+            const firstFacility = filteredFacilities[0];
             map.current.flyTo({
-              center: [firstCampsite.normalizedLon, firstCampsite.normalizedLat],
+              center: [firstFacility.normalizedLon, firstFacility.normalizedLat],
               zoom: 8
             });
             console.log(`✅ Fallback centering successful`);
@@ -217,22 +403,22 @@ export default function Explore() {
     }
   };
 
-  // Fetch campsites from Supabase
+  // Fetch facilities from Supabase
   useEffect(() => {
-    const fetchCampsites = async () => {
-      console.log('Fetching campsites...');
+    const fetchFacilities = async () => {
+      console.log('Fetching facilities...');
       
       try {
-        // Call the custom function for getting campsites with coordinates
-        console.log('Calling get_all_campsites() function...');
-        const { data: campsiteData, error: campsiteError } = await supabase.rpc('get_all_campsites');
+        // First try to call a custom function for getting facilities with coordinates
+        console.log('Calling get_all_facilities() function...');
+        const { data: facilityData, error: facilityError } = await supabase.rpc('get_all_facilities');
         
-        if (campsiteError) {
-          console.error('Error fetching campsites using RPC function:', campsiteError);
+        if (facilityError) {
+          console.error('Error fetching facilities using RPC function:', facilityError);
           // Fallback to direct query if function fails
           console.log('Trying direct query as fallback...');
           const { data: fallbackData, error: fallbackError } = await supabase
-            .from('campsites')
+            .from('facilities')
             .select('*')
             .not('lat', 'is', null)
             .not('lon', 'is', null)
@@ -247,16 +433,16 @@ export default function Explore() {
           console.log('Fallback query succeeded with', fallbackData?.length || 0, 'records');
           processData(fallbackData || []);
         } else {
-          console.log('RPC function succeeded with', campsiteData?.length || 0, 'records');
-          processData(campsiteData || []);
+          console.log('RPC function succeeded with', facilityData?.length || 0, 'records');
+          processData(facilityData || []);
         }
       } catch (error) {
-        console.error('Unexpected error in fetchCampsites:', error);
+        console.error('Unexpected error in fetchFacilities:', error);
         setIsLoading(false);
       }
     };
     
-    fetchCampsites();
+    fetchFacilities();
   }, [supabase]);
 
   // Function to load test data
@@ -264,59 +450,110 @@ export default function Explore() {
     // Prevent default form submission which would refresh the page
     if (e) e.preventDefault();
     
-    console.log('🔍 Load All Campsites button clicked');
+    console.log('🔍 Load Test Facilities button clicked');
     setIsLoading(true);
     
     try {
       // Use hard-coded test data since database approaches are failing
-      const testCampsites = [
+      const testFacilities = [
         {
           id: 'test1',
-          name: 'Test Campsite 1',
-          type: 'Tent',
-          description: 'A test campsite near San Francisco',
-          normalizedLat: 37.7749,
-          normalizedLon: -122.4194
+          facility_id: 'test1',
+          name: 'Yosemite Valley Campground',
+          type: 'National Park',
+          description: 'Iconic campground in the heart of Yosemite National Park',
+          normalizedLat: 37.7420,
+          normalizedLon: -119.5731,
+          city: 'Yosemite',
+          state: 'CA',
+          demand_assessment: 'High',
+          cost_assessment_2: 'Premium'
         },
         {
           id: 'test2',
-          name: 'Test Campsite 2 - Yosemite',
-          type: 'RV',
-          description: 'A test campsite in Yosemite National Park',
-          normalizedLat: 37.8651,
-          normalizedLon: -119.5383
+          facility_id: 'test2',
+          name: 'Point Reyes National Seashore',
+          type: 'National Seashore',
+          description: 'Coastal camping with beautiful beaches and wildlife',
+          normalizedLat: 38.0412,
+          normalizedLon: -122.9969,
+          city: 'Point Reyes',
+          state: 'CA',
+          demand_assessment: 'Medium',
+          cost_assessment_2: 'Moderate'
         },
         {
           id: 'test3',
-          name: 'Test Campsite 3 - Los Angeles',
-          type: 'Tent',
-          description: 'A test campsite in Los Angeles',
-          normalizedLat: 34.0522,
-          normalizedLon: -118.2437
+          facility_id: 'test3',
+          name: 'Big Sur Campgrounds',
+          type: 'State Park',
+          description: 'Scenic coastal camping along California\'s Big Sur coastline',
+          normalizedLat: 36.2704,
+          normalizedLon: -121.8081,
+          city: 'Big Sur',
+          state: 'CA',
+          demand_assessment: 'High',
+          cost_assessment_2: 'Luxury'
         },
         {
           id: 'test4',
-          name: 'Test Campsite 4 - Lake Tahoe',
-          type: 'Cabin',
-          description: 'A beautiful cabin by Lake Tahoe',
-          normalizedLat: 39.0968,
-          normalizedLon: -120.0324
+          facility_id: 'test4',
+          name: 'Joshua Tree National Park',
+          type: 'National Park',
+          description: 'Desert camping among unique Joshua trees and rock formations',
+          normalizedLat: 33.8734,
+          normalizedLon: -115.9010,
+          city: 'Twentynine Palms',
+          state: 'CA',
+          demand_assessment: 'Medium',
+          cost_assessment_2: 'Standard'
         },
         {
           id: 'test5',
-          name: 'Test Campsite 5 - San Diego',
-          type: 'Tent',
-          description: 'Beach camping in San Diego',
-          normalizedLat: 32.7157,
-          normalizedLon: -117.1611
+          facility_id: 'test5',
+          name: 'Lake Tahoe Campgrounds',
+          type: 'National Forest',
+          description: 'Beautiful mountain camping near crystal clear Lake Tahoe',
+          normalizedLat: 39.0968,
+          normalizedLon: -120.0324,
+          city: 'South Lake Tahoe',
+          state: 'CA',
+          demand_assessment: 'Low',
+          cost_assessment_2: 'Bargain'
+        },
+        {
+          id: 'test6',
+          facility_id: 'test6',
+          name: 'Redwood National Park',
+          type: 'National Park',
+          description: 'Camp among the ancient giant redwood trees',
+          normalizedLat: 41.2132,
+          normalizedLon: -124.0046,
+          city: 'Orick',
+          state: 'CA',
+          demand_assessment: 'Medium',
+          cost_assessment_2: 'Affordable'
+        },
+        {
+          id: 'test7',
+          facility_id: 'test7',
+          name: 'Death Valley Primitive Sites',
+          type: 'National Park',
+          description: 'Remote backcountry camping in the desert wilderness',
+          normalizedLat: 36.5323,
+          normalizedLon: -116.9325,
+          city: 'Death Valley',
+          state: 'CA',
+          demand_assessment: 'Low',
+          cost_assessment_2: 'Free'
         }
       ];
       
-      console.log('🔍 Using test data with', testCampsites.length, 'campsites');
+      console.log('🔍 Using test data with', testFacilities.length, 'facilities');
       
       // This is like calling processData but skips the validation since our data is pre-normalized
-      console.log('🔍 Setting campsites directly from test data');
-      setCampsites(testCampsites);
+      console.log('🔍 Setting facilities directly from test data');
+      setFacilities(testFacilities);
       
       // Wait a moment for the state to update before attempting to add markers
       setTimeout(() => {
@@ -361,9 +598,9 @@ export default function Explore() {
         setMapLoaded(true);
         console.log('✅ mapLoaded state set to true');
         
-        // If we already have campsites data, update the markers now
-        if (campsites.length > 0) {
-          console.log('🔍 Found existing campsites, updating markers after map load');
+        // If we already have facilities data, update the markers now
+        if (facilities.length > 0) {
+          console.log('🔍 Found existing facilities, updating markers after map load');
           updateMarkers();
         }
       });
@@ -387,11 +624,11 @@ export default function Explore() {
         setMapLoaded(false);
       }
     };
-  }, [isLoading, campsites.length]);
+  }, [isLoading, facilities.length]);
 
-  // Update markers when campsites change
+  // Update markers when filtered facilities or display mode changes
   useEffect(() => {
-    console.log('🔄 Campsites state changed, length:', campsites.length);
+    console.log('🔄 Filtered facilities or display mode changed. Facilities:', filteredFacilities.length, 'Mode:', displayMode);
     
     if (!map.current) {
       console.warn('⚠️ Map not initialized yet, cannot update markers');
@@ -403,14 +640,21 @@ export default function Explore() {
       return;
     }
     
-    if (!campsites.length) {
-      console.warn('⚠️ No campsites to display on map');
+    if (!filteredFacilities.length) {
+      console.warn('⚠️ No facilities to display on map');
       return;
     }
 
-    console.log('✅ Calling updateMarkers with', campsites.length, 'campsites');
+    console.log('✅ Calling updateMarkers with', filteredFacilities.length, 'facilities');
     updateMarkers();
-  }, [campsites, mapLoaded]);
+  }, [filteredFacilities, mapLoaded, displayMode]);
+
+  // Set initial filtered facilities when facilities are loaded
+  useEffect(() => {
+    if (facilities.length > 0) {
+      setFilteredFacilities(facilities);
+    }
+  }, [facilities]);
 
   if (isLoading) {
     return (
@@ -420,10 +664,14 @@ export default function Explore() {
     );
   }
 
+  // Get unique values for filters
+  const uniqueDemandValues = [...new Set(facilities.map(f => f.demand_assessment).filter(Boolean))];
+  const uniqueCostValues = [...new Set(facilities.map(f => f.cost_assessment_2).filter(Boolean))];
+
   return (
     <SidebarLayout>
       <Head>
-        <title>Explore Campsites - BaseLodge</title>
+        <title>Explore Campgrounds - BaseLodge</title>
         <style jsx global>{`
           .mapboxgl-popup {
             z-index: 1000;
@@ -434,7 +682,7 @@ export default function Explore() {
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             overflow: hidden;
           }
-          .campsite-popup {
+          .facility-popup {
             max-width: 250px;
           }
         `}</style>
@@ -444,31 +692,73 @@ export default function Explore() {
         {/* Sidebar */}
         <div className="w-[320px] border-r border-gray-200 flex flex-col">
           <div className="p-4 bg-[#F9FAFB] border-b">
-            <h2 className="text-lg font-semibold">Campsites</h2>
+            <h2 className="text-lg font-semibold">Campgrounds</h2>
             <p className="text-sm text-gray-500">
-              {campsites.length} locations found
+              {filteredFacilities.length} locations found
             </p>
           </div>
+          
+          {/* Filters */}
+          <div className="p-4 border-b">
+            <div className="mb-4">
+              <h3 className="text-sm font-medium mb-2">Demand</h3>
+              <div className="flex flex-wrap gap-2">
+                {uniqueDemandValues.map(value => (
+                  <button
+                    key={`demand-${value}`}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      filters.demand.includes(value)
+                        ? 'bg-[#10B981] text-white'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
+                    onClick={() => toggleFilter('demand', value)}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium mb-2">Cost</h3>
+              <div className="flex flex-wrap gap-2">
+                {uniqueCostValues.map(value => (
+                  <button
+                    key={`cost-${value}`}
+                    className={`px-3 py-1 text-xs rounded-full ${
+                      filters.cost.includes(value)
+                        ? 'bg-[#10B981] text-white'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
+                    onClick={() => toggleFilter('cost', value)}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          
           <div className="flex-1 overflow-y-auto">
             <div className="py-3 pr-3 pl-2">
-              {campsites.length === 0 ? (
+              {filteredFacilities.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <p>No campsites found</p>
-                  <p className="text-sm mt-2">Try adjusting your search</p>
+                  <p>No campgrounds found</p>
+                  <p className="text-sm mt-2">Try adjusting your filters</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">
-                  {campsites.map(campsite => (
+                  {filteredFacilities.map(facility => (
                     <div 
-                      key={campsite.campsite_id || campsite.id || Math.random().toString()}
+                      key={facility.facility_id || facility.id || Math.random().toString()}
                       className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer bg-white transition-colors"
                       onClick={() => {
-                        const lat = campsite.normalizedLat;
-                        const lon = campsite.normalizedLon;
+                        const lat = facility.normalizedLat;
+                        const lon = facility.normalizedLon;
                         if (!isNaN(lat) && !isNaN(lon) && map.current) {
                           map.current.flyTo({
                             center: [lon, lat],
@@ -477,15 +767,26 @@ export default function Explore() {
                         }
                       }}
                     >
-                      <div className="font-medium text-[#10B981]">{campsite.name || campsite.Name || 'Unnamed Campsite'}</div>
+                      <div className="font-medium text-[#10B981]">{facility.name || 'Unnamed Campground'}</div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {campsite.type || campsite.Type || 'Campsite'}
+                        {facility.type || 'Campground'} 
+                        {facility.city && facility.state && (
+                          <span> • {facility.city}, {facility.state}</span>
+                        )}
                       </div>
-                      {campsite.description && (
+                      {facility.description && (
                         <div className="text-xs text-gray-700 mt-2 line-clamp-2">
-                          {campsite.description}
+                          {facility.description}
                         </div>
                       )}
+                      <div className="text-xs mt-2">
+                        <span className="inline-block mr-3">
+                          <span className="font-medium">Demand:</span> {facility.demand_assessment || 'N/A'}
+                        </span>
+                        <span className="inline-block">
+                          <span className="font-medium">Cost:</span> {facility.cost_assessment_2 || 'N/A'}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -497,8 +798,78 @@ export default function Explore() {
         {/* Map Container */}
         <div className="flex-1 flex flex-col">
           <div className="p-4 border-b bg-[#F9FAFB]">
-            <h1 className="text-2xl font-bold text-gray-800">Explore</h1>
-            <p className="text-sm text-gray-600">Find your next adventure</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Explore</h1>
+                <p className="text-sm text-gray-600">Find your next adventure</p>
+              </div>
+              <div className="flex flex-col items-end">
+                <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 mb-2">
+                  <button
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition ${
+                      displayMode === 'demand' 
+                        ? 'bg-[#10B981] text-white' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setDisplayMode('demand')}
+                  >
+                    Demand
+                  </button>
+                  <button
+                    className={`px-3 py-1 text-sm font-medium rounded-md transition ${
+                      displayMode === 'cost' 
+                        ? 'bg-[#10B981] text-white' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setDisplayMode('cost')}
+                  >
+                    Cost
+                  </button>
+                </div>
+                
+                {/* Color scale legend */}
+                <div className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="text-xs font-medium mb-1">
+                    {displayMode === 'demand' ? 'Demand Scale' : 'Cost Scale'}
+                  </div>
+                  {displayMode === 'demand' ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
+                        <span className="text-xs">High</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
+                        <span className="text-xs">Medium</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
+                        <span className="text-xs">Low</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
+                        <span className="text-xs">Very expensive</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
+                        <span className="text-xs">Expensive</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
+                        <span className="text-xs">Affordable</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-1"></div>
+                        <span className="text-xs">Bargain</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           <div className="flex-1 relative">
             <div 

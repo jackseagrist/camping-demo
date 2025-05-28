@@ -1,5 +1,11 @@
 -- SQL functions to add to your Supabase database
 
+-- Drop existing functions if they exist
+DROP FUNCTION IF EXISTS list_tables();
+DROP FUNCTION IF EXISTS simple_query(text);
+DROP FUNCTION IF EXISTS get_all_campsites();
+DROP FUNCTION IF EXISTS get_all_facilities();
+
 -- Function to list tables
 CREATE OR REPLACE FUNCTION list_tables()
 RETURNS TABLE (table_name text) SECURITY DEFINER AS $$
@@ -37,5 +43,29 @@ BEGIN
   FROM campsites c
   WHERE c.lat IS NOT NULL AND c.lon IS NOT NULL
   LIMIT 50;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get all facilities for Explore page
+CREATE OR REPLACE FUNCTION get_all_facilities()
+RETURNS SETOF json SECURITY DEFINER AS $$
+BEGIN
+  RETURN QUERY SELECT json_build_object(
+    'facility_id', f.facility_id,
+    'name', f.name,
+    'lat', f.lat,
+    'lon', f.lon,
+    'type', f.type,
+    'description', f.description,
+    'city', f.city,
+    'state', f.state,
+    'address_line1', f.address_line1,
+    'email', f.email,
+    'phone', f.phone,
+    'reservation_url', f.reservation_url
+  )
+  FROM facilities f
+  WHERE f.lat IS NOT NULL AND f.lon IS NOT NULL
+  LIMIT 100;
 END;
 $$ LANGUAGE plpgsql; 
