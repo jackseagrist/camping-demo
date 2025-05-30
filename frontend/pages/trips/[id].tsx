@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
 import TripDetailsEdit from '../../components/TripDetailsEdit';
+import TripNotes from '../../components/TripNotes';
 import { Trip, Item } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
@@ -200,7 +201,7 @@ export default function TripDetail() {
         <TripDetailsEdit trip={trip} onUpdate={setTrip} />
 
         {/* Packing List Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Packing List</h2>
             {trip.packing_list.length === 0 && (
@@ -263,6 +264,9 @@ export default function TripDetail() {
             </div>
           )}
         </div>
+        
+        {/* Trip Notes Section */}
+        <TripNotes trip={trip} onUpdate={setTrip} />
       </div>
     </SidebarLayout>
   );

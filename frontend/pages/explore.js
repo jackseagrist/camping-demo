@@ -13,17 +13,30 @@ export default function Explore() {
   const [facilities, setFacilities] = useState([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [displayMode, setDisplayMode] = useState('demand'); // 'demand' or 'cost'
+  const [locationType, setLocationType] = useState('campgrounds'); // 'campgrounds' or 'climbcovers'
   const [filteredFacilities, setFilteredFacilities] = useState([]);
   const [filters, setFilters] = useState({
     demand: [],
     cost: []
   });
+  const [selectedFacility, setSelectedFacility] = useState(null); // Track selected facility
+  const [showDetailPanel, setShowDetailPanel] = useState(false); // Control the detail panel visibility
   const supabase = createClientComponentClient();
 
   // Map state
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markers = useRef({});
+  
+  // Reference to the selected facility list item
+  const selectedFacilityRef = useRef(null);
+
+  // Scroll selected facility into view when changed
+  useEffect(() => {
+    if (selectedFacility && selectedFacilityRef.current) {
+      selectedFacilityRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedFacility]);
 
   // Filter facilities based on selected criteria
   useEffect(() => {
@@ -93,9 +106,25 @@ export default function Explore() {
       // Log full facility for debugging
       console.log('🔍 Processing facility:', JSON.stringify(facility));
       
-      // Normalize coordinates
-      const latitude = facility.lat || facility.Lat || facility.latitude || facility.Latitude;
-      const longitude = facility.lon || facility.Lon || facility.longitude || facility.Longitude;
+      // Check if assessment fields exist
+      if (locationType === 'campgrounds') {
+        console.log(`🔍 Assessment fields for "${facility.name || 'unnamed'}":`, {
+          demand: facility.demand_assessment,
+          cost: facility.cost_assessment_2
+        });
+      }
+      
+      // Normalize coordinates based on location type
+      let latitude, longitude;
+      
+      if (locationType === 'campgrounds') {
+        latitude = facility.lat || facility.Lat || facility.latitude || facility.Latitude;
+        longitude = facility.lon || facility.Lon || facility.longitude || facility.Longitude;
+      } else {
+        // ClimbCover locations use latitude/longitude field names
+        latitude = facility.latitude;
+        longitude = facility.longitude;
+      }
       
       const hasLat = latitude !== null && latitude !== undefined;
       const hasLon = longitude !== null && longitude !== undefined;
@@ -108,6 +137,14 @@ export default function Explore() {
         // Add normalized lat/lon to make sure we use consistent fields
         facility.normalizedLat = parseFloat(latitude);
         facility.normalizedLon = parseFloat(longitude);
+        
+        // Ensure campground facilities have assessment values
+        if (locationType === 'campgrounds') {
+          // Set default values if missing
+          if (!facility.demand_assessment) facility.demand_assessment = 'Medium';
+          if (!facility.cost_assessment_2) facility.cost_assessment_2 = 'Affordable';
+        }
+        
         return true;
       }
       
@@ -134,6 +171,55 @@ export default function Explore() {
     }, 100);
   };
 
+  // Process location data (for ClimbCover locations)
+  const processLocationData = (data) => {
+    console.log('🔍 processLocationData called with', data?.length || 0, 'locations');
+    
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      console.warn('⚠️ processLocationData received no data or invalid data');
+      setFacilities([]);
+      setIsLoading(false);
+      return;
+    }
+    
+    const validLocations = data.filter(location => {
+      if (!location) {
+        console.warn('⚠️ Skipping undefined/null location');
+        return false;
+      }
+      
+      const latitude = location.latitude;
+      const longitude = location.longitude;
+      
+      const hasLat = latitude !== null && latitude !== undefined;
+      const hasLon = longitude !== null && longitude !== undefined;
+      const latValid = hasLat && !isNaN(parseFloat(latitude));
+      const lonValid = hasLon && !isNaN(parseFloat(longitude));
+      
+      if (latValid && lonValid) {
+        // Add normalized fields and assessment fields for compatibility with the UI
+        location.normalizedLat = parseFloat(latitude);
+        location.normalizedLon = parseFloat(longitude);
+        
+        // Set default assessment values for locations
+        location.demand_assessment = 'Medium';
+        location.cost_assessment_2 = 'Affordable';
+        
+        // Add ID fields for compatibility
+        location.facility_id = location.id;
+        
+        return true;
+      }
+      
+      return false;
+    });
+    
+    console.log(`✅ Found ${validLocations.length} valid locations out of ${data.length} total`);
+    
+    setFacilities(validLocations);
+    setIsLoading(false);
+  };
+
   // Create a custom marker element
   const createCustomMarker = (facility, assessmentValue) => {
     // Create wrapper div (main container that mapbox will position)
@@ -149,36 +235,63 @@ export default function Explore() {
     const markerEl = document.createElement('div');
     markerEl.className = 'marker-bubble';
     
-    // Determine color based on assessment value
+    // Determine color based on assessment value and location type
     let bgColor = '#FFFFFF';
     let textColor = '#222222';
     
-    if (displayMode === 'demand') {
-      // Colors for demand levels
-      if (assessmentValue === 'High') {
-        bgColor = '#EF4444'; // Red for high demand
-        textColor = '#FFFFFF';
-      } else if (assessmentValue === 'Medium') {
-        bgColor = '#F59E0B'; // Amber for medium demand
-        textColor = '#FFFFFF';
-      } else if (assessmentValue === 'Low') {
-        bgColor = '#10B981'; // Green for low demand
-        textColor = '#FFFFFF';
+    if (locationType === 'campgrounds') {
+      if (displayMode === 'demand') {
+        // Colors for demand levels
+        if (assessmentValue === 'High') {
+          bgColor = '#EF4444'; // Red for high demand
+          textColor = '#FFFFFF';
+        } else if (assessmentValue === 'Medium') {
+          bgColor = '#F59E0B'; // Amber for medium demand
+          textColor = '#FFFFFF';
+        } else if (assessmentValue === 'Low') {
+          bgColor = '#10B981'; // Green for low demand
+          textColor = '#FFFFFF';
+        }
+      } else {
+        // Colors for cost levels - using more appropriate cost categories
+        if (assessmentValue === 'Very Expensive') {
+          bgColor = '#EF4444'; // Red for premium/luxury
+          textColor = '#FFFFFF';
+        } else if (assessmentValue === 'Expensive') {
+          bgColor = '#F59E0B'; // Amber for moderate/standard
+          textColor = '#FFFFFF';
+        } else if (assessmentValue === 'Affordable') {
+          bgColor = '#10B981'; // Green for bargain/affordable
+          textColor = '#FFFFFF';
+        } else if (assessmentValue === 'Bargain') {
+          bgColor = '#3B82F6'; // Blue for free
+          textColor = '#FFFFFF';
+        }
       }
     } else {
-      // Colors for cost levels - using more appropriate cost categories
-      if (assessmentValue === 'Very Expensive') {
-        bgColor = '#EF4444'; // Red for premium/luxury
-        textColor = '#FFFFFF';
-      } else if (assessmentValue === 'Expensive') {
-        bgColor = '#F59E0B'; // Amber for moderate/standard
-        textColor = '#FFFFFF';
-      } else if (assessmentValue === 'Affordable') {
-        bgColor = '#10B981'; // Green for bargain/affordable
-        textColor = '#FFFFFF';
-      } else if (assessmentValue === 'Bargain') {
-        bgColor = '#3B82F6'; // Blue for free
-        textColor = '#FFFFFF';
+      // ClimbCover locations - use a different color scheme
+      bgColor = '#6366F1'; // Indigo as base color for ClimbCover locations
+      textColor = '#FFFFFF';
+      
+      // We could still vary colors based on demand/cost if needed
+      if (displayMode === 'demand') {
+        if (assessmentValue === 'High') {
+          bgColor = '#8B5CF6'; // Purple variant for high demand
+        } else if (assessmentValue === 'Medium') {
+          bgColor = '#6366F1'; // Indigo for medium demand
+        } else if (assessmentValue === 'Low') {
+          bgColor = '#4F46E5'; // Darker indigo for low demand
+        }
+      } else {
+        if (assessmentValue === 'Very Expensive') {
+          bgColor = '#8B5CF6'; // Purple variant for expensive
+        } else if (assessmentValue === 'Expensive') {
+          bgColor = '#6366F1'; // Indigo for moderate
+        } else if (assessmentValue === 'Affordable') {
+          bgColor = '#4F46E5'; // Darker indigo for affordable
+        } else if (assessmentValue === 'Bargain') {
+          bgColor = '#4338CA'; // Darkest indigo for bargain
+        }
       }
     }
     
@@ -232,7 +345,13 @@ export default function Explore() {
     textSpan.style.fontSize = '12px'; // Make text size smaller
     textSpan.style.overflow = 'hidden';
     textSpan.style.textOverflow = 'ellipsis';
-    textSpan.innerText = assessmentValue;
+    
+    // For ClimbCover locations, display a house icon instead of text
+    if (locationType === 'climbcovers') {
+      textSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>';
+    } else {
+      textSpan.innerText = assessmentValue;
+    }
     
     // Assemble elements
     contentDiv.appendChild(textSpan);
@@ -313,24 +432,65 @@ export default function Explore() {
             ? (facility.demand_assessment || 'N/A')
             : (facility.cost_assessment_2 || 'N/A');
           
-          // Create a popup that shows on hover
+          // Log assessment values for debugging
+          console.log(`🔍 Assessment values for "${facility.name || 'Unnamed'}":`, {
+            demand: facility.demand_assessment,
+            cost: facility.cost_assessment_2,
+            used: assessmentValue
+          });
+          
+          // Create a popup that shows on hover with a button to see more details
           console.log(`🔍 Creating popup for "${facility.name || 'Unnamed'}"`);
+          
+          // Different popup content based on location type
+          let popupHtml = '';
+          
+          if (locationType === 'campgrounds') {
+            popupHtml = `
+              <div class="p-3">
+                <h3 class="font-semibold text-base">${facility.name || 'Unnamed Facility'}</h3>
+                <p class="text-sm text-gray-600">${facility.type || 'Campground'}</p>
+                ${facility.description ? `<p class="text-xs mt-1">${facility.description.substring(0, 100)}${facility.description.length > 100 ? '...' : ''}</p>` : ''}
+                <div class="text-xs mt-2 text-gray-500">
+                  <p>${facility.city}${facility.city && facility.state ? ', ' : ''}${facility.state || ''}</p>
+                  <div class="mt-1 grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="font-medium">Demand:</span> ${facility.demand_assessment || 'N/A'}
+                    </div>
+                    <div>
+                      <span class="font-medium">Cost:</span> ${facility.cost_assessment_2 || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+                <button class="mt-3 px-3 py-1 bg-[#10B981] text-white text-xs rounded-md hover:bg-[#0E9F6E] transition-colors w-full view-details-btn">
+                  View Details
+                </button>
+              </div>
+            `;
+          } else {
+            // ClimbCover location popup
+            popupHtml = `
+              <div class="p-3">
+                <h3 class="font-semibold text-base">${facility.location || 'Unnamed Location'}</h3>
+                <p class="text-sm text-gray-600">${facility.name || 'ClimbCover'}</p>
+                ${facility.note ? `<p class="text-xs mt-1">${facility.note.substring(0, 100)}${facility.note.length > 100 ? '...' : ''}</p>` : ''}
+                <div class="text-xs mt-2 text-gray-500">
+                  <p>${facility.city || ''}${facility.address ? ` • ${facility.address}` : ''}</p>
+                </div>
+                <button class="mt-3 px-3 py-1 bg-[#6366F1] text-white text-xs rounded-md hover:bg-[#4F46E5] transition-colors w-full view-details-btn">
+                  View Details
+                </button>
+              </div>
+            `;
+          }
+          
           const popup = new mapboxgl.Popup({
-            closeButton: false,
+            closeButton: true,
             closeOnClick: false,
             offset: 25,
-            className: 'facility-popup'
-          }).setHTML(`
-            <div class="p-2">
-              <h3 class="font-semibold text-base">${facility.name || 'Unnamed Facility'}</h3>
-              <p class="text-sm text-gray-600">${facility.type || 'Campground'}</p>
-              ${facility.description ? `<p class="text-xs mt-1">${facility.description.substring(0, 150)}${facility.description.length > 150 ? '...' : ''}</p>` : ''}
-              <div class="text-xs mt-2 text-gray-500">
-                <p>${facility.city}${facility.city && facility.state ? ', ' : ''}${facility.state || ''}</p>
-                <p class="mt-1 font-medium">${displayMode === 'demand' ? 'Demand' : 'Cost'}: ${assessmentValue}</p>
-              </div>
-            </div>
-          `);
+            className: 'facility-popup',
+            maxWidth: '300px'
+          }).setHTML(popupHtml);
 
           // Create custom marker element
           const customMarkerElement = createCustomMarker(facility, assessmentValue);
@@ -351,13 +511,48 @@ export default function Explore() {
           if (bubbleElement) {
             bubbleElement.addEventListener('click', () => {
               marker.togglePopup();
+              
+              // Add event listener to the "View Details" button after popup is shown
+              setTimeout(() => {
+                const viewDetailsBtn = document.querySelector('.view-details-btn');
+                if (viewDetailsBtn) {
+                  viewDetailsBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showFacilityDetails(facility);
+                  });
+                }
+              }, 100);
             });
           } else {
             console.warn(`⚠️ Could not find bubble element for "${facility.name || 'Unnamed'}"`);
             // Fallback to the wrapper if bubble not found
             customMarkerElement.addEventListener('click', () => {
               marker.togglePopup();
+              
+              // Add event listener to the "View Details" button after popup is shown
+              setTimeout(() => {
+                const viewDetailsBtn = document.querySelector('.view-details-btn');
+                if (viewDetailsBtn) {
+                  viewDetailsBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showFacilityDetails(facility);
+                  });
+                }
+              }, 100);
             });
+          }
+
+          // Highlight marker if it's the selected facility
+          if (selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id)) {
+            const el = marker.getElement();
+            const bubble = el.querySelector('.marker-bubble');
+            if (bubble) {
+              bubble.style.zIndex = '3';
+              bubble.style.transform = 'translate(-50%, -50%) scale(1.1)';
+              bubble.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.15), 0px 2px 8px rgba(0, 0, 0, 0.25)';
+            }
           }
 
           markers.current[facility.facility_id || facility.id] = marker;
@@ -403,47 +598,78 @@ export default function Explore() {
     }
   };
 
-  // Fetch facilities from Supabase
+  // Fetch facilities or locations based on selected type
   useEffect(() => {
-    const fetchFacilities = async () => {
-      console.log('Fetching facilities...');
+    const fetchData = async () => {
+      console.log(`Fetching ${locationType} data...`);
+      setIsLoading(true);
       
       try {
-        // First try to call a custom function for getting facilities with coordinates
-        console.log('Calling get_all_facilities() function...');
-        const { data: facilityData, error: facilityError } = await supabase.rpc('get_all_facilities');
-        
-        if (facilityError) {
-          console.error('Error fetching facilities using RPC function:', facilityError);
-          // Fallback to direct query if function fails
-          console.log('Trying direct query as fallback...');
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('facilities')
-            .select('*')
-            .not('lat', 'is', null)
-            .not('lon', 'is', null)
-            .limit(100);
-            
-          if (fallbackError) {
-            console.error('Fallback query also failed:', fallbackError);
-            setIsLoading(false);
-            return;
-          }
+        if (locationType === 'campgrounds') {
+          // Fetch campground facilities
+          console.log('Calling get_all_facilities() function...');
+          const { data: facilityData, error: facilityError } = await supabase.rpc('get_all_facilities');
           
-          console.log('Fallback query succeeded with', fallbackData?.length || 0, 'records');
-          processData(fallbackData || []);
+          if (facilityError) {
+            console.error('Error fetching facilities using RPC function:', facilityError);
+            // Fallback to direct query if function fails
+            console.log('Trying direct query as fallback...');
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('facilities')
+              .select('*')
+              .not('lat', 'is', null)
+              .not('lon', 'is', null)
+              .limit(100);
+              
+            if (fallbackError) {
+              console.error('Fallback query also failed:', fallbackError);
+              setIsLoading(false);
+              return;
+            }
+            
+            console.log('Fallback query succeeded with', fallbackData?.length || 0, 'records');
+            processData(fallbackData || []);
+          } else {
+            console.log('RPC function succeeded with', facilityData?.length || 0, 'records');
+            processData(facilityData || []);
+          }
         } else {
-          console.log('RPC function succeeded with', facilityData?.length || 0, 'records');
-          processData(facilityData || []);
+          // Fetch ClimbCover locations
+          console.log('Calling get_all_climbcover_locations() function...');
+          const { data: locationData, error: locationError } = await supabase.rpc('get_all_climbcover_locations');
+          
+          if (locationError) {
+            console.error('Error fetching locations using RPC function:', locationError);
+            // Fallback to direct query if function fails
+            console.log('Trying direct query as fallback for locations...');
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('locations')
+              .select('*')
+              .not('latitude', 'is', null)
+              .not('longitude', 'is', null)
+              .limit(100);
+              
+            if (fallbackError) {
+              console.error('Fallback query for locations also failed:', fallbackError);
+              setIsLoading(false);
+              return;
+            }
+            
+            console.log('Fallback query for locations succeeded with', fallbackData?.length || 0, 'records');
+            processLocationData(fallbackData || []);
+          } else {
+            console.log('RPC function for locations succeeded with', locationData?.length || 0, 'records');
+            processLocationData(locationData || []);
+          }
         }
       } catch (error) {
-        console.error('Unexpected error in fetchFacilities:', error);
+        console.error(`Unexpected error in fetchData for ${locationType}:`, error);
         setIsLoading(false);
       }
     };
     
-    fetchFacilities();
-  }, [supabase]);
+    fetchData();
+  }, [supabase, locationType]);
 
   // Function to load test data
   const loadTestData = async (e) => {
@@ -647,7 +873,7 @@ export default function Explore() {
 
     console.log('✅ Calling updateMarkers with', filteredFacilities.length, 'facilities');
     updateMarkers();
-  }, [filteredFacilities, mapLoaded, displayMode]);
+  }, [filteredFacilities, mapLoaded, displayMode, selectedFacility]);
 
   // Set initial filtered facilities when facilities are loaded
   useEffect(() => {
@@ -655,6 +881,50 @@ export default function Explore() {
       setFilteredFacilities(facilities);
     }
   }, [facilities]);
+
+  // Show detailed information for a facility
+  const showFacilityDetails = (facility) => {
+    setSelectedFacility(facility);
+    
+    // Fly to the facility location immediately on first click
+    if (map.current) {
+      map.current.flyTo({
+        center: [facility.normalizedLon, facility.normalizedLat],
+        zoom: 12
+      });
+    }
+    
+    // Highlight the marker
+    if (markers.current[facility.facility_id || facility.id]) {
+      // Reset all markers first
+      Object.values(markers.current).forEach(marker => {
+        const el = marker.getElement();
+        const bubble = el.querySelector('.marker-bubble');
+        if (bubble) {
+          bubble.style.zIndex = '1';
+          bubble.style.transform = 'translate(-50%, -50%) scale(1)';
+          bubble.style.boxShadow = '0px 3px 10px rgba(0, 0, 0, 0.1), 0px 2px 4px 0px rgba(0, 0, 0, 0.18), 0px 0px 0px 1px rgba(0, 0, 0, 0.08)';
+        }
+      });
+      
+      // Highlight the selected marker
+      const selectedMarker = markers.current[facility.facility_id || facility.id];
+      const el = selectedMarker.getElement();
+      const bubble = el.querySelector('.marker-bubble');
+      if (bubble) {
+        bubble.style.zIndex = '3';
+        bubble.style.transform = 'translate(-50%, -50%) scale(1.1)';
+        bubble.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.15), 0px 2px 8px rgba(0, 0, 0, 0.25)';
+      }
+    }
+  };
+
+  // Close the detail panel
+  const closeDetailPanel = () => {
+    setShowDetailPanel(false);
+    // Optional: keep the selection or clear it
+    // setSelectedFacility(null);
+  };
 
   if (isLoading) {
     return (
@@ -671,7 +941,7 @@ export default function Explore() {
   return (
     <SidebarLayout>
       <Head>
-        <title>Explore Campgrounds - BaseLodge</title>
+        <title>Explore Locations - BaseLodge</title>
         <style jsx global>{`
           .mapboxgl-popup {
             z-index: 1000;
@@ -685,6 +955,11 @@ export default function Explore() {
           .facility-popup {
             max-width: 250px;
           }
+          .selected-facility {
+            border-color: #10B981;
+            background-color: #ECFDF5;
+            box-shadow: 0 0 0 2px #10B981;
+          }
         `}</style>
       </Head>
       
@@ -692,7 +967,33 @@ export default function Explore() {
         {/* Sidebar */}
         <div className="w-[320px] border-r border-gray-200 flex flex-col">
           <div className="p-4 bg-[#F9FAFB] border-b">
-            <h2 className="text-lg font-semibold">Campgrounds</h2>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold">Locations</h2>
+              
+              {/* Location Type Toggle */}
+              <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1">
+                <button
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                    locationType === 'campgrounds' 
+                      ? 'bg-[#10B981] text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setLocationType('campgrounds')}
+                >
+                  Campgrounds
+                </button>
+                <button
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                    locationType === 'climbcovers' 
+                      ? 'bg-[#10B981] text-white' 
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setLocationType('climbcovers')}
+                >
+                  ClimbCovers
+                </button>
+              </div>
+            </div>
             <p className="text-sm text-gray-500">
               {filteredFacilities.length} locations found
             </p>
@@ -740,14 +1041,14 @@ export default function Explore() {
           </div>
           
           <div className="flex-1 overflow-y-auto">
-            <div className="py-3 pr-3 pl-2">
+            <div className="py-3 pr-3 pl-0">
               {filteredFacilities.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <p>No campgrounds found</p>
+                  <p>No locations found</p>
                   <p className="text-sm mt-2">Try adjusting your filters</p>
                 </div>
               ) : (
@@ -755,21 +1056,21 @@ export default function Explore() {
                   {filteredFacilities.map(facility => (
                     <div 
                       key={facility.facility_id || facility.id || Math.random().toString()}
-                      className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer bg-white transition-colors"
-                      onClick={() => {
-                        const lat = facility.normalizedLat;
-                        const lon = facility.normalizedLon;
-                        if (!isNaN(lat) && !isNaN(lon) && map.current) {
-                          map.current.flyTo({
-                            center: [lon, lat],
-                            zoom: 12
-                          });
-                        }
-                      }}
+                      ref={selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id) ? selectedFacilityRef : null}
+                      className={`p-3 border rounded-lg hover:bg-gray-50 cursor-pointer bg-white transition-colors ${
+                        selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id) 
+                          ? 'selected-facility' 
+                          : ''
+                      }`}
+                      onClick={() => showFacilityDetails(facility)}
                     >
-                      <div className="font-medium text-[#10B981]">{facility.name || 'Unnamed Campground'}</div>
+                      <div className="font-medium text-[#10B981]">
+                        {locationType === 'climbcovers' 
+                          ? (facility.location || 'Unnamed Location') 
+                          : (facility.name || 'Unnamed Location')}
+                      </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {facility.type || 'Campground'} 
+                        {facility.type || (locationType === 'climbcovers' ? 'ClimbCover' : 'Campground')} 
                         {facility.city && facility.state && (
                           <span> • {facility.city}, {facility.state}</span>
                         )}
@@ -796,7 +1097,7 @@ export default function Explore() {
         </div>
 
         {/* Map Container */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative">
           <div className="p-4 border-b bg-[#F9FAFB]">
             <div className="flex items-center justify-between">
               <div>
@@ -876,6 +1177,124 @@ export default function Explore() {
               ref={mapContainer} 
               className="absolute inset-0 w-full h-full"
             />
+            
+            {/* Facility detail panel */}
+            {showDetailPanel && selectedFacility && (
+              <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-white shadow-lg z-10 border-l border-gray-200 overflow-y-auto">
+                <div className="p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-800">
+                      {locationType === 'climbcovers' 
+                        ? (selectedFacility.location || 'Unnamed Location')
+                        : (selectedFacility.name || 'Unnamed Location')}
+                    </h2>
+                    <button 
+                      onClick={closeDetailPanel}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {selectedFacility.type && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Type</h3>
+                        <p>{selectedFacility.type || (locationType === 'climbcovers' ? 'ClimbCover' : 'Campground')}</p>
+                      </div>
+                    )}
+                    
+                    {/* Show name for ClimbCover locations */}
+                    {locationType === 'climbcovers' && selectedFacility.name && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Name</h3>
+                        <p className="text-gray-700">{selectedFacility.name}</p>
+                      </div>
+                    )}
+                    
+                    {selectedFacility.description && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Description</h3>
+                        <p className="text-gray-700">{selectedFacility.description}</p>
+                      </div>
+                    )}
+                    
+                    {/* Show note for ClimbCover locations */}
+                    {locationType === 'climbcovers' && selectedFacility.note && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Notes</h3>
+                        <p className="text-gray-700">{selectedFacility.note}</p>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Demand</h3>
+                        <p className="text-gray-700">{selectedFacility.demand_assessment || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Cost</h3>
+                        <p className="text-gray-700">{selectedFacility.cost_assessment_2 || 'N/A'}</p>
+                      </div>
+                    </div>
+                    
+                    {(selectedFacility.city || selectedFacility.state) && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Location</h3>
+                        <p className="text-gray-700">
+                          {selectedFacility.city || ''}
+                          {selectedFacility.city && selectedFacility.state ? ', ' : ''}
+                          {selectedFacility.state || ''}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Show address for ClimbCover locations */}
+                    {locationType === 'climbcovers' && selectedFacility.address && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Address</h3>
+                        <p className="text-gray-700">{selectedFacility.address}</p>
+                      </div>
+                    )}
+                    
+                    {selectedFacility.email && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                        <p className="text-gray-700">{selectedFacility.email}</p>
+                      </div>
+                    )}
+                    
+                    {selectedFacility.phone && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Phone</h3>
+                        <p className="text-gray-700">{selectedFacility.phone}</p>
+                      </div>
+                    )}
+                    
+                    {/* Show website for ClimbCover locations */}
+                    {locationType === 'climbcovers' && selectedFacility.website && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Website</h3>
+                        <a href={selectedFacility.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                          Visit website
+                        </a>
+                      </div>
+                    )}
+                    
+                    {selectedFacility.reservation_url && (
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500">Reservations</h3>
+                        <a href={selectedFacility.reservation_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
+                          Book a reservation
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

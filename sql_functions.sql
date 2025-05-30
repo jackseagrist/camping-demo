@@ -5,6 +5,7 @@ DROP FUNCTION IF EXISTS list_tables();
 DROP FUNCTION IF EXISTS simple_query(text);
 DROP FUNCTION IF EXISTS get_all_campsites();
 DROP FUNCTION IF EXISTS get_all_facilities();
+DROP FUNCTION IF EXISTS get_all_climbcover_locations();
 
 -- Function to list tables
 CREATE OR REPLACE FUNCTION list_tables()
@@ -62,10 +63,38 @@ BEGIN
     'address_line1', f.address_line1,
     'email', f.email,
     'phone', f.phone,
-    'reservation_url', f.reservation_url
+    'reservation_url', f.reservation_url,
+    'demand_assessment', f.demand_assessment,
+    'cost_assessment_2', f.cost_assessment_2
   )
   FROM facilities f
   WHERE f.lat IS NOT NULL AND f.lon IS NOT NULL
+  LIMIT 100;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to get all climbcover locations for Explore page
+CREATE OR REPLACE FUNCTION get_all_climbcover_locations()
+RETURNS SETOF json SECURITY DEFINER AS $$
+BEGIN
+  -- SECURITY DEFINER allows this function to bypass RLS
+  -- It returns only the fields we explicitly want to expose
+  RETURN QUERY SELECT json_build_object(
+    'id', l.id,
+    'name', l.name,
+    'latitude', l.latitude,
+    'longitude', l.longitude,
+    'location', l.location,
+    'section', l.section,
+    'city', l.city,
+    'address', l.address,
+    'phone', l.phone,
+    'email', l.email,
+    'website', l.website,
+    'note', l.note
+  )
+  FROM locations l
+  WHERE l.latitude IS NOT NULL AND l.longitude IS NOT NULL
   LIMIT 100;
 END;
 $$ LANGUAGE plpgsql; 

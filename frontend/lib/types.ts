@@ -6,6 +6,11 @@ export interface Item {
   checked: boolean;
 }
 
+export interface NoteItem {
+  id: string;
+  content: string;
+}
+
 export interface Trip {
   id: string;
   user_id: string;
@@ -14,6 +19,7 @@ export interface Trip {
   end_date: Date | null;
   location: string;
   packing_list: Item[];
+  notes?: NoteItem[];
   created_at: Date;
   trip_type?: string;
   group_size?: number;

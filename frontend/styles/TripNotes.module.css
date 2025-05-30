@@ -1,0 +1,25 @@
+.emptyNote:empty:before {
+  content: attr(data-placeholder);
+  color: #9CA3AF;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.emptyNote:focus {
+  outline: none;
+}
+
+.emptyNote {
+  min-height: 24px;
+  width: 100%;
+  padding: 2px 0;
+}
+
+/* Subtle styling for the note container */
+.noteContainer {
+  transition: all 0.2s ease;
+}
+
+.noteContainer:hover {
+  background-color: rgba(16, 185, 129, 0.05);
+} 
