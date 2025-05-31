@@ -78,33 +78,45 @@ export default function Plan() {
     try {
       console.log("Sending prompt to API:", prompt);
       
-      // Call our OpenAI API endpoint
-      const response = await fetch('/api/generate-trip-options', {
+      // Make sure the API URL includes the full path
+      const response = await fetch('/api/proxy-recommend', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ user_input: prompt }),
       });
 
-      const responseData = await response.json();
-      
       if (!response.ok) {
-        console.error("API Error Response:", responseData);
-        const errorMessage = responseData.error || 'Failed to generate trip options';
-        const errorDetails = responseData.details ? `: ${responseData.details}` : '';
-        throw new Error(`${errorMessage}${errorDetails}`);
+        const errorText = await response.text();
+        console.error("API Error Response:", errorText);
+        throw new Error(`Failed to get recommendations: ${response.status} ${response.statusText}`);
       }
 
-      if (!responseData.tripOptions || !Array.isArray(responseData.tripOptions) || responseData.tripOptions.length === 0) {
-        throw new Error('No trip options were generated. Please try a different prompt.');
+      const responseData = await response.json();
+      console.log("API Response:", responseData);
+      
+      if (!responseData.recommendations || !Array.isArray(responseData.recommendations) || responseData.recommendations.length === 0) {
+        throw new Error('No facilities were recommended. Please try a different prompt.');
       }
       
-      console.log("API Response:", responseData);
-      setTripOptions(responseData.tripOptions);
+      // Transform the facility data to match our trip options format
+      const formattedTripOptions = responseData.recommendations.map(facility => ({
+        facility_name: facility.name,
+        facility_id: facility.id,
+        description: facility.description || 'No description available',
+        image: facility.image || '/images/default-camp.jpg',
+        trip_type: 'Camping',
+        difficulty: 'Moderate',
+        recommended_activities: ['Hiking', 'Camping'],
+        best_season: 'Summer',
+        duration: 3,
+      }));
+      
+      setTripOptions(formattedTripOptions);
     } catch (err) {
-      console.error("Error generating trip options:", err);
-      setError(err.message || 'Failed to generate trip options. Please try again.');
+      console.error("Error getting facility recommendations:", err);
+      setError(err.message || 'Failed to get facility recommendations. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -180,7 +192,7 @@ export default function Plan() {
                 type="text"
                 value={prompt}
                 onChange={handlePromptChange}
-                placeholder="Find me a beach camping spot for July..."
+                placeholder="Find me a campground near water in California..."
                 className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 pr-28 bg-[#F9FAFB] focus:ring-2 focus:ring-[#10B981] focus:border-transparent"
                 disabled={isGenerating}
               />
@@ -222,7 +234,7 @@ export default function Plan() {
 
         {!isGenerating && tripOptions.length > 0 && (
           <div className="mt-8" data-aos="fade-up">
-            <h2 className="text-2xl font-bold text-[#111827] mb-6">Suggested Trips</h2>
+            <h2 className="text-2xl font-bold text-[#111827] mb-6">Recommended Facilities</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {tripOptions.map((trip, index) => (
                 <div 

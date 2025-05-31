@@ -17,7 +17,10 @@ app = FastAPI()
 # Enable CORS (adjust allowed origins as needed)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",  # Development
+        "https://baselodge.vercel.app"  # Your Vercel domain
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,6 +36,10 @@ RIDB_API_KEY = os.getenv("RIDB_API_KEY")
 
 
 # ---------- ROUTES ----------
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from FastAPI on Render!"}
 
 @app.get("/api/campgrounds")
 def get_campgrounds():
