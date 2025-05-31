@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,7 +12,13 @@ from supabase import create_client, Client
 load_dotenv()
 
 # Initialize FastAPI app
-app = FastAPI()
+app = FastAPI(
+    title="BaseLodge API",
+    description="API for BaseLodge camping recommendations",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
 # Enable CORS (adjust allowed origins as needed)
 app.add_middleware(
@@ -33,15 +39,23 @@ supabase: Client = create_client(
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 )
 RIDB_API_KEY = os.getenv("RIDB_API_KEY")
+API_KEY = os.getenv("API_KEY", "default-dev-key")  # Set a secure API key in production
 
+# API Key validation dependency
+async def validate_api_key(x_api_key: str = Header(None)):
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="API Key header is missing")
+    if x_api_key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API Key")
+    return x_api_key
 
 # ---------- ROUTES ----------
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI on Render!"}
+    return {"message": "Hello from FastAPI on Render! Visit /docs for API documentation."}
 
-@app.get("/api/campgrounds")
+@app.get("/api/campgrounds", dependencies=[Depends(validate_api_key)])
 def get_campgrounds():
     headers = {"apikey": RIDB_API_KEY}
     url = "https://ridb.recreation.gov/api/v1/facilities?state=CA&activity=CAMPING&limit=25"
@@ -59,7 +73,7 @@ class TripDetails(BaseModel):
     sustainability: str
 
 
-@app.post("/packing-list/generate")
+@app.post("/packing-list/generate", dependencies=[Depends(validate_api_key)])
 async def generate_packing_list(data: TripDetails):
     prompt = f"""
     You're an experienced outdoor gear guide. Create a detailed camping packing list for the following trip:

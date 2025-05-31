@@ -11,8 +11,11 @@ export default async function handler(req, res) {
     // In production, this should be set as an environment variable in your Vercel dashboard
     const BACKEND_URL = process.env.BACKEND_URL || 
       (process.env.NODE_ENV === 'production' 
-        ? 'https://camping-demo-backend.onrender.com' // Replace with your actual backend URL
+        ? 'https://your-backend-production-url.com' // Replace with your actual backend URL
         : 'http://localhost:8000');
+    
+    // Get API key from environment variable
+    const API_KEY = process.env.BACKEND_API_KEY || 'default-dev-key';
     
     console.log(`Using backend URL: ${BACKEND_URL}`);
     
@@ -21,6 +24,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-API-Key': API_KEY,
       },
       body: JSON.stringify(req.body),
     });
