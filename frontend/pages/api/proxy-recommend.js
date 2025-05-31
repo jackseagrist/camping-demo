@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const BACKEND_URL = process.env.BACKEND_URL || 
       (process.env.NODE_ENV === 'production' 
         ? 'https://your-backend-production-url.com' // Replace with your actual backend URL
-        : 'http://localhost:8000');
+        : 'http://127.0.0.1:8000');
     
     // Get API key from environment variable
     const API_KEY = process.env.BACKEND_API_KEY || 'default-dev-key';
