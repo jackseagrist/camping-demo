@@ -1,0 +1,12 @@
+# Node.js packages (install with npm):
+# @supabase/supabase-js@2.49.8
+# openai@4.104.0
+# dotenv@16.5.0
+# node-fetch@3.3.2
+
+# Note: This file is for documentation purposes only.
+# Install dependencies using:
+#   npm install
+# or run the setup scripts:
+#   Windows: .\setup_env.ps1
+#   Unix/Linux/macOS: ./setup_env.sh 

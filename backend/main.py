@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import openai
 import os
 import requests
+import json
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -126,14 +127,16 @@ async def recommend_facility(request: RecommendRequest):
     try:
         # Step 2: Query Supabase for most similar facilities
         query = """
-        select id, name, description
+        select id, name, summary
         from facilities
         order by embedding <=> %s
         limit 3;
         """
 
         # Send raw SQL query using Supabase's PostgREST RPC or directly via Postgres (if set up)
-        response = supabase.rpc('match_facilities', {'query_embedding': query_embedding}).execute()
+        response = supabase.rpc('match_facilities', {
+            'query_embedding': json.dumps(query_embedding)
+        }).execute()
 
         if not response.data:
             raise HTTPException(status_code=404, detail="No matching facilities found.")

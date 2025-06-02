@@ -104,7 +104,7 @@ export default function Plan() {
       const formattedTripOptions = responseData.recommendations.map(facility => ({
         facility_name: facility.name,
         facility_id: facility.id,
-        description: facility.description || 'No description available',
+        description: facility.summary || 'No description available',
         image: facility.image || '/images/default-camp.jpg',
         trip_type: 'Camping',
         difficulty: 'Moderate',
@@ -242,15 +242,6 @@ export default function Plan() {
                   className="bg-white rounded-xl shadow-md border border-[#D1D5DB] overflow-hidden hover:shadow-lg transition cursor-pointer"
                   onClick={() => !isCreatingTrip && handleCreateTrip(trip)}
                 >
-                  <div className="h-40 overflow-hidden relative">
-                    <Image 
-                      src={trip.image} 
-                      alt={trip.facility_name} 
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 33vw"
-                    />
-                  </div>
                   <div className="p-5">
                     <h3 className="font-bold text-lg text-[#111827] mb-2">{trip.facility_name}</h3>
                     <p className="text-[#4B5563] text-sm mb-3">{trip.description}</p>

@@ -58,6 +58,7 @@ BEGIN
     'lon', f.lon,
     'type', f.type,
     'description', f.description,
+    'summary', f.summary,
     'city', f.city,
     'state', f.state,
     'address_line1', f.address_line1,
