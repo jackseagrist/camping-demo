@@ -1,0 +1,41 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Python virtual environments and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.env/
+
+# Environment variables
+.env
+.env.*
+*.env
+
+# Log files
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Data files that shouldn't be committed
+*.csv
+*.xlsx
+*.json.backup
+*.bak
+*.sql.bak
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo 
