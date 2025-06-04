@@ -11,10 +11,20 @@ export interface NoteItem {
   content: string;
 }
 
+export interface Facility {
+  lat: number;
+  lon: number;
+  name: string;
+  description?: string;
+  type?: string;
+  reservation_url?: string;
+}
+
 export interface Trip {
   id: string;
   user_id: string;
   title: string;
+  description?: string;
   start_date: Date | null;
   end_date: Date | null;
   location: string;
@@ -25,4 +35,6 @@ export interface Trip {
   group_size?: number;
   duration?: number;
   experience_level?: string;
+  facility_id?: string;
+  facility?: Facility;
 } 

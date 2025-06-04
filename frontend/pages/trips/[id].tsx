@@ -1,12 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
-import TripDetailsEdit from '../../components/TripDetailsEdit';
 import TripNotes from '../../components/TripNotes';
-import { Trip, Item } from '../../lib/types';
+import { Trip } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
+import styles from '../../styles/TripDetail.module.css';
+import dynamic from 'next/dynamic';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import mapboxgl from 'mapbox-gl';
+
+// Set Mapbox token to match explore.js
+mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+
+// Create a MapComponent that loads client-side only
+const MapComponentTrip = dynamic(() => import('../../components/MapComponentTrip'), { 
+  ssr: false,
+  loading: () => (
+    <div className="h-full w-full flex items-center justify-center bg-gray-100">
+      <div className="text-gray-500">Loading map...</div>
+    </div>
+  )
+});
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -17,7 +33,29 @@ export default function TripDetail() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [trip, setTrip] = useState<Trip | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [checklist, setChecklist] = useState({
+    bookCampsite: false,
+    buySupplies: false,
+    planHikes: true
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  
+  const titleRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  // Uncomment and set your token here if environment variable isn't working
+  // useEffect(() => {
+  //   // If your .env.local isn't being read properly, you can set your token directly here
+  //   // Get a token from: https://account.mapbox.com/
+  //   setMapboxToken('pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJjbGV4YW1wbGUtdG9rZW4tMTIzNDU2Nzg5MCJ9.notARealTokenJustAnExample');
+  // }, []);
 
   useEffect(() => {
     const fetchTrip = async () => {
@@ -31,6 +69,7 @@ export default function TripDetail() {
           return;
         }
 
+        // First, get the trip data
         const { data: tripData, error } = await supabase
           .from('trips')
           .select('*')
@@ -44,7 +83,38 @@ export default function TripDetail() {
           return;
         }
 
-        setTrip(tripData);
+        // If trip has a facility_id, fetch the facility data
+        let facilityData = null;
+        if (tripData.facility_id) {
+          console.log('Fetching facility data for ID:', tripData.facility_id);
+          const { data: facility, error: facilityError } = await supabase
+            .from('facilities')
+            .select('lat, lon, name, description, type, reservation_url')
+            .eq('facility_id', tripData.facility_id)
+            .single();
+          
+          if (facilityError) {
+            console.error('Error fetching facility:', facilityError);
+          } else {
+            facilityData = facility;
+            console.log('Facility data:', facilityData);
+          }
+        }
+
+        // Combine trip and facility data
+        const combinedData = {
+          ...tripData,
+          facility: facilityData
+        };
+
+        console.log('Combined trip data:', combinedData);
+        setTrip(combinedData);
+        setTitle(tripData.title);
+        setEditedTitle(tripData.title);
+        setDescription(tripData.description || '');
+        setEditedDescription(tripData.description || '');
+        setStartDate(tripData.start_date ? format(new Date(tripData.start_date), 'yyyy-MM-dd') : '');
+        setEndDate(tripData.end_date ? format(new Date(tripData.end_date), 'yyyy-MM-dd') : '');
       } catch (error) {
         console.error('Error fetching trip:', error);
         alert('Error loading trip details');
@@ -56,93 +126,100 @@ export default function TripDetail() {
     fetchTrip();
   }, [id, supabase, router]);
 
-  const generatePackingList = async () => {
+  const handleTitleFocus = () => {
+    setIsEditing(true);
+  };
+
+  const handleDescriptionFocus = () => {
+    setIsEditing(true);
+  };
+
+  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedTitle(e.target.value);
+  };
+
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditedDescription(e.target.value);
+  };
+
+  const saveChanges = async () => {
     if (!trip) return;
-
-    setIsGenerating(true);
+    
+    setIsSaving(true);
+    
     try {
-      // Calculate trip duration in days
-      const startDate = trip.start_date ? new Date(trip.start_date) : null;
-      const endDate = trip.end_date ? new Date(trip.end_date) : null;
-      const duration = startDate && endDate
-        ? Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
-        : 3; // Default to 3 days if no dates set
-
-      // Get month of trip for seasonal considerations
-      const month = startDate ? format(startDate, 'MMMM') : format(new Date(), 'MMMM');
-
-      const response = await fetch('/api/generate-packing-list', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tripType: 'camping',
-          groupSize: 1,
-          duration,
-          location: trip.location,
-          month,
-          experienceLevel: 'intermediate',
-          sustainability: 'moderate',
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to generate packing list');
-
-      const packingList = await response.json();
-
-      // Update trip with new packing list
-      const { error } = await supabase
+      // Get values from state
+      console.log('Saving title:', editedTitle);
+      console.log('Saving description:', editedDescription);
+      
+      // Update both title and description in the database
+      const { data, error } = await supabase
         .from('trips')
-        .update({
-          packing_list: packingList.items.map((item: string) => ({
-            id: crypto.randomUUID(),
-            name: item,
-            category: 'General',
-            quantity: 1,
-            checked: false,
-          })),
+        .update({ 
+          title: editedTitle,
+          description: editedDescription // Now using the database column
         })
-        .eq('id', trip.id);
+        .eq('id', trip.id)
+        .select();
 
       if (error) throw error;
-
-      // Refresh trip data
-      const { data: updatedTrip } = await supabase
-        .from('trips')
-        .select('*')
-        .eq('id', trip.id)
-        .single();
-
-      setTrip(updatedTrip);
+      
+      // Update local state with the returned data
+      if (data && data.length > 0) {
+        const updatedTrip = data[0];
+        setTitle(updatedTrip.title);
+        setDescription(updatedTrip.description || '');
+        setTrip({ ...trip, title: updatedTrip.title, description: updatedTrip.description });
+      } else {
+        // Fallback to using the local values if no data is returned
+        setTitle(editedTitle);
+        setDescription(editedDescription);
+        setTrip({ ...trip, title: editedTitle, description: editedDescription });
+      }
+      
+      setIsEditing(false);
     } catch (error) {
-      console.error('Error generating packing list:', error);
-      alert('Failed to generate packing list. Please try again.');
+      console.error('Error updating trip:', error);
+      alert('Failed to save changes. Please try again.');
     } finally {
-      setIsGenerating(false);
+      setIsSaving(false);
     }
   };
 
-  const toggleItemChecked = async (itemId: string) => {
-    if (!trip) return;
+  const cancelEdit = () => {
+    // Reset to original values
+    setEditedTitle(title);
+    setEditedDescription(description);
+    setIsEditing(false);
+  };
 
-    const updatedPackingList = trip.packing_list.map((item) =>
-      item.id === itemId ? { ...item, checked: !item.checked } : item
-    );
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  };
+
+  const handleDateChange = async (field: 'start_date' | 'end_date', value: string) => {
+    if (!trip) return;
 
     try {
       const { error } = await supabase
         .from('trips')
-        .update({ packing_list: updatedPackingList })
+        .update({ [field]: value })
         .eq('id', trip.id);
 
       if (error) throw error;
-
-      setTrip({ ...trip, packing_list: updatedPackingList });
+      
+      setTrip({ ...trip, [field]: value });
+      if (field === 'start_date') setStartDate(value);
+      else setEndDate(value);
     } catch (error) {
-      console.error('Error updating item:', error);
-      alert('Failed to update item status');
+      console.error(`Error updating ${field}:`, error);
     }
+  };
+
+  const handleChecklistChange = async (field: string, checked: boolean) => {
+    setChecklist({ ...checklist, [field]: checked });
   };
 
   if (isLoading) {
@@ -164,108 +241,217 @@ export default function TripDetail() {
   return (
     <SidebarLayout>
       <div className={`${inter.className} bg-[#F9FAFB] min-h-screen p-8`}>
-        {/* Trip Header */}
+        {/* Header with Back Button */}
         <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-gray-600 hover:text-gray-800 mr-4"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <h1 className="text-3xl font-bold text-[#111827]">{trip.title}</h1>
-          </div>
-          <div className="flex items-center text-gray-600 space-x-6">
-            <span className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              {trip.location}
-            </span>
-            {trip.start_date && (
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {format(new Date(trip.start_date), 'MMM d, yyyy')}
-                {trip.end_date && ` - ${format(new Date(trip.end_date), 'MMM d, yyyy')}`}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Trip Details Edit Section */}
-        <TripDetailsEdit trip={trip} onUpdate={setTrip} />
-
-        {/* Packing List Section */}
-        <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Packing List</h2>
-            {trip.packing_list.length === 0 && (
-              <button
-                onClick={generatePackingList}
-                disabled={isGenerating}
-                className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center"
-              >
-                {isGenerating ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                    Generate Packing List
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          {trip.packing_list.length === 0 ? (
-            <div className="text-center py-12">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No items in your packing list</h3>
-              <p className="text-gray-600">Generate a packing list based on your trip details</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {trip.packing_list.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center p-3 hover:bg-gray-50 rounded-lg transition-colors"
-                >
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="text-gray-600 hover:text-gray-800 mb-6"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+          
+          {/* Trip Title & Subtitle with Collaborators */}
+          <div className="flex items-start justify-between">
+            <div className="flex-1 relative">
+              <div className="flex items-center gap-2">
+                {isEditing ? (
                   <input
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={() => toggleItemChecked(item.id)}
-                    className="h-5 w-5 text-emerald-500 rounded border-gray-300 focus:ring-emerald-500"
+                    ref={titleRef}
+                    type="text"
+                    value={editedTitle}
+                    onChange={handleTitleChange}
+                    onKeyDown={handleKeyDown}
+                    onFocus={handleTitleFocus}
+                    className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-[#10B981] w-full p-1 mb-2"
+                    autoFocus
                   />
-                  <span className={`ml-3 ${item.checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                    {item.name}
-                  </span>
-                  {item.quantity > 1 && (
-                    <span className="ml-2 text-sm text-gray-500">
-                      ({item.quantity})
-                    </span>
-                  )}
+                ) : (
+                  <h1 
+                    onClick={() => setIsEditing(true)}
+                    className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-transparent hover:border-gray-200 cursor-pointer transition-colors mb-2"
+                  >
+                    {title}
+                  </h1>
+                )}
+              </div>
+              
+              {isEditing ? (
+                <textarea
+                  ref={descriptionRef}
+                  value={editedDescription}
+                  onChange={handleDescriptionChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={handleDescriptionFocus}
+                  className="text-gray-500 outline-none bg-gray-50 p-2 rounded w-full resize-none"
+                  placeholder="Describe what your trip is all about..."
+                  rows={2}
+                />
+              ) : (
+                <div
+                  onClick={() => setIsEditing(true)}
+                  className="text-gray-500 p-1 rounded hover:bg-gray-50 cursor-pointer"
+                >
+                  {description ? description : <span className="text-gray-400 italic">Describe what your trip is all about...</span>}
                 </div>
-              ))}
+              )}
+              
+              {/* Save/Cancel buttons that appear when editing */}
+              {isEditing && (
+                <div className="mt-3 flex gap-2">
+                  <button 
+                    onClick={saveChanges}
+                    disabled={isSaving}
+                    className="bg-[#10B981] text-white px-3 py-1 rounded-md text-sm hover:bg-[#0E9F6E] transition-colors flex items-center"
+                  >
+                    {isSaving ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                      </>
+                    ) : (
+                      <>Save</>
+                    )}
+                  </button>
+                  <button 
+                    onClick={cancelEdit}
+                    className="border border-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <div className="text-xs text-gray-500 flex items-center ml-2">
+                    <span className="hidden sm:inline">Press Esc to cancel</span>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+            
+            {/* Collaborators */}
+            <div className="flex items-center -space-x-2">
+              <div className="w-10 h-10 rounded-full bg-blue-400 border-2 border-white flex items-center justify-center text-white">
+                JS
+              </div>
+              <div className="w-10 h-10 rounded-full bg-green-400 border-2 border-white flex items-center justify-center text-white">
+                AK
+              </div>
+              <button className="w-10 h-10 rounded-full border-2 border-white bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
         
-        {/* Trip Notes Section */}
+        {/* Main content - 2 column layout on wide screens */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left Column - Map and Location Details */}
+          <div>
+            {/* Map */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+              <div className="relative h-80 bg-gray-100">
+                {trip && (
+                  <MapComponentTrip 
+                    location={trip.location} 
+                    lat={trip.facility?.lat} 
+                    lon={trip.facility?.lon}
+                  />
+                )}
+              </div>
+              
+              {/* Location Info */}
+              <div className="p-6">
+                <select className="w-full bg-white border border-gray-300 rounded-lg py-2 px-4 mb-4 focus:outline-none focus:ring-2 focus:ring-[#10B981]">
+                  <option>{trip.location}</option>
+                  <option>George Washington State Forest</option>
+                  <option>Campground A</option>
+                  <option>Campground B</option>
+                </select>
+                
+                <div className="flex space-x-4 text-[#10B981] mt-4">
+                  {trip.facility?.reservation_url && (
+                    <a href={trip.facility.reservation_url} target="_blank" rel="noopener noreferrer" className="hover:underline">Make reservation</a>
+                  )}
+                  <a href="#" className="hover:underline">Contact information</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Right Column - Trip Details and Tasks */}
+          <div>
+            {/* Trip Details Panel */}
+            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Trip Details</h2>
+              
+              <div className="space-y-6">
+                {/* Date Pickers */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Start</label>
+                    <input 
+                      type="date" 
+                      value={startDate}
+                      onChange={(e) => handleDateChange('start_date', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">End</label>
+                    <input 
+                      type="date" 
+                      value={endDate}
+                      onChange={(e) => handleDateChange('end_date', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+                    />
+                  </div>
+                </div>
+                
+                {/* Checklist */}
+                <div>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        id="book-campsite"
+                        checked={checklist.bookCampsite}
+                        onChange={(e) => handleChecklistChange('bookCampsite', e.target.checked)}
+                        className="h-5 w-5 text-[#10B981] rounded border-gray-300 focus:ring-[#10B981]"
+                      />
+                      <label htmlFor="book-campsite" className="ml-3 text-gray-700">Book campsite</label>
+                    </div>
+                    <div className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        id="buy-supplies"
+                        checked={checklist.buySupplies}
+                        onChange={(e) => handleChecklistChange('buySupplies', e.target.checked)}
+                        className="h-5 w-5 text-[#10B981] rounded border-gray-300 focus:ring-[#10B981]"
+                      />
+                      <label htmlFor="buy-supplies" className="ml-3 text-gray-700">Buy supplies</label>
+                    </div>
+                    <div className="flex items-center">
+                      <input 
+                        type="checkbox" 
+                        id="plan-hikes"
+                        checked={checklist.planHikes}
+                        onChange={(e) => handleChecklistChange('planHikes', e.target.checked)}
+                        className="h-5 w-5 text-[#10B981] rounded border-gray-300 focus:ring-[#10B981]"
+                      />
+                      <label htmlFor="plan-hikes" className="ml-3 text-gray-700">Plan hikes</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Notes Section - Full Width */}
         <TripNotes trip={trip} onUpdate={setTrip} />
       </div>
     </SidebarLayout>

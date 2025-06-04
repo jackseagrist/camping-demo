@@ -1,0 +1,21 @@
+.editableDescription:empty:before {
+  content: attr(data-placeholder);
+  color: #9CA3AF;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.editableDescription:focus {
+  outline: none;
+}
+
+.editableTitle:focus {
+  outline: none;
+}
+
+.mapContainer {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+} 

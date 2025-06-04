@@ -340,6 +340,9 @@ export default function Explore() {
     markerEl.style.textAlign = 'center'; // Center the text
     markerEl.style.zIndex = '1'; // Ensure it shows above other elements
     
+    // Add data-id attribute to associate the marker with its facility
+    markerEl.dataset.id = facility.facility_id || facility.id;
+    
     // Create inner content div
     const contentDiv = document.createElement('div');
     contentDiv.style.alignItems = 'center';
@@ -529,7 +532,7 @@ export default function Explore() {
                   viewDetailsBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    showFacilityDetails(facility);
+                    showFacilityDetailsPanel(facility);
                   });
                 }
               }, 100);
@@ -547,7 +550,7 @@ export default function Explore() {
                   viewDetailsBtn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    showFacilityDetails(facility);
+                    showFacilityDetailsPanel(facility);
                   });
                 }
               }, 100);
@@ -885,6 +888,34 @@ export default function Explore() {
     updateMarkers();
   }, [filteredFacilities, mapLoaded, displayMode, selectedFacility]);
 
+  // Add effect to handle map clicks on markers
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+
+    const handleMapClick = (e) => {
+      // Get elements at the click point
+      const features = document.elementsFromPoint(e.point.x, e.point.y);
+      const bubble = features.find(f => f.classList?.contains('marker-bubble'));
+      
+      if (bubble && bubble.dataset.id) {
+        const clickedFacility = filteredFacilities.find(f =>
+          f.facility_id === bubble.dataset.id || f.id === bubble.dataset.id
+        );
+        if (clickedFacility) {
+          showFacilityDetailsPanel(clickedFacility);
+        }
+      }
+    };
+
+    map.current.on('click', handleMapClick);
+
+    return () => {
+      if (map.current) {
+        map.current.off('click', handleMapClick);
+      }
+    };
+  }, [filteredFacilities, mapLoaded]);
+
   // Set initial filtered facilities when facilities are loaded
   useEffect(() => {
     if (facilities.length > 0) {
@@ -903,6 +934,36 @@ export default function Explore() {
         zoom: 12
       });
     }
+    
+    // Highlight the marker
+    if (markers.current[facility.facility_id || facility.id]) {
+      // Reset all markers first
+      Object.values(markers.current).forEach(marker => {
+        const el = marker.getElement();
+        const bubble = el.querySelector('.marker-bubble');
+        if (bubble) {
+          bubble.style.zIndex = '1';
+          bubble.style.transform = 'translate(-50%, -50%) scale(1)';
+          bubble.style.boxShadow = '0px 3px 10px rgba(0, 0, 0, 0.1), 0px 2px 4px 0px rgba(0, 0, 0, 0.18), 0px 0px 0px 1px rgba(0, 0, 0, 0.08)';
+        }
+      });
+      
+      // Highlight the selected marker
+      const selectedMarker = markers.current[facility.facility_id || facility.id];
+      const el = selectedMarker.getElement();
+      const bubble = el.querySelector('.marker-bubble');
+      if (bubble) {
+        bubble.style.zIndex = '3';
+        bubble.style.transform = 'translate(-50%, -50%) scale(1.1)';
+        bubble.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.15), 0px 2px 8px rgba(0, 0, 0, 0.25)';
+      }
+    }
+  };
+
+  // Show facility details in the panel
+  const showFacilityDetailsPanel = (facility) => {
+    setSelectedFacility(facility);
+    setShowDetailPanel(true);
     
     // Highlight the marker
     if (markers.current[facility.facility_id || facility.id]) {

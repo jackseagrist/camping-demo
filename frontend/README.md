@@ -19,7 +19,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```bash
 npm run dev
 ```
-
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
 
 ## 📱 Available Pages
