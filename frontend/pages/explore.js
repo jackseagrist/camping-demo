@@ -5,6 +5,9 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'] });
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -80,6 +83,14 @@ export default function Explore() {
         };
       }
     });
+  };
+
+  // Set a single filter value (for dropdowns)
+  const setFilterValue = (filterType, value) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [filterType]: value ? [value] : []
+    }));
   };
 
   // Helper function to process and normalize facility data
@@ -450,7 +461,6 @@ export default function Explore() {
               <div class="p-3">
                 <h3 class="font-semibold text-base">${facility.name || 'Unnamed Facility'}</h3>
                 <p class="text-sm text-gray-600">${facility.type || 'Campground'}</p>
-                ${facility.description ? `<p class="text-xs mt-1">${facility.description.substring(0, 100)}${facility.description.length > 100 ? '...' : ''}</p>` : ''}
                 <div class="text-xs mt-2 text-gray-500">
                   <p>${facility.city}${facility.city && facility.state ? ', ' : ''}${facility.state || ''}</p>
                   <div class="mt-1 grid grid-cols-2 gap-2">
@@ -963,85 +973,170 @@ export default function Explore() {
         `}</style>
       </Head>
       
-      <div className="flex w-full bg-[#F9FAFB] gap-0" style={{ height: 'calc(100vh - 64px)' }}>
-        {/* Sidebar */}
-        <div className="w-[320px] border-r border-gray-200 flex flex-col">
-          <div className="p-4 bg-[#F9FAFB] border-b">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold">Locations</h2>
-              
-              {/* Location Type Toggle */}
-              <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1">
-                <button
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                    locationType === 'campgrounds' 
-                      ? 'bg-[#10B981] text-white' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setLocationType('campgrounds')}
-                >
-                  Campgrounds
-                </button>
-                <button
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                    locationType === 'climbcovers' 
-                      ? 'bg-[#10B981] text-white' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setLocationType('climbcovers')}
-                >
-                  ClimbCovers
-                </button>
-              </div>
+      {/* New shared top header */}
+      <div className="w-full bg-[#F9FAFB] p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className={`text-[36px] font-bold text-gray-800 ${inter.className}`}>Explore</h1>
+            <p className={`text-[18px] text-gray-600 ${inter.className}`}>Find your next adventure</p>
+          </div>
+          <div className="flex flex-col items-end">
+            <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 mb-2">
+              <button
+                className={`px-3 py-1 text-sm font-medium rounded-md transition ${
+                  displayMode === 'demand' 
+                    ? 'bg-[#10B981] text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setDisplayMode('demand')}
+              >
+                Demand
+              </button>
+              <button
+                className={`px-3 py-1 text-sm font-medium rounded-md transition ${
+                  displayMode === 'cost' 
+                    ? 'bg-[#10B981] text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setDisplayMode('cost')}
+              >
+                Cost
+              </button>
             </div>
-            <p className="text-sm text-gray-500">
-              {filteredFacilities.length} locations found
-            </p>
+            
+            {/* Color scale legend */}
+            <div className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
+              <div className="text-xs font-medium mb-1">
+                {displayMode === 'demand' ? 'Demand Scale' : 'Cost Scale'}
+              </div>
+              {displayMode === 'demand' ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
+                    <span className="text-xs">High</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
+                    <span className="text-xs">Medium</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
+                    <span className="text-xs">Low</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
+                    <span className="text-xs">Very expensive</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
+                    <span className="text-xs">Expensive</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
+                    <span className="text-xs">Affordable</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-1"></div>
+                    <span className="text-xs">Bargain</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex w-full bg-[#F9FAFB] gap-0" style={{ height: 'calc(100vh - 114px)' }}>
+        {/* Sidebar - removed border-r */}
+        <div className="w-[320px] flex flex-col">
+          {/* Sidebar Header - Styled to match map header */}
+          <div className="p-4 bg-[#F9FAFB]">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">Locations</h1>
+              <p className="text-sm text-gray-600">{filteredFacilities.length} locations found</p>
+            </div>
+            
+            {/* Location Type Toggle */}
+            <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 mt-3">
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                  locationType === 'campgrounds' 
+                    ? 'bg-[#10B981] text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setLocationType('campgrounds')}
+              >
+                Campgrounds
+              </button>
+              <button
+                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                  locationType === 'climbcovers' 
+                    ? 'bg-[#10B981] text-white' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setLocationType('climbcovers')}
+              >
+                ClimbCovers
+              </button>
+            </div>
           </div>
           
-          {/* Filters */}
-          <div className="p-4 border-b">
-            <div className="mb-4">
-              <h3 className="text-sm font-medium mb-2">Demand</h3>
-              <div className="flex flex-wrap gap-2">
-                {uniqueDemandValues.map(value => (
-                  <button
-                    key={`demand-${value}`}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      filters.demand.includes(value)
-                        ? 'bg-[#10B981] text-white'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
-                    onClick={() => toggleFilter('demand', value)}
+          {/* Combined Filters and Locations List Container */}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Filters */}
+            <div className="px-4 pt-4 pb-2">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium mb-2">Demand</h3>
+                <div className="relative">
+                  <select
+                    value={filters.demand[0] || ''}
+                    onChange={(e) => setFilterValue('demand', e.target.value)}
+                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
                   >
-                    {value}
-                  </button>
-                ))}
+                    <option value="">All Demand Levels</option>
+                    {uniqueDemandValues.map(value => (
+                      <option key={`demand-${value}`} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium mb-2">Cost</h3>
+                <div className="relative">
+                  <select
+                    value={filters.cost[0] || ''}
+                    onChange={(e) => setFilterValue('cost', e.target.value)}
+                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
+                  >
+                    <option value="">All Cost Levels</option>
+                    {uniqueCostValues.map(value => (
+                      <option key={`cost-${value}`} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div>
-              <h3 className="text-sm font-medium mb-2">Cost</h3>
-              <div className="flex flex-wrap gap-2">
-                {uniqueCostValues.map(value => (
-                  <button
-                    key={`cost-${value}`}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      filters.cost.includes(value)
-                        ? 'bg-[#10B981] text-white'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                    }`}
-                    onClick={() => toggleFilter('cost', value)}
-                  >
-                    {value}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            <div className="py-3 pr-3 pl-0">
+            {/* Locations List */}
+            <div className="flex-1 overflow-y-auto px-4 pt-2">
               {filteredFacilities.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1075,11 +1170,6 @@ export default function Explore() {
                           <span> • {facility.city}, {facility.state}</span>
                         )}
                       </div>
-                      {facility.description && (
-                        <div className="text-xs text-gray-700 mt-2 line-clamp-2">
-                          {facility.description}
-                        </div>
-                      )}
                       <div className="text-xs mt-2">
                         <span className="inline-block mr-3">
                           <span className="font-medium">Demand:</span> {facility.demand_assessment || 'N/A'}
@@ -1096,82 +1186,8 @@ export default function Explore() {
           </div>
         </div>
 
-        {/* Map Container */}
+        {/* Map Container - removed header, direct map rendering */}
         <div className="flex-1 flex flex-col relative">
-          <div className="p-4 border-b bg-[#F9FAFB]">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">Explore</h1>
-                <p className="text-sm text-gray-600">Find your next adventure</p>
-              </div>
-              <div className="flex flex-col items-end">
-                <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 mb-2">
-                  <button
-                    className={`px-3 py-1 text-sm font-medium rounded-md transition ${
-                      displayMode === 'demand' 
-                        ? 'bg-[#10B981] text-white' 
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setDisplayMode('demand')}
-                  >
-                    Demand
-                  </button>
-                  <button
-                    className={`px-3 py-1 text-sm font-medium rounded-md transition ${
-                      displayMode === 'cost' 
-                        ? 'bg-[#10B981] text-white' 
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                    onClick={() => setDisplayMode('cost')}
-                  >
-                    Cost
-                  </button>
-                </div>
-                
-                {/* Color scale legend */}
-                <div className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
-                  <div className="text-xs font-medium mb-1">
-                    {displayMode === 'demand' ? 'Demand Scale' : 'Cost Scale'}
-                  </div>
-                  {displayMode === 'demand' ? (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
-                        <span className="text-xs">High</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
-                        <span className="text-xs">Medium</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
-                        <span className="text-xs">Low</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
-                        <span className="text-xs">Very expensive</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
-                        <span className="text-xs">Expensive</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
-                        <span className="text-xs">Affordable</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-1"></div>
-                        <span className="text-xs">Bargain</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
           <div className="flex-1 relative">
             <div 
               ref={mapContainer} 
