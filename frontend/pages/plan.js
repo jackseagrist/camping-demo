@@ -24,6 +24,17 @@ export default function Plan() {
   const [error, setError] = useState(null);
   const [isCreatingTrip, setIsCreatingTrip] = useState(false);
 
+  // Character limit for the input
+  const MAX_PROMPT_LENGTH = 1000;
+
+  // Dropdown selections
+  const [experience, setExperience] = useState('');
+  const [campingPreference, setCampingPreference] = useState('');
+  const [crowdTolerance, setCrowdTolerance] = useState('');
+
+  // Track which card is being selected for animation
+  const [selectedCardIndex, setSelectedCardIndex] = useState(null);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -65,7 +76,10 @@ export default function Plan() {
   }, []);
 
   const handlePromptChange = (e) => {
-    setPrompt(e.target.value);
+    const value = e.target.value;
+    if (value.length <= MAX_PROMPT_LENGTH) {
+      setPrompt(value);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -122,8 +136,9 @@ export default function Plan() {
     }
   };
 
-  const handleCreateTrip = async (tripOption) => {
+  const handleCreateTrip = async (tripOption, cardIndex) => {
     setIsCreatingTrip(true);
+    setSelectedCardIndex(cardIndex);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -153,6 +168,7 @@ export default function Plan() {
       setError('Failed to create trip. Please try again.');
       console.error("Error creating trip:", err);
       setIsCreatingTrip(false);
+      setSelectedCardIndex(null);
     }
   };
 
@@ -180,31 +196,112 @@ export default function Plan() {
           className="bg-white p-8 rounded-xl shadow-lg border border-[#D1D5DB] mb-8" 
           data-aos="fade-up"
         >
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="relative">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
               <input
                 type="text"
                 value={prompt}
                 onChange={handlePromptChange}
                 placeholder="Find me a campground near water in California..."
-                className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 pr-28 bg-[#F9FAFB] focus:ring-2 focus:ring-[#10B981] focus:border-transparent"
+                className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 bg-[#F9FAFB] focus:ring-2 focus:ring-[#10B981] focus:border-transparent"
                 disabled={isGenerating}
+                maxLength={MAX_PROMPT_LENGTH}
               />
+              <div className="flex justify-end">
+                <div className={`text-sm ${prompt.length > MAX_PROMPT_LENGTH * 0.9 ? 'text-red-500' : 'text-[#9CA3AF]'}`}>
+                  {prompt.length}/{MAX_PROMPT_LENGTH} Characters
+                </div>
+              </div>
+            </div>
+
+            {/* Dropdown Selectors */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Experience Dropdown */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#374151]">Experience</label>
+                <div className="relative">
+                  <select
+                    value={experience}
+                    onChange={(e) => setExperience(e.target.value)}
+                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
+                    disabled={isGenerating}
+                  >
+                    <option value="">Select experience</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Camping Preference Dropdown */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#374151]">Camping preference</label>
+                <div className="relative">
+                  <select
+                    value={campingPreference}
+                    onChange={(e) => setCampingPreference(e.target.value)}
+                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
+                    disabled={isGenerating}
+                  >
+                    <option value="">Select preference</option>
+                    <option value="Backpacking">Backpacking</option>
+                    <option value="RV">RV</option>
+                    <option value="Car camping">Car camping</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Crowd Tolerance Dropdown */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-[#374151]">Crowd tolerance</label>
+                <div className="relative">
+                  <select
+                    value={crowdTolerance}
+                    onChange={(e) => setCrowdTolerance(e.target.value)}
+                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
+                    disabled={isGenerating}
+                  >
+                    <option value="">Select tolerance</option>
+                    <option value="Fine with crowds">Fine with crowds</option>
+                    <option value="No crowds please">No crowds please</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Generate Button */}
+            <div className="flex justify-center pt-4">
               <button 
                 type="submit" 
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#10B981] text-white font-medium px-4 py-1.5 rounded-lg shadow hover:bg-[#14B8A6] transition"
+                className="bg-[#10B981] text-white font-medium px-8 py-3 rounded-xl shadow-md hover:bg-[#14B8A6] transition-colors focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isGenerating || !prompt.trim()}
               >
                 {isGenerating ? (
                   <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    <span>Thinking...</span>
+                    <span>Generating recommendations...</span>
                   </div>
                 ) : (
-                  <span>Generate</span>
+                  <span>Generate Trip Recommendations</span>
                 )}
               </button>
             </div>
@@ -227,40 +324,40 @@ export default function Plan() {
         )}
 
         {!isGenerating && tripOptions.length > 0 && (
-          <div className="mt-8" data-aos="fade-up">
+          <div className="mt-8 pb-32" data-aos="fade-up">
             <h2 className="text-2xl font-bold text-[#111827] mb-6">Recommended Facilities</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {tripOptions.map((trip, index) => (
                 <div 
                   key={index} 
-                  className="bg-white rounded-xl shadow-md border border-[#D1D5DB] overflow-hidden hover:shadow-lg transition cursor-pointer"
-                  onClick={() => !isCreatingTrip && handleCreateTrip(trip)}
+                  className={`bg-white rounded-xl shadow-md border border-[#D1D5DB] overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col h-full ${
+                    selectedCardIndex === index ? 'animate-pulse ring-2 ring-[#10B981] ring-opacity-50 scale-105 shadow-xl' : ''
+                  }`}
+                  onClick={() => !isCreatingTrip && handleCreateTrip(trip, index)}
                 >
-                  <div className="p-5">
+                  <div className="p-5 flex flex-col flex-grow">
                     <h3 className="font-bold text-lg text-[#111827] mb-2">{trip.facility_name}</h3>
-                    <p className="text-[#4B5563] text-sm mb-3">{trip.description}</p>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <span className="text-xs bg-[#E6FFF4] text-[#10B981] px-2 py-1 rounded-full">{trip.trip_type}</span>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{trip.duration} days</span>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{trip.difficulty}</span>
-                    </div>
-                    <div className="mb-4">
-                      <div className="text-xs text-gray-500 mb-1">Recommended Activities:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {trip.recommended_activities.map((activity, i) => (
-                          <span key={i} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">{activity}</span>
-                        ))}
-                      </div>
-                    </div>
+                    <p className="text-[#4B5563] text-sm mb-4 flex-grow">{trip.description}</p>
                     <button 
-                      className="w-full bg-[#10B981] text-white font-medium py-2 rounded-lg hover:bg-[#14B8A6] transition"
+                      className={`w-full font-medium py-2 rounded-lg transition-all duration-200 mt-auto ${
+                        selectedCardIndex === index 
+                          ? 'bg-[#0891B2] text-white' 
+                          : 'bg-[#10B981] text-white hover:bg-[#14B8A6]'
+                      }`}
                       disabled={isCreatingTrip}
                     >
-                      {isCreatingTrip ? "Creating..." : "Select This Trip"}
+                      {selectedCardIndex === index ? "Creating Trip..." : "Select This Trip"}
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+            
+            {/* Feedback Hint */}
+            <div className="bg-white rounded-xl shadow-sm p-6 text-center border border-gray-200 mb-16">
+              <p className="text-[#6B7280] text-base font-medium">
+                💡 Not finding what you want? Try adding more details to your search description or selecting dropdowns.
+              </p>
             </div>
           </div>
         )}

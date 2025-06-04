@@ -38,10 +38,10 @@ const SettingsIcon = () => (
 export default function SidebarLayout({ children }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
-
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef(null);
+  const isPlanPage = router.pathname === '/plan';
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -62,14 +62,10 @@ export default function SidebarLayout({ children }) {
   const handleSignOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
-      // Force a hard redirect to ensure complete session cleanup
+      if (error) throw error;
       window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
-      // Still attempt to redirect even if there's an error
       window.location.href = '/';
     }
   };
@@ -112,44 +108,24 @@ export default function SidebarLayout({ children }) {
   });
 
   return (
-    <div className={`${inter.className} min-h-screen h-screen w-full relative bg-[#F9FAFB]`}>
-      <div className="flex h-full">
-        {/* Sidebar - Only visible on desktop */}
-        <aside
-          className={`bg-white border-r border-gray-200 hidden lg:block lg:fixed left-0 top-0 h-full transition-all duration-300 ${
-            collapsed ? 'lg:w-20' : 'lg:w-64'
-          } z-40`}
-        >
-          {/* Collapse/Expand Button - only visible on desktop */}
+    <div className={`${inter.className} min-h-screen w-full relative ${isPlanPage ? 'bg-gray-100' : 'bg-[#F9FAFB]'}`}>
+      <div className="flex min-h-screen">
+        <aside className={`bg-white border-r border-gray-200 hidden lg:block lg:fixed left-0 top-0 h-full transition-all duration-300 ${collapsed ? 'lg:w-20' : 'lg:w-64'} z-40`}>
           <button
             onClick={() => setCollapsed((prev) => !prev)}
             className="hidden lg:block absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 p-2 rounded transition text-gray-400 hover:bg-gray-100 hover:text-gray-600 opacity-0 hover:opacity-100 focus:opacity-100 z-10 bg-white"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? (
-              <span className="text-2xl">»</span>
-            ) : (
-              <span className="text-2xl">«</span>
-            )}
+            {collapsed ? <span className="text-2xl">»</span> : <span className="text-2xl">«</span>}
           </button>
-          
           <div className="flex flex-col h-full p-4">
             <div>
-              <Link
-                href="/"
-                className="flex items-center mb-12 space-x-2 hover:opacity-90 transition-opacity"
-              >
+              <Link href="/" className="flex items-center mb-12 space-x-2 hover:opacity-90 transition-opacity">
                 <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
-                {!collapsed && (
-                  <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
-                )}
+                {!collapsed && <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>}
               </Link>
-              <nav className="space-y-4 flex-1">
-                {navLinks}
-              </nav>
+              <nav className="space-y-4 flex-1">{navLinks}</nav>
             </div>
-            
-            {/* Settings Button - Desktop */}
             <div className="relative mt-auto" ref={settingsRef}>
               <button
                 onClick={() => setSettingsOpen((open) => !open)}
@@ -160,28 +136,15 @@ export default function SidebarLayout({ children }) {
                 </span>
                 {!collapsed && <span className="transition-colors">Profile</span>}
               </button>
-
-              {/* Settings Dropdown - Moved inside the settings button container */}
               {settingsOpen && (
-                <div 
+                <div
                   className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 transition-all duration-300"
-                  style={{ 
-                    bottom: '100%',
-                    marginBottom: '0.5rem',
-                    left: '0',
-                    width: collapsed ? '10rem' : '100%'
-                  }}
+                  style={{ bottom: '100%', marginBottom: '0.5rem', left: '0', width: collapsed ? '10rem' : '100%' }}
                 >
-                  <button
-                    onClick={handleSettings}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors"
-                  >
+                  <button onClick={handleSettings} className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors">
                     Profile
                   </button>
-                  <button
-                    onClick={handleSignOut}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors"
-                  >
+                  <button onClick={handleSignOut} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors">
                     Sign Out
                   </button>
                 </div>
@@ -189,17 +152,13 @@ export default function SidebarLayout({ children }) {
             </div>
           </div>
         </aside>
-        
-        {/* Main Content */}
-        <div className={`flex-1 transition-all duration-300 ${
-          collapsed ? 'lg:ml-20' : 'lg:ml-64'
-        } pb-20 lg:pb-0`}>
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 md:py-8 lg:py-10">
+
+        <div className={`flex-1 transition-all duration-300 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'} pb-20 lg:pb-0 ${isPlanPage ? 'bg-gray-100 min-h-screen' : ''}`}>
+          <div className={`max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 md:py-8 lg:py-10 ${isPlanPage ? 'pb-24' : ''}`}>
             {children}
           </div>
         </div>
 
-        {/* Bottom Navigation Bar - Mobile Only */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
           <div className="flex justify-around items-center h-16">
             {navItems.map(({ href, label, icon: Icon }) => {
@@ -208,9 +167,7 @@ export default function SidebarLayout({ children }) {
                 <button
                   key={href}
                   onClick={() => handleNavigation(href)}
-                  className={`flex flex-col items-center justify-center w-full h-full ${
-                    isActive ? 'text-[#10B981]' : 'text-gray-500'
-                  }`}
+                  className={`flex flex-col items-center justify-center w-full h-full ${isActive ? 'text-[#10B981]' : 'text-gray-500'}`}
                 >
                   <Icon />
                   <span className="text-xs mt-1">{label}</span>
@@ -219,9 +176,7 @@ export default function SidebarLayout({ children }) {
             })}
             <button
               onClick={() => setSettingsOpen(true)}
-              className={`flex flex-col items-center justify-center w-full h-full ${
-                settingsOpen ? 'text-[#10B981]' : 'text-gray-500'
-              }`}
+              className={`flex flex-col items-center justify-center w-full h-full ${settingsOpen ? 'text-[#10B981]' : 'text-gray-500'}`}
             >
               <SettingsIcon />
               <span className="text-xs mt-1">Profile</span>
