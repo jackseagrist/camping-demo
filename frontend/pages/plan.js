@@ -140,12 +140,6 @@ export default function Plan() {
             title: tripOption.facility_name,
             location: tripOption.facility_name,
             facility_id: tripOption.facility_id,
-            trip_type: tripOption.trip_type,
-            difficulty: tripOption.difficulty,
-            recommended_activities: tripOption.recommended_activities,
-            best_season: tripOption.best_season,
-            duration: tripOption.duration,
-            description: tripOption.description,
             packing_list: [], // Empty packing list to start
           },
         ])
