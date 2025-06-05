@@ -3,6 +3,7 @@ import '../styles/globals.css';
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { useState } from 'react';
+import { Analytics } from '@vercel/analytics/next';
 
 export default function MyApp({ Component, pageProps }) {
   const [supabaseClient] = useState(() => createPagesBrowserClient());
@@ -13,6 +14,7 @@ export default function MyApp({ Component, pageProps }) {
       initialSession={pageProps.initialSession}
     >
       <Component {...pageProps} />
+      <Analytics />
     </SessionContextProvider>
   );
 }
