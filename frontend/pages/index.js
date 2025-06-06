@@ -38,17 +38,26 @@ export default function Home() {
           <link rel="icon" href="/favicon.ico" />
         </Head>
   
-        {/* Simplified Sticky Nav with just logo and CTA */}
-        <nav className="fixed w-full top-0 z-50 flex items-center justify-between px-6 py-4 bg-[#F9FAFB]/70 backdrop-blur-md shadow-sm">
-          <Link href="/" className="flex items-center space-x-2">
-            <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
-            <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
-          </Link>
-          <Link href="/login">
-            <button className="bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-lg hover:bg-[#14B8A6] transition-all hover:shadow-xl">
-              Try for Free
-            </button>
-          </Link>
+        {/* Floating Pill Navigation */}
+        <nav className="fixed w-full top-4 z-50 px-6">
+          <div className="flex items-center justify-between px-8 py-4 bg-gradient-to-r from-[#D1D5DB]/60 to-[#E6FFF4]/60 backdrop-blur-lg shadow-xl rounded-full border border-white/20">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
+              <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
+            </Link>
+            <div className="flex items-center space-x-3">
+              <Link href="/login">
+                <button className="bg-gray-100 text-black font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-gray-200 transition-all hover:shadow-lg border border-gray-200">
+                  Login
+                </button>
+              </Link>
+              <Link href="/signup">
+                <button className="bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-[#14B8A6] transition-all hover:shadow-lg">
+                  Try for Free
+                </button>
+              </Link>
+            </div>
+          </div>
         </nav>
   
         {/* Hero Section */}
@@ -63,8 +72,8 @@ export default function Home() {
             />
             <div className="absolute inset-0 bg-gradient-to-tr from-[#E6FFF4]/80 to-[#F9FAFB]/30" />
           </div>
-          <h1 data-aos="fade-up" className="text-5xl sm:text-6xl font-bold mb-4 text-#10B981 drop-shadow-lg">Camping made easy</h1>
-          <Link href="/login">
+          <h1 data-aos="fade-up" className="text-5xl sm:text-6xl font-bold mb-4 text-[#F9FAFB] drop-shadow-lg" style={{textShadow: '2px 2px 4px rgba(0, 0, 0, 0.7)'}}>Camping made easy</h1>
+          <Link href="/signup">
             <button data-aos="fade-up" data-aos-delay="200" className="bg-[#10B981] text-white font-semibold px-6 py-3 rounded-full shadow-lg hover:bg-[#14B8A6] transition glow-button">
               Start Your Trip
             </button>
@@ -72,10 +81,10 @@ export default function Home() {
         </header>
   
         {/* How it works */}
-        <section id="features" className="relative py-24 bg-[#E6FFF4]">
+        <section id="features" className="relative py-24 bg-gradient-to-br from-[#E6FFF4] via-[#A7F3D0] to-[#10B981]">
           <div className="container max-w-6xl mx-auto px-6">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-semibold text-[#111827] mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-[#111827] mb-6 tracking-tight" style={{fontWeight: 800}}>
                 How It Works
               </h2>
               <p className="text-lg text-[#4B5563] max-w-2xl mx-auto">
@@ -85,29 +94,29 @@ export default function Home() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
-                <div className="text-4xl mb-4">📝</div>
-                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Plan your trip</h3>
-                <p className="text-[#4B5563]">Choose your location, season, and trip type. We pull from recreation.gov, hipcamp, and other to get you the latest availability for sites.</p>
+                <div className="text-4xl mb-4">🏕️</div>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Find available sites</h3>
+                <p className="text-[#4B5563]">Stop checking multiple websites. We aggregate real-time availability from Recreation.gov, state parks, and private campgrounds in one place.</p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
                 <div className="text-4xl mb-4">🎒</div>
-                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Get a custom packing list</h3>
-                <p className="text-[#4B5563]">We generate everything you&apos;ll need — no forgetting the bug spray. To make it easy for everyone to get outside.</p>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Never forget essentials</h3>
+                <p className="text-[#4B5563]">Get smart packing lists based on your destination, weather, and trip length. No more wondering "did I pack everything?"</p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
-                <div className="text-4xl mb-4">🌲</div>
-                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Hit the trail</h3>
-                <p className="text-[#4B5563]">Put on airplane mode and enjoy the great outdoors.</p>
+                <div className="text-4xl mb-4">📱</div>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Plan in one place</h3>
+                <p className="text-[#4B5563]">Stop juggling Google searches, social media, and scattered notes. Everything you need to plan your perfect trip, centralized.</p>
               </div>
             </div>
           </div>
         </section>
   
         {/* Testimonials Section */}
-        <section className="py-20 bg-[#F9FAFB] text-center px-6 overflow-hidden">
-          <h2 className="text-3xl font-semibold text-[#111827] mb-12">What Campers Are Saying</h2>
+        <section className="py-20 bg-gradient-to-l from-[#F9FAFB] via-[#E5E7EB] to-[#D1D5DB] text-center px-6 overflow-hidden">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#111827] mb-12 tracking-tight" style={{fontWeight: 800}}>What Campers Are Saying</h2>
           <div className="max-w-6xl mx-auto overflow-hidden mb-12">
             <div className="testimonial-container relative">
               {/* First set of cards */}
@@ -144,7 +153,7 @@ export default function Home() {
           
           {/* CTA Button */}
           <div data-aos="fade-up">
-            <Link href="/login">
+            <Link href="/signup">
               <button className="bg-[#10B981] text-white font-semibold px-6 py-3 rounded-full shadow-lg hover:bg-[#14B8A6] transition glow-button">
                 Join Now
               </button>
@@ -171,7 +180,6 @@ export default function Home() {
                   <h4 className="font-semibold mb-3 text-[#111827]">Company</h4>
                   <ul className="space-y-2">
                     <li><Link href="/about" className="text-sm hover:text-[#10B981] transition">About Us</Link></li>
-                    <li><Link href="/blog" className="text-sm hover:text-[#10B981] transition">Blog</Link></li>
                     <li><Link href="/contact" className="text-sm hover:text-[#10B981] transition">Contact</Link></li>
                   </ul>
                 </div>
@@ -186,7 +194,7 @@ export default function Home() {
               
               {/* CTA */}
               <div className="text-center md:text-right">
-                <Link href="/login">
+                <Link href="/signup">
                   <button className="bg-[#10B981] text-white font-semibold px-6 py-3 rounded-full shadow-lg hover:bg-[#14B8A6] transition-all glow-button">
                     Get started for free
                   </button>
