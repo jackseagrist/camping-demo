@@ -71,7 +71,7 @@ export default function SidebarLayout({ children }) {
   };
 
   const handleSettings = () => {
-    router.push('/settings');
+    router.push('/profile');
     setSettingsOpen(false);
   };
 
