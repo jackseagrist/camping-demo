@@ -69,10 +69,21 @@ export default function TripDetail() {
           return;
         }
 
-        // First, get the trip data
+        // Get the trip data with joined facility data
         const { data: tripData, error } = await supabase
           .from('trips')
-          .select('*')
+          .select(`
+            *,
+            facility:facility_id (
+              facility_id,
+              name,
+              lat,
+              lon,
+              description,
+              type,
+              reservation_url
+            )
+          `)
           .eq('id', id)
           .single();
 
@@ -83,32 +94,15 @@ export default function TripDetail() {
           return;
         }
 
-        // If trip has a facility_id, fetch the facility data
-        let facilityData = null;
-        if (tripData.facility_id) {
-          console.log('Fetching facility data for ID:', tripData.facility_id);
-          const { data: facility, error: facilityError } = await supabase
-            .from('facilities')
-            .select('lat, lon, name, description, type, reservation_url')
-            .eq('facility_id', tripData.facility_id)
-            .single();
-          
-          if (facilityError) {
-            console.error('Error fetching facility:', facilityError);
-          } else {
-            facilityData = facility;
-            console.log('Facility data:', facilityData);
-          }
+        // We don't need to fetch facility data separately now
+        // as it's already included in the tripData
+
+        console.log('Trip data with facility:', tripData);
+        if (tripData.facility) {
+          console.log('Facility coordinates:', { lat: tripData.facility.lat, lon: tripData.facility.lon });
         }
-
-        // Combine trip and facility data
-        const combinedData = {
-          ...tripData,
-          facility: facilityData
-        };
-
-        console.log('Combined trip data:', combinedData);
-        setTrip(combinedData);
+        
+        setTrip(tripData);
         setTitle(tripData.title);
         setEditedTitle(tripData.title);
         setDescription(tripData.description || '');
