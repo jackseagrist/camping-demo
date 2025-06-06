@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
 import TripNotes from '../../components/TripNotes';
+import CollaboratorModal from '../../components/CollaboratorModal';
 import { Trip } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
@@ -46,6 +47,8 @@ export default function TripDetail() {
   const [isSaving, setIsSaving] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
+  const [isCollaboratorModalOpen, setIsCollaboratorModalOpen] = useState(false);
+  const [collaborators, setCollaborators] = useState<{id: string; email: string; status: string}[]>([]);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -89,14 +92,25 @@ export default function TripDetail() {
 
         if (error) throw error;
 
-        if (tripData.user_id !== session.user.id) {
+        // Check if user is owner or collaborator
+        const { data: collaboratorData, error: collaboratorError } = await supabase
+          .from('trip_collaborators')
+          .select('*')
+          .eq('trip_id', id)
+          .eq('email', session.user.email)
+          .eq('status', 'Accepted');
+        
+        if (collaboratorError) throw collaboratorError;
+        
+        // Only allow access if user is owner or accepted collaborator
+        if (tripData.user_id !== session.user.id && (!collaboratorData || collaboratorData.length === 0)) {
           router.push('/dashboard');
           return;
         }
 
-        // We don't need to fetch facility data separately now
-        // as it's already included in the tripData
-
+        // Fetch collaborators for this trip
+        fetchCollaborators();
+        
         console.log('Trip data with facility:', tripData);
         if (tripData.facility) {
           console.log('Facility coordinates:', { lat: tripData.facility.lat, lon: tripData.facility.lon });
@@ -119,6 +133,22 @@ export default function TripDetail() {
 
     fetchTrip();
   }, [id, supabase, router]);
+
+  const fetchCollaborators = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('trip_collaborators')
+        .select('*')
+        .eq('trip_id', id);
+      
+      if (error) throw error;
+      setCollaborators(data || []);
+    } catch (error) {
+      console.error('Error fetching collaborators:', error);
+    }
+  };
 
   const handleTitleFocus = () => {
     setIsEditing(true);
@@ -326,13 +356,31 @@ export default function TripDetail() {
             
             {/* Collaborators */}
             <div className="flex items-center -space-x-2">
-              <div className="w-10 h-10 rounded-full bg-blue-400 border-2 border-white flex items-center justify-center text-white">
-                JS
-              </div>
-              <div className="w-10 h-10 rounded-full bg-green-400 border-2 border-white flex items-center justify-center text-white">
-                AK
-              </div>
-              <button className="w-10 h-10 rounded-full border-2 border-white bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600">
+              {collaborators.filter(c => c.status === 'Accepted').slice(0, 3).map((collaborator, index) => (
+                <div 
+                  key={collaborator.id}
+                  className={`w-10 h-10 rounded-full ${
+                    ['bg-blue-400', 'bg-green-400', 'bg-purple-400', 'bg-yellow-400', 'bg-pink-400'][index % 5]
+                  } border-2 border-white flex items-center justify-center text-white`}
+                  title={collaborator.email}
+                >
+                  {collaborator.email.substring(0, 2).toUpperCase()}
+                </div>
+              ))}
+              
+              {/* Additional collaborators count */}
+              {collaborators.filter(c => c.status === 'Accepted').length > 3 && (
+                <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs">
+                  +{collaborators.filter(c => c.status === 'Accepted').length - 3}
+                </div>
+              )}
+              
+              {/* Add Collaborator Button */}
+              <button 
+                className="w-10 h-10 rounded-full border-2 border-white bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                onClick={() => setIsCollaboratorModalOpen(true)}
+                title="Add collaborators"
+              >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
@@ -447,6 +495,18 @@ export default function TripDetail() {
         
         {/* Notes Section - Full Width */}
         <TripNotes trip={trip} onUpdate={setTrip} />
+        
+        {/* Collaborator Modal */}
+        {trip && (
+          <CollaboratorModal 
+            isOpen={isCollaboratorModalOpen}
+            onClose={() => {
+              setIsCollaboratorModalOpen(false);
+              fetchCollaborators(); // Refresh collaborators list when modal is closed
+            }}
+            tripId={trip.id}
+          />
+        )}
       </div>
     </SidebarLayout>
   );

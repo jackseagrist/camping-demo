@@ -20,6 +20,14 @@ export interface Facility {
   reservation_url?: string;
 }
 
+export interface Collaborator {
+  id: string;
+  trip_id: string;
+  email: string;
+  status: 'Pending' | 'Accepted';
+  invited_at: string;
+}
+
 export interface Trip {
   id: string;
   user_id: string;
@@ -37,4 +45,5 @@ export interface Trip {
   experience_level?: string;
   facility_id?: string;
   facility?: Facility;
+  collaborators?: Collaborator[];
 } 

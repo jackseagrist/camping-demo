@@ -1,7 +1,7 @@
 import { Trip } from '../lib/types';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface TripCardProps {
@@ -12,7 +12,28 @@ interface TripCardProps {
 export default function TripCard({ trip, onDelete }: TripCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [collaborators, setCollaborators] = useState([]);
   const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    // Fetch collaborators for this trip
+    const fetchCollaborators = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('trip_collaborators')
+          .select('*')
+          .eq('trip_id', trip.id)
+          .eq('status', 'Accepted');
+        
+        if (error) throw error;
+        setCollaborators(data || []);
+      } catch (error) {
+        console.error('Error fetching collaborators:', error);
+      }
+    };
+
+    fetchCollaborators();
+  }, [trip.id, supabase]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -98,6 +119,33 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
             </svg>
             {trip.packing_list.length} items packed
           </p>
+          
+          {/* Collaborator information */}
+          {collaborators.length > 0 && (
+            <div className="mt-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <div className="flex -space-x-2 overflow-hidden">
+                {collaborators.slice(0, 3).map((collaborator, index) => (
+                  <div 
+                    key={collaborator.id}
+                    className={`inline-block h-6 w-6 rounded-full ${
+                      ['bg-blue-400', 'bg-green-400', 'bg-purple-400', 'bg-yellow-400', 'bg-pink-400'][index % 5]
+                    } text-xs text-white flex items-center justify-center ring-2 ring-white`}
+                    title={collaborator.email}
+                  >
+                    {collaborator.email.substring(0, 2).toUpperCase()}
+                  </div>
+                ))}
+                {collaborators.length > 3 && (
+                  <div className="inline-block h-6 w-6 rounded-full bg-gray-200 text-xs text-gray-600 flex items-center justify-center ring-2 ring-white">
+                    +{collaborators.length - 3}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </Link>
