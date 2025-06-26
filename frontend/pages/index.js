@@ -102,7 +102,7 @@ export default function Home() {
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
                 <div className="text-4xl mb-4">🎒</div>
                 <h3 className="text-xl font-semibold mb-4 text-[#111827]">Never forget essentials</h3>
-                <p className="text-[#4B5563]">Get smart packing lists based on your destination, weather, and trip length. No more wondering "did I pack everything?"</p>
+                <p className="text-[#4B5563]">Get smart packing lists based on your destination, weather, and trip length. No more wondering &ldquo;did I pack everything?&ldquo;</p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">

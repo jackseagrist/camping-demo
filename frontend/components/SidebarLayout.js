@@ -139,7 +139,7 @@ export default function SidebarLayout({ children }) {
                     <span className="bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded">BETA</span>
                   </div>
                   <p className="text-xs text-gray-600 mb-2">
-                    We're in beta testing. Your feedback helps us improve!
+                    We&apos;re in beta testing. Your feedback helps us improve!
                   </p>
                   <a 
                     href="https://mini-handspring-f8f.notion.site/forms/21e746d3abd78030a785cac7e85c9c8e"
