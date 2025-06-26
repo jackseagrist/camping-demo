@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
 import TripNotes from '../../components/TripNotes';
+import TripCommentsSection from '../../components/TripCommentsSection';
 import CollaboratorModal from '../../components/CollaboratorModal';
 import CampsiteModal from '../../components/CampsiteModal';
 import TripStatusDropdown from '../../components/TripStatusDropdown';
@@ -52,6 +53,7 @@ export default function TripDetail() {
   const [isCollaboratorModalOpen, setIsCollaboratorModalOpen] = useState(false);
   const [isCampsiteModalOpen, setIsCampsiteModalOpen] = useState(false);
   const [collaborators, setCollaborators] = useState<{id: string; email: string; status: string}[]>([]);
+  const [tripOwner, setTripOwner] = useState<{id: string; email: string} | null>(null);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -126,6 +128,9 @@ export default function TripDetail() {
         setEditedDescription(tripData.description || '');
         setStartDate(tripData.start_date ? format(new Date(tripData.start_date), 'yyyy-MM-dd') : '');
         setEndDate(tripData.end_date ? format(new Date(tripData.end_date), 'yyyy-MM-dd') : '');
+        
+        // Mark notifications as seen when viewing the trip
+        markNotificationsAsSeen(session.user.id, id as string);
       } catch (error) {
         console.error('Error fetching trip:', error);
         alert('Error loading trip details');
@@ -141,6 +146,48 @@ export default function TripDetail() {
     if (!id) return;
     
     try {
+      // First, get the trip owner's information
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data: tripData, error: tripError } = await supabase
+        .from('trips')
+        .select('user_id')
+        .eq('id', id)
+        .single();
+      
+      if (tripError) throw tripError;
+      
+      // Set the trip owner using the current user's info if they're the owner
+      if (session.user.id === tripData.user_id) {
+        setTripOwner({
+          id: session.user.id,
+          email: session.user.email || 'Owner'
+        });
+      } else {
+        // Try to get the owner's email from trip_collaborators (they might be a collaborator on other trips)
+        const { data: ownerData, error: ownerError } = await supabase
+          .from('trip_collaborators')
+          .select('email')
+          .eq('user_id', tripData.user_id)
+          .limit(1)
+          .single();
+        
+        if (ownerError || !ownerData) {
+          // If we can't find the email, use a generic label with the user ID
+          setTripOwner({
+            id: tripData.user_id,
+            email: `User ${tripData.user_id.substring(0, 4)}`
+          });
+        } else {
+          setTripOwner({
+            id: tripData.user_id,
+            email: ownerData.email
+          });
+        }
+      }
+      
+      // Get collaborators
       const { data, error } = await supabase
         .from('trip_collaborators')
         .select('*')
@@ -369,6 +416,21 @@ export default function TripDetail() {
     return result;
   };
 
+  // Function to mark notifications as seen
+  const markNotificationsAsSeen = async (userId: string, tripId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ seen: true })
+        .eq('user_id', userId)
+        .eq('trip_id', tripId);
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking notifications as seen:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
@@ -478,36 +540,58 @@ export default function TripDetail() {
             </div>
             
             {/* Collaborators */}
-            <div className="flex items-center -space-x-2">
-              {collaborators.filter(c => c.status === 'Accepted').slice(0, 3).map((collaborator, index) => (
-                <div 
-                  key={collaborator.id}
-                  className={`w-10 h-10 rounded-full ${
-                    ['bg-blue-400', 'bg-green-400', 'bg-purple-400', 'bg-yellow-400', 'bg-pink-400'][index % 5]
-                  } border-2 border-white flex items-center justify-center text-white`}
-                  title={collaborator.email}
+            <div className="flex items-center">
+              {/* Accepted Collaborators */}
+              <div className="flex -space-x-2">
+                {collaborators
+                  .filter(c => c.status === 'Accepted')
+                  .slice(0, 3)
+                  .map((c, i) => (
+                    <div 
+                      key={c.id}
+                      className={`w-10 h-10 rounded-full ${
+                        ['bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-pink-400', 'bg-indigo-400'][i % 5]
+                      } border-2 border-white flex items-center justify-center text-white`}
+                      title={c.email}
+                    >
+                      {c.email.substring(0, 2).toUpperCase()}
+                    </div>
+                  ))
+                }
+                
+                {/* Additional collaborators count */}
+                {collaborators.filter(c => c.status === 'Accepted').length > 3 && (
+                  <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs">
+                    +{collaborators.filter(c => c.status === 'Accepted').length - 3}
+                  </div>
+                )}
+                
+                {/* Add Collaborator Button */}
+                <button 
+                  className="w-10 h-10 rounded-full border-2 border-white bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                  onClick={() => setIsCollaboratorModalOpen(true)}
+                  title="Add collaborators"
                 >
-                  {collaborator.email.substring(0, 2).toUpperCase()}
-                </div>
-              ))}
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
               
-              {/* Additional collaborators count */}
-              {collaborators.filter(c => c.status === 'Accepted').length > 3 && (
-                <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs">
-                  +{collaborators.filter(c => c.status === 'Accepted').length - 3}
+              {/* Trip Owner - Shown separately to the right */}
+              {tripOwner && (
+                <div 
+                  className="w-10 h-10 rounded-full bg-purple-500 border-2 border-white flex items-center justify-center text-white ml-2 relative"
+                  title={tripOwner.email}
+                >
+                  {tripOwner.email.substring(0, 2).toUpperCase()}
+                  <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </span>
                 </div>
               )}
-              
-              {/* Add Collaborator Button */}
-              <button 
-                className="w-10 h-10 rounded-full border-2 border-white bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
-                onClick={() => setIsCollaboratorModalOpen(true)}
-                title="Add collaborators"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-              </button>
             </div>
           </div>
         </div>
@@ -644,6 +728,9 @@ export default function TripDetail() {
         
         {/* Notes Section - Full Width */}
         <TripNotes trip={trip} onUpdate={setTrip} />
+        
+        {/* Comments Section - Full Width */}
+        <TripCommentsSection trip={trip} />
         
         {/* Collaborator Modal */}
         {trip && (

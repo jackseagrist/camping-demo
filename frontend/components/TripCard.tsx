@@ -22,6 +22,7 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
+  const [hasUnseenMentions, setHasUnseenMentions] = useState(false);
   const supabase = createClientComponentClient();
 
   // Find current status or default to 'idea'
@@ -45,6 +46,47 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
     };
 
     fetchCollaborators();
+    
+    // Check for unseen notifications/mentions
+    const checkNotifications = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) return;
+        
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('trip_id', trip.id)
+          .eq('user_id', user.id)
+          .eq('seen', false);
+        
+        if (error) throw error;
+        
+        setHasUnseenMentions(data && data.length > 0);
+      } catch (error) {
+        console.error('Error checking notifications:', error);
+      }
+    };
+    
+    checkNotifications();
+    
+    // Subscribe to notifications table for real-time updates
+    const notificationsSubscription = supabase
+      .channel('notifications-channel')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `trip_id=eq.${trip.id}`
+      }, (payload) => {
+        checkNotifications();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(notificationsSubscription);
+    };
   }, [trip.id, supabase]);
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -81,6 +123,13 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
   return (
     <Link href={`/trips/${trip.id}`}>
       <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 cursor-pointer relative group">
+        {/* Notification Badge */}
+        {hasUnseenMentions && (
+          <div className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+            <span className="text-white text-xs">🔔</span>
+          </div>
+        )}
+        
         {/* Ellipsis Menu Button */}
         <button
           onClick={toggleMenu}

@@ -42,6 +42,29 @@ export interface Campsite {
   amenities?: string[];
 }
 
+export interface Comment {
+  id: string;
+  trip_id: string;
+  user_id: string;
+  content: string;
+  mentions: string[];
+  created_at: string;
+  user?: {
+    email: string;
+    id: string;
+  };
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  trip_id: string;
+  comment_id?: string;
+  type: 'mention' | 'comment';
+  seen: boolean;
+  created_at: string;
+}
+
 export interface Trip {
   id: string;
   user_id: string;
