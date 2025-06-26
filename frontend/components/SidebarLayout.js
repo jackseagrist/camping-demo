@@ -35,6 +35,12 @@ const SettingsIcon = () => (
   </svg>
 );
 
+const CloseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
 export default function SidebarLayout({ children }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -110,10 +116,10 @@ export default function SidebarLayout({ children }) {
   return (
     <div className={`${inter.className} min-h-screen w-full relative ${isPlanPage ? 'bg-gray-100' : 'bg-[#F9FAFB]'}`}>
       <div className="flex min-h-screen">
-        <aside className={`bg-white border-r border-gray-200 hidden lg:block lg:fixed left-0 top-0 h-full transition-all duration-300 ${collapsed ? 'lg:w-20' : 'lg:w-64'} z-40`}>
+        <aside className={`group bg-white border-r border-gray-200 hidden lg:block lg:fixed left-0 top-0 h-full transition-all duration-300 ${collapsed ? 'lg:w-20' : 'lg:w-64'} z-40`}>
           <button
             onClick={() => setCollapsed((prev) => !prev)}
-            className="hidden lg:block absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 p-2 rounded transition text-gray-400 hover:bg-gray-100 hover:text-gray-600 opacity-0 hover:opacity-100 focus:opacity-100 z-10 bg-white"
+            className="hidden lg:block absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/2 p-2 rounded transition text-gray-400 hover:bg-gray-100 hover:text-gray-600 opacity-0 group-hover:opacity-100 focus:opacity-100 z-10 bg-white"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <span className="text-2xl">»</span> : <span className="text-2xl">«</span>}
@@ -126,29 +132,64 @@ export default function SidebarLayout({ children }) {
               </Link>
               <nav className="space-y-4 flex-1">{navLinks}</nav>
             </div>
-            <div className="relative mt-auto" ref={settingsRef}>
-              <button
-                onClick={() => setSettingsOpen((open) => !open)}
-                className="w-full text-left flex items-center gap-2 text-[#4B5563] font-medium px-2 py-1 rounded transition-colors hover:text-[#10B981] focus:outline-none group"
-              >
-                <span className={`text-gray-500 transition-colors group-hover:text-[#10B981] ${settingsOpen ? 'text-[#10B981]' : ''}`}>
-                  <SettingsIcon />
-                </span>
-                {!collapsed && <span className="transition-colors">Profile</span>}
-              </button>
-              {settingsOpen && (
-                <div
-                  className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 transition-all duration-300"
-                  style={{ bottom: '100%', marginBottom: '0.5rem', left: '0', width: collapsed ? '10rem' : '100%' }}
-                >
-                  <button onClick={handleSettings} className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors">
-                    Profile
-                  </button>
-                  <button onClick={handleSignOut} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors">
-                    Sign Out
-                  </button>
+            <div className="mt-auto flex flex-col space-y-2">
+              {!collapsed && (
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-2">
+                  <div className="flex items-center mb-2">
+                    <span className="bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded">BETA</span>
+                  </div>
+                  <p className="text-xs text-gray-600 mb-2">
+                    We're in beta testing. Your feedback helps us improve!
+                  </p>
+                  <a 
+                    href="https://mini-handspring-f8f.notion.site/forms/21e746d3abd78030a785cac7e85c9c8e"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 font-medium hover:text-blue-800 hover:underline inline-flex items-center"
+                  >
+                    Share feedback
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 ml-1">
+                      <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
+                    </svg>
+                  </a>
                 </div>
               )}
+              {collapsed && (
+                <a 
+                  href="https://mini-handspring-f8f.notion.site/forms/21e746d3abd78030a785cac7e85c9c8e"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-blue-50 border border-blue-100 rounded-lg p-2 flex flex-col items-center justify-center mb-2"
+                  title="We're in beta testing. Your feedback helps us improve!"
+                >
+                  <span className="bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded mb-1">BETA</span>
+                  <span className="text-xs text-blue-600 font-medium">?</span>
+                </a>
+              )}
+              <div className="relative" ref={settingsRef}>
+                <button
+                  onClick={() => setSettingsOpen((open) => !open)}
+                  className="w-full text-left flex items-center gap-2 text-[#4B5563] font-medium px-2 py-1 rounded transition-colors hover:text-[#10B981] focus:outline-none group"
+                >
+                  <span className={`text-gray-500 transition-colors group-hover:text-[#10B981] ${settingsOpen ? 'text-[#10B981]' : ''}`}>
+                    <SettingsIcon />
+                  </span>
+                  {!collapsed && <span className="transition-colors">Profile</span>}
+                </button>
+                {settingsOpen && (
+                  <div
+                    className="absolute bg-white border border-gray-200 rounded-lg shadow-lg z-50 transition-all duration-300"
+                    style={{ bottom: '100%', marginBottom: '0.5rem', left: '0', width: collapsed ? '10rem' : '100%' }}
+                  >
+                    <button onClick={handleSettings} className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg transition-colors">
+                      Profile
+                    </button>
+                    <button onClick={handleSignOut} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500 rounded-b-lg transition-colors">
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </aside>

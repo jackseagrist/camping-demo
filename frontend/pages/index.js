@@ -88,15 +88,15 @@ export default function Home() {
                 How It Works
               </h2>
               <p className="text-lg text-[#4B5563] max-w-2xl mx-auto">
-                Plan smarter, pack lighter, and get outside with confidence.
+                Spend less time planning and more time enjoying your trip.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
                 <div className="text-4xl mb-4">🏕️</div>
-                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Find available sites</h3>
-                <p className="text-[#4B5563]">Stop checking multiple websites. We aggregate real-time availability from Recreation.gov, state parks, and private campgrounds in one place.</p>
+                <h3 className="text-xl font-semibold mb-4 text-[#111827]">Find sites</h3>
+                <p className="text-[#4B5563]">Stop checking multiple websites. We aggregate sites from Recreation.gov, state parks, and private campgrounds in one place.</p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
@@ -122,30 +122,30 @@ export default function Home() {
               {/* First set of cards */}
               <div className="testimonial-track flex gap-6">
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I found a last-minute campsite on three different platforms—BaseLodge made it a breeze.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus W.</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Finally, a way to see all the open campsites in one spot. No more endless searching.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;As a beginner, I had no idea what to bring. The packing list was a game-changer.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor L.</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I didn&apos;t realize how much I was forgetting until the packing list reminded me. Total lifesaver.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;It saved me hours of prep time. I&apos;ll never plan a trip without it again.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey M.</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Everything I needed to plan was right here. Super helpful and way less stressful.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey</span>
                 </div>
                 
                 {/* Duplicate set for seamless looping */}
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I found a last-minute campsite on three different platforms—BaseLodge made it a breeze.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus W.</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Finally, a way to see all the open campsites in one spot. No more endless searching.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;As a beginner, I had no idea what to bring. The packing list was a game-changer.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor L.</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I didn&apos;t realize how much I was forgetting until the packing list reminded me. Total lifesaver.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;It saved me hours of prep time. I&apos;ll never plan a trip without it again.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey M.</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Everything I needed to plan was right here. Super helpful and way less stressful.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey</span>
                 </div>
               </div>
             </div>

@@ -4,6 +4,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
 import TripNotes from '../../components/TripNotes';
 import CollaboratorModal from '../../components/CollaboratorModal';
+import CampsiteModal from '../../components/CampsiteModal';
 import { Trip } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
@@ -48,6 +49,7 @@ export default function TripDetail() {
   const [editedTitle, setEditedTitle] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
   const [isCollaboratorModalOpen, setIsCollaboratorModalOpen] = useState(false);
+  const [isCampsiteModalOpen, setIsCampsiteModalOpen] = useState(false);
   const [collaborators, setCollaborators] = useState<{id: string; email: string; status: string}[]>([]);
   
   const titleRef = useRef<HTMLInputElement>(null);
@@ -414,6 +416,20 @@ export default function TripDetail() {
                   <option>Campground B</option>
                 </select>
                 
+                {/* Campsites Link */}
+                <div className="mb-4">
+                  <button
+                    onClick={() => setIsCampsiteModalOpen(true)}
+                    className="text-[#10B981] hover:text-[#0E9F6E] hover:underline font-medium flex items-center"
+                    disabled={!trip.facility_id}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h4M9 7h6m-6 4h6m-6 4h6" />
+                    </svg>
+                    Campsites
+                  </button>
+                </div>
+                
                 <div className="flex space-x-4 text-[#10B981] mt-4">
                   {trip.facility?.reservation_url && (
                     <a href={trip.facility.reservation_url} target="_blank" rel="noopener noreferrer" className="hover:underline">Make reservation</a>
@@ -505,6 +521,16 @@ export default function TripDetail() {
               fetchCollaborators(); // Refresh collaborators list when modal is closed
             }}
             tripId={trip.id}
+          />
+        )}
+        
+        {/* Campsite Modal */}
+        {trip && (
+          <CampsiteModal 
+            isOpen={isCampsiteModalOpen}
+            onClose={() => setIsCampsiteModalOpen(false)}
+            facilityId={trip.facility_id || null}
+            facilityName={trip.facility?.name}
           />
         )}
       </div>

@@ -28,6 +28,17 @@ export interface Collaborator {
   invited_at: string;
 }
 
+export interface Campsite {
+  id: string;
+  facility_id: string;
+  name: string;
+  description?: string;
+  reservation_url?: string;
+  site_type?: string;
+  max_occupancy?: number;
+  amenities?: string[];
+}
+
 export interface Trip {
   id: string;
   user_id: string;
