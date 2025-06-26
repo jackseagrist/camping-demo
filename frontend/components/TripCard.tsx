@@ -22,6 +22,7 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
+  const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
   const [hasUnseenMentions, setHasUnseenMentions] = useState(false);
   const supabase = createClientComponentClient();
 
@@ -31,6 +32,7 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
   useEffect(() => {
     // Fetch collaborators for this trip
     const fetchCollaborators = async () => {
+      setIsLoadingCollaborators(true);
       try {
         const { data, error } = await supabase
           .from('trip_collaborators')
@@ -42,6 +44,8 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
         setCollaborators(data || []);
       } catch (error) {
         console.error('Error fetching collaborators:', error);
+      } finally {
+        setIsLoadingCollaborators(false);
       }
     };
 
@@ -122,7 +126,7 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
 
   return (
     <Link href={`/trips/${trip.id}`}>
-      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 cursor-pointer relative group">
+      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 cursor-pointer relative group h-64 flex flex-col">
         {/* Notification Badge */}
         {hasUnseenMentions && (
           <div className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
@@ -156,54 +160,68 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
           </div>
         )}
 
-        <h3 className="text-xl font-semibold text-gray-900 mb-2 pr-8">{trip.title}</h3>
-        <div className="space-y-2">
-          <p className="text-gray-600 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            {trip.location}
-          </p>
-          {trip.start_date && (
+        <div className="flex-1">
+          <h3 className="text-xl font-semibold text-gray-900 mb-2 pr-8 truncate" title={trip.title}>{trip.title}</h3>
+          <div className="space-y-2">
+            <p className="text-gray-600 flex items-center truncate" title={trip.location}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {trip.location || "No location set"}
+            </p>
             <p className="text-gray-600 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              {format(new Date(trip.start_date), 'MMM d, yyyy')}
-              {trip.end_date && ` - ${format(new Date(trip.end_date), 'MMM d, yyyy')}`}
+              {trip.start_date ? (
+                <>
+                  {format(new Date(trip.start_date), 'MMM d, yyyy')}
+                  {trip.end_date && ` - ${format(new Date(trip.end_date), 'MMM d, yyyy')}`}
+                </>
+              ) : (
+                <span className="text-gray-400">No dates selected</span>
+              )}
             </p>
-          )}
-          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm ${currentStatus.color}`}>
-            <span className="mr-1">{currentStatus.emoji}</span>
-            {currentStatus.label}
-          </div>
-          
-          {/* Collaborator information */}
-          {collaborators.length > 0 && (
-            <div className="mt-4 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <div className="flex -space-x-2 overflow-hidden">
-                {collaborators.slice(0, 3).map((collaborator, index) => (
-                  <div 
-                    key={collaborator.id}
-                    className={`inline-block h-6 w-6 rounded-full ${
-                      ['bg-blue-400', 'bg-green-400', 'bg-purple-400', 'bg-yellow-400', 'bg-pink-400'][index % 5]
-                    } text-xs text-white flex items-center justify-center ring-2 ring-white`}
-                    title={collaborator.email}
-                  >
-                    {collaborator.email.substring(0, 2).toUpperCase()}
-                  </div>
-                ))}
-                {collaborators.length > 3 && (
-                  <div className="inline-block h-6 w-6 rounded-full bg-gray-200 text-xs text-gray-600 flex items-center justify-center ring-2 ring-white">
-                    +{collaborators.length - 3}
-                  </div>
-                )}
-              </div>
+            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm ${currentStatus.color}`}>
+              <span className="mr-1">{currentStatus.emoji}</span>
+              {currentStatus.label}
             </div>
+          </div>
+        </div>
+          
+        {/* Collaborator information - always visible */}
+        <div className="mt-4 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          
+          {isLoadingCollaborators ? (
+            <div className="flex -space-x-2 overflow-hidden">
+              <div className="inline-block h-6 w-6 rounded-full bg-gray-200 animate-pulse"></div>
+              <div className="inline-block h-6 w-6 rounded-full bg-gray-200 animate-pulse"></div>
+            </div>
+          ) : collaborators.length > 0 ? (
+            <div className="flex -space-x-2 overflow-hidden">
+              {collaborators.slice(0, 3).map((collaborator, index) => (
+                <div 
+                  key={collaborator.id}
+                  className={`inline-block h-6 w-6 rounded-full ${
+                    ['bg-blue-400', 'bg-green-400', 'bg-purple-400', 'bg-yellow-400', 'bg-pink-400'][index % 5]
+                  } text-xs text-white flex items-center justify-center ring-2 ring-white`}
+                  title={collaborator.email}
+                >
+                  {collaborator.email.substring(0, 2).toUpperCase()}
+                </div>
+              ))}
+              {collaborators.length > 3 && (
+                <div className="inline-block h-6 w-6 rounded-full bg-gray-200 text-xs text-gray-600 flex items-center justify-center ring-2 ring-white">
+                  +{collaborators.length - 3}
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-500 text-sm">Just you</span>
           )}
         </div>
       </div>
