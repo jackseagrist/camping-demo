@@ -88,7 +88,7 @@ export default function Home() {
                 How It Works
               </h2>
               <p className="text-lg text-[#4B5563] max-w-2xl mx-auto">
-                Spend less time planning and more time enjoying your trip.
+                Spend less time planning and more time outside.
               </p>
             </div>
 
@@ -179,15 +179,14 @@ export default function Home() {
                 <div>
                   <h4 className="font-semibold mb-3 text-[#111827]">Company</h4>
                   <ul className="space-y-2">
+                    <li><Link href="/" className="text-sm hover:text-[#10B981] transition">Home</Link></li>
                     <li><Link href="/about" className="text-sm hover:text-[#10B981] transition">About Us</Link></li>
-                    <li><Link href="/contact" className="text-sm hover:text-[#10B981] transition">Contact</Link></li>
                   </ul>
                 </div>
                 <div>
                   <h4 className="font-semibold mb-3 text-[#111827]">Legal</h4>
                   <ul className="space-y-2">
                     <li><Link href="/terms" className="text-sm hover:text-[#10B981] transition">Terms</Link></li>
-                    <li><Link href="/privacy" className="text-sm hover:text-[#10B981] transition">Privacy</Link></li>
                   </ul>
                 </div>
               </div>
@@ -208,14 +207,6 @@ export default function Home() {
                       <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
                       <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                       <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line>
-                    </svg>
-                  </a>
-                  <a href="https://mini-handspring-f8f.notion.site/ClimbCovers-135746d3abd78065a751f8fba2ba151b?fbclid=PAZXh0bgNhZW0CMTEAAaf-nnFxntm5RjhAX4_tzWTOjbIgoc50GoDYKKcFsHXpRuaPPWqetJp9Q9X_mg_aem_FBSaJlQQ62x0zocL9W6tPw" 
-                     target="_blank" rel="noopener noreferrer"
-                     className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D1D5DB] hover:border-[#10B981] transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                     </svg>
                   </a>
                 </div>

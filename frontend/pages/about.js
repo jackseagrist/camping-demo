@@ -37,66 +37,64 @@ export default function About() {
         </Head>
   
         {/* Simplified Sticky Nav with just logo and CTA */}
-        <nav className="fixed w-full top-0 z-50 flex items-center justify-between px-6 py-4 bg-[#F9FAFB]/70 backdrop-blur-md shadow-sm">
-          <Link href="/" className="flex items-center space-x-2">
-            <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
-            <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
-          </Link>
-          <Link href="/login">
-            <button className="bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-lg hover:bg-[#14B8A6] transition-all hover:shadow-xl">
-              Try for Free
-            </button>
-          </Link>
+        <nav className="fixed w-full top-4 z-50 px-6">
+          <div className="flex items-center justify-between px-8 py-4 bg-gradient-to-r from-[#D1D5DB]/60 to-[#E6FFF4]/60 backdrop-blur-lg shadow-xl rounded-full border border-white/20">
+            <Link href="/" className="flex items-center space-x-2">
+              <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
+              <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
+            </Link>
+            <div className="flex items-center space-x-3">
+              <Link href="/login">
+                <button className="bg-gray-100 text-black font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-gray-200 transition-all hover:shadow-lg border border-gray-200">
+                  Login
+                </button>
+              </Link>
+              <Link href="/signup">
+                <button className="bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-[#14B8A6] transition-all hover:shadow-lg">
+                  Try for Free
+                </button>
+              </Link>
+            </div>
+          </div>
         </nav>
   
-        {/* Hero Section */}
-        <header className="relative h-screen flex flex-col justify-center items-center text-center text-white overflow-hidden">
-          <div className="absolute inset-0 z-0 animate-zoom">
-            <Image
-              src="/hero-norcal.jpg"
-              alt="Sierra Mountains Background"
-              fill
-              className="object-cover"
-              priority
-            />
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#E6FFF4]/80 to-[#F9FAFB]/30" />
-          </div>
-          <h1 data-aos="fade-up" className="text-5xl sm:text-6xl font-bold mb-4 text-#10B981 drop-shadow-lg">Our Story</h1>
-          <p data-aos="fade-up" data-aos-delay="200" className="text-xl mb-8 max-w-2xl mx-auto px-6 drop-shadow-lg">
-            Three friends, endless adventures, and a love for the Sierra Mountains
-          </p>
-        </header>
-  
-        {/* Our Story Section */}
-        <section className="relative py-24 bg-[#E6FFF4]">
-          <div className="container max-w-4xl mx-auto px-6">
+        {/* Welcome to ClimbCovers Section with Gradient Background */}
+        <section className="relative pt-32 pb-24 bg-gradient-to-tl from-[#10B981] via-[#A7F3D0] to-[#E6FFF4]" style={{marginTop: 0}}>
+          <div className="container max-w-4xl mx-auto px-6 pt-16">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-semibold text-[#111827] mb-6">
-                Welcome to ClimbCovers
-              </h2>
+              <h1 className="text-5xl font-bold text-[#111827] mb-6">
+                Welcome to BaseLodge
+              </h1>
             </div>
 
             <div className="bg-white rounded-xl p-12 shadow-lg border border-[#D1D5DB] mb-12">
               <div className="prose prose-lg max-w-none text-[#4B5563] leading-relaxed">
                 <p className="mb-6">
-                  Welcome to ClimbCovers—a project born from our shared love of the mountains and a deep-rooted appreciation for California's Sierra region. We're three friends, Wisconsin natives turned Californians, who've dedicated over 23 years combined to exploring the hidden gems and natural wonders of the Sierra Mountain towns.
+                  Welcome to BaseLodge—a project born from our shared passion for the outdoors and a deep belief that nature is where we find our best selves. We&apos;re three friends with backgrounds in technology and adventure who&apos;ve spent countless weekends exploring trails, campsites, and wilderness areas across North America.
                 </p>
                 
                 <p className="mb-6">
-                  As civil and environmental engineers, we bring our passion for the outdoors into every adventure, blending our professional perspectives with a personal commitment to preserving these extraordinary places.
+                  As tech enthusiasts who love disconnecting, we recognized a frustrating paradox: planning outdoor adventures often keeps us glued to screens for hours. BaseLodge was created to solve this problem—to help you spend less time planning and more time experiencing the outdoors.
                 </p>
                 
                 <p className="mb-6">
-                  Our weekends are filled with trail runs, backpacking expeditions, and moments spent savoring the simple pleasures—craft beers, board games, and starlit skies. Together, we've created ClimbCovers as a space to share the stories of the Sierra Mountains' most captivating towns and landscapes.
+                  Our weekends are dedicated to hiking, camping, backpacking, and savoring those perfect outdoor moments—sunsets from remote peaks, morning coffee by alpine lakes, and stargazing from our tent doors. We&apos;ve channeled our combined experience into BaseLodge to simplify your journey from inspiration to adventure.
                 </p>
                 
                 <p className="mb-6">
-                  Here, we delve into each community's unique character, history, and vision for a sustainable future, inviting fellow adventurers to experience the heart of this incredible region.
+                  We&apos;ve designed BaseLodge to eliminate the friction points that keep people indoors: the overwhelming research across multiple websites, the uncertainty of what to pack, and the complexity of coordinating outdoor trips. Our AI-powered platform handles these details so you can focus on what matters—being outside.
                 </p>
                 
                 <p>
-                  We believe in exploring beyond the usual paths, celebrating the small towns where every turn offers something extraordinary. Join us on this journey as we uncover the stories, beauty, and environmental significance of these mountain havens. ClimbCovers is our invitation to you to connect with the Sierras on a deeper level and discover a side of California that few get to truly see.
+                  We believe that time in nature shouldn&apos;t require a computer science degree to plan. BaseLodge is our invitation to you to reclaim your weekends, discover new destinations with confidence, and build a deeper connection with the natural world. Let us handle the planning details while you focus on creating memories under open skies.
                 </p>
+                
+                <div className="mt-10 pt-6 border-t border-gray-200">
+                  <h3 className="font-semibold text-xl mb-2 text-[#111827]">Contact Us</h3>
+                  <p>
+                    Have questions or feedback? Reach out to us at <a href="mailto:climbcovers@gmail.com" className="text-[#10B981] hover:text-[#14B8A6] font-medium">climbcovers@gmail.com</a>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -120,15 +118,14 @@ export default function About() {
                 <div>
                   <h4 className="font-semibold mb-3 text-[#111827]">Company</h4>
                   <ul className="space-y-2">
+                    <li><Link href="/" className="text-sm hover:text-[#10B981] transition">Home</Link></li>
                     <li><Link href="/about" className="text-sm hover:text-[#10B981] transition">About Us</Link></li>
-                    <li><Link href="/contact" className="text-sm hover:text-[#10B981] transition">Contact</Link></li>
                   </ul>
                 </div>
                 <div>
                   <h4 className="font-semibold mb-3 text-[#111827]">Legal</h4>
                   <ul className="space-y-2">
                     <li><Link href="/terms" className="text-sm hover:text-[#10B981] transition">Terms</Link></li>
-                    <li><Link href="/privacy" className="text-sm hover:text-[#10B981] transition">Privacy</Link></li>
                   </ul>
                 </div>
               </div>
@@ -149,14 +146,6 @@ export default function About() {
                       <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
                       <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                       <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line>
-                    </svg>
-                  </a>
-                  <a href="https://mini-handspring-f8f.notion.site/ClimbCovers-135746d3abd78065a751f8fba2ba151b?fbclid=PAZXh0bgNhZW0CMTEAAaf-nnFxntm5RjhAX4_tzWTOjbIgoc50GoDYKKcFsHXpRuaPPWqetJp9Q9X_mg_aem_FBSaJlQQ62x0zocL9W6tPw" 
-                     target="_blank" rel="noopener noreferrer"
-                     className="w-8 h-8 flex items-center justify-center rounded-full border border-[#D1D5DB] hover:border-[#10B981] transition-all">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
                     </svg>
                   </a>
                 </div>

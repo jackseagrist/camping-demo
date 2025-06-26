@@ -158,6 +158,10 @@ export default function Signup() {
             <p className="text-center text-sm text-[#6B7280]">
               Already have an account? <Link href="/login" className="text-[#10B981] hover:underline">Log in here</Link>
             </p>
+            <p className="text-center text-xs text-[#6B7280] mt-2">
+              By creating an account,<br />
+              you agree to our <Link href="/terms" className="text-[#10B981] hover:underline">terms of service</Link> and <Link href="/privacy" className="text-[#10B981] hover:underline">privacy policy</Link>
+            </p>
           </form>
         </div>
       </main>
