@@ -454,7 +454,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
           className={`${styles.toolbarButton} ${editor.isActive('blockquote') ? styles.toolbarButtonActive : ''}`}
           title="Quote"
         >
-          ""
+          &ldquo; &ldquo;
         </button>
         <button
           onClick={() => editor.chain().focus().toggleCode().run()}
