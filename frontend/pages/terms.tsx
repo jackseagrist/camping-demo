@@ -60,7 +60,7 @@ export default function Terms() {
           <p className="text-sm text-[#6B7280] italic mb-8">Last updated: June 25, 2025</p>
           
           <div className="space-y-6 text-[#4B5563]">
-            <p>Welcome to BaseLodge! These Terms of Service ("Terms") govern your use of our beta platform ("Service"), available via our website and app.</p>
+            <p>Welcome to BaseLodge! These Terms of Service (&quot;Terms&quot;) govern your use of our beta platform (&quot;Service&quot;), available via our website and app.</p>
             
             <p>By using BaseLodge, you agree to these Terms.</p>
             
@@ -86,12 +86,12 @@ export default function Terms() {
             
             <section className="mt-8">
               <h2 className="text-xl font-semibold text-[#111827] mb-3">5. Limitation of Liability</h2>
-              <p>We provide the Service "as-is." We make no guarantees about uptime or accuracy. We are not liable for any losses, damages, or data issues.</p>
+              <p>We provide the Service &quot;as-is.&quot; We make no guarantees about uptime or accuracy. We are not liable for any losses, damages, or data issues.</p>
             </section>
             
             <section className="mt-8">
               <h2 className="text-xl font-semibold text-[#111827] mb-3">6. Changes</h2>
-              <p>We may update these Terms at any time. We'll notify you of major changes, but it's your responsibility to review them.</p>
+              <p>We may update these Terms at any time. We&apos;ll notify you of major changes, but it&apos;s your responsibility to review them.</p>
             </section>
             
             <section className="mt-8">

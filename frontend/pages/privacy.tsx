@@ -94,12 +94,12 @@ export default function Privacy() {
             
             <section className="mt-8">
               <h2 className="text-xl font-semibold text-[#111827] mb-3">4. Data Sharing</h2>
-              <p>We don't sell your personal information. We only share it with trusted partners to operate the service.</p>
+              <p>We don&apos;t sell your personal information. We only share it with trusted partners to operate the service.</p>
             </section>
             
             <section className="mt-8">
               <h2 className="text-xl font-semibold text-[#111827] mb-3">5. Cookies & Tracking</h2>
-              <p>We may use cookies or analytics tools in the future. If so, we'll update this policy.</p>
+              <p>We may use cookies or analytics tools in the future. If so, we&apos;ll update this policy.</p>
             </section>
             
             <section className="mt-8">
