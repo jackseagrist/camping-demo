@@ -508,7 +508,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
       </div>
 
       <div className="mt-4 text-xs text-gray-500">
-        <p>Type '/' for commands • Type '[]' for tasks • Click checkboxes to toggle • Content saves automatically</p>
+        <p>Type &apos;/&apos; for commands • Type &apos;[]&apos; for tasks • Click checkboxes to toggle • Content saves automatically</p>
       </div>
     </div>
   );
