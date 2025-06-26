@@ -105,7 +105,13 @@ export default function Signup() {
 
       <main className="max-w-md mx-auto mt-16 sm:mt-20">
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-[#D1D5DB]">
-          <h1 className="text-2xl sm:text-3xl font-bold text-center text-[#111827] mb-6">Create your account</h1>
+          <div className="mb-6">
+            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold mb-3">BETA</span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-center text-[#111827] mb-2">Create your account</h1>
+            <p className="text-center text-[#6B7280] text-sm">
+              <span className="font-semibold">Limited spots available!</span> Join our exclusive beta test and be among the first to experience BaseLodge.
+            </p>
+          </div>
           <button 
             onClick={signUpWithGoogle} 
             className="flex items-center justify-center w-full py-2.5 px-4 border border-gray-300 rounded-full text-[#3c4043] font-medium bg-white shadow-sm hover:shadow transition"
@@ -147,7 +153,7 @@ export default function Signup() {
               type="submit"
               className="w-full bg-[#10B981] text-white py-2 rounded-full font-semibold hover:bg-[#14B8A6] transition"
             >
-              Sign Up
+              Secure Your Spot
             </button>
             <p className="text-center text-sm text-[#6B7280]">
               Already have an account? <Link href="/login" className="text-[#10B981] hover:underline">Log in here</Link>
