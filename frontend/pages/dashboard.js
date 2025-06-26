@@ -9,6 +9,16 @@ import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
+// Define status options with emojis, labels, and colors
+const statusOptions = [
+  { value: 'all', label: 'All Statuses', emoji: '📋' },
+  { value: 'idea', label: 'Just an Idea', emoji: '🐣' },
+  { value: 'scouting', label: 'Scouting Campsites', emoji: '🗺️' },
+  { value: 'planning', label: 'Planning in Progress', emoji: '🔥' },
+  { value: 'ready', label: 'Camp\'s All Set', emoji: '🏕️' },
+  { value: 'completed', label: 'Adventure Completed', emoji: '🌄' },
+];
+
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [trips, setTrips] = useState([]);
@@ -16,7 +26,14 @@ export default function Dashboard() {
   const [viewType, setViewType] = useState('card');
   const [activeTab, setActiveTab] = useState('my-trips');
   const [isNewTripModalOpen, setIsNewTripModalOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const supabase = createClientComponentClient();
+
+  // Filter trips based on selected status
+  const filteredTrips = statusFilter === 'all' 
+    ? trips 
+    : trips.filter(trip => trip.status === statusFilter);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -215,9 +232,57 @@ export default function Dashboard() {
           </nav>
         </div>
 
-        {/* View Toggle - Only show for My Trips tab */}
+        {/* View Toggle and Filter - Only show for My Trips tab */}
         {activeTab === 'my-trips' && (
-          <div className="flex justify-end mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="relative">
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className="flex items-center px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                <span className="mr-1">
+                  {statusFilter === 'all' 
+                    ? 'All Statuses' 
+                    : statusOptions.find(option => option.value === statusFilter)?.label}
+                </span>
+                <span className="text-lg">
+                  {statusFilter === 'all' 
+                    ? '📋' 
+                    : statusOptions.find(option => option.value === statusFilter)?.emoji}
+                </span>
+              </button>
+              
+              {/* Dropdown menu */}
+              {isFilterOpen && (
+                <div className="absolute mt-2 w-64 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                  <div className="py-1 max-h-60 overflow-auto">
+                    {statusOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setStatusFilter(option.value);
+                          setIsFilterOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors
+                                 ${statusFilter === option.value ? 'bg-gray-50' : ''}`}
+                      >
+                        <span className="text-xl">{option.emoji}</span>
+                        <span className="font-medium">{option.label}</span>
+                        {statusFilter === option.value && (
+                          <svg className="h-5 w-5 text-emerald-500 ml-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
             <div className="bg-white rounded-lg border border-gray-200 p-1">
               <button
                 onClick={() => setViewType('card')}
@@ -267,9 +332,23 @@ export default function Dashboard() {
                   Create Trip
                 </button>
               </div>
+            ) : filteredTrips.length === 0 ? (
+              <div className="text-center py-12">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No trips match your filter</h3>
+                <p className="text-gray-600 mb-4">Try selecting a different status filter</p>
+                <button
+                  onClick={() => setStatusFilter('all')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-500 hover:bg-emerald-600"
+                >
+                  Show All Trips
+                </button>
+              </div>
             ) : viewType === 'card' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {trips.map((trip) => (
+                {filteredTrips.map((trip) => (
                   <TripCard 
                     key={trip.id} 
                     trip={trip} 
@@ -278,7 +357,7 @@ export default function Dashboard() {
                 ))}
               </div>
             ) : (
-              <TripList trips={trips} />
+              <TripList trips={filteredTrips} />
             )}
           </>
         )}

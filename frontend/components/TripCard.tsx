@@ -4,6 +4,15 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
+// Define status options with emojis, labels, and colors (same as TripStatusDropdown)
+const statusOptions = [
+  { value: 'idea', label: 'Just an Idea', emoji: '🐣', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'scouting', label: 'Scouting Campsites', emoji: '🗺️', color: 'bg-blue-100 text-blue-800' },
+  { value: 'planning', label: 'Planning in Progress', emoji: '🔥', color: 'bg-orange-100 text-orange-800' },
+  { value: 'ready', label: 'Camp\'s All Set', emoji: '🏕️', color: 'bg-emerald-100 text-emerald-800' },
+  { value: 'completed', label: 'Adventure Completed', emoji: '🌄', color: 'bg-purple-100 text-purple-800' },
+];
+
 interface TripCardProps {
   trip: Trip;
   onDelete?: () => void;
@@ -14,6 +23,9 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
   const supabase = createClientComponentClient();
+
+  // Find current status or default to 'idea'
+  const currentStatus = statusOptions.find(option => option.value === trip.status) || statusOptions[0];
 
   useEffect(() => {
     // Fetch collaborators for this trip
@@ -113,12 +125,10 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
               {trip.end_date && ` - ${format(new Date(trip.end_date), 'MMM d, yyyy')}`}
             </p>
           )}
-          <p className="text-gray-600 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            {trip.packing_list.length} items packed
-          </p>
+          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm ${currentStatus.color}`}>
+            <span className="mr-1">{currentStatus.emoji}</span>
+            {currentStatus.label}
+          </div>
           
           {/* Collaborator information */}
           {collaborators.length > 0 && (

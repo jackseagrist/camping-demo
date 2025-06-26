@@ -5,9 +5,10 @@ import SidebarLayout from '../../components/SidebarLayout';
 import TripNotes from '../../components/TripNotes';
 import CollaboratorModal from '../../components/CollaboratorModal';
 import CampsiteModal from '../../components/CampsiteModal';
+import TripStatusDropdown from '../../components/TripStatusDropdown';
 import { Trip } from '../../lib/types';
 import { Inter } from 'next/font/google';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import styles from '../../styles/TripDetail.module.css';
 import dynamic from 'next/dynamic';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -244,8 +245,128 @@ export default function TripDetail() {
     }
   };
 
-  const handleChecklistChange = async (field: string, checked: boolean) => {
-    setChecklist({ ...checklist, [field]: checked });
+  // Generate Google Calendar URL with trip details
+  const generateGoogleCalendarUrl = (trip: Trip) => {
+    if (!trip) return '';
+    
+    // Format title and description for URL
+    const title = encodeURIComponent(trip.title);
+    
+    // Combine trip description with notes
+    let fullDescription = trip.description || '';
+    
+    // Check if trip has notes and they're not empty
+    if (trip.notes) {
+      try {
+        // Try to extract text from notes (which could be a JSON object from TipTap)
+        let notesText = '';
+        
+        // If notes is an object with content
+        if (typeof trip.notes === 'object' && trip.notes.content) {
+          // Extract text from each paragraph in the notes
+          notesText = extractTextFromNotes(trip.notes);
+        } else if (typeof trip.notes === 'string') {
+          // If notes is already a string
+          notesText = trip.notes;
+        }
+        
+        // Add notes to description if we have any
+        if (notesText) {
+          fullDescription += fullDescription ? '\n\nNotes:\n' + notesText : 'Notes:\n' + notesText;
+        }
+      } catch (e) {
+        console.error('Error processing notes:', e);
+      }
+    }
+    
+    const description = encodeURIComponent(fullDescription);
+    const location = encodeURIComponent(trip.location || '');
+    
+    console.log('Original start date:', trip.start_date);
+    console.log('Original end date:', trip.end_date);
+    console.log('Start date from state:', startDate);
+    console.log('End date from state:', endDate);
+    
+    // Format dates for Google Calendar (YYYYMMDDTHHmmssZ)
+    let startDateFormatted = '';
+    let endDateFormatted = '';
+    
+    if (startDate) {
+      // Parse the date and set it to 5:00 PM (17:00)
+      const [year, month, day] = startDate.split('-');
+      // Format: YYYYMMDDTHHmmssZ (set to 5:00 PM / 17:00)
+      startDateFormatted = `${year}${month}${day}T170000Z`;
+      console.log('Formatted start date:', startDateFormatted);
+    }
+    
+    if (endDate) {
+      // Parse the end date and set it to 5:00 PM (17:00)
+      const [year, month, day] = endDate.split('-');
+      // Format: YYYYMMDDTHHmmssZ (set to 5:00 PM / 17:00)
+      endDateFormatted = `${year}${month}${day}T170000Z`;
+      console.log('Formatted end date:', endDateFormatted);
+    } else if (startDateFormatted) {
+      // If no end date, use same date as start date
+      endDateFormatted = startDateFormatted;
+    }
+    
+    // Construct the Google Calendar URL
+    return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDateFormatted}/${endDateFormatted}&details=${description}&location=${location}&sf=true&output=xml`;
+  };
+  
+  // Helper function to extract text from TipTap notes JSON structure
+  const extractTextFromNotes = (notes: any): string => {
+    if (!notes || !notes.content) return '';
+    
+    let result = '';
+    
+    // Process each content node
+    notes.content.forEach((node: any) => {
+      if (node.type === 'paragraph') {
+        // Extract text from paragraph
+        if (node.content) {
+          const paragraphText = node.content
+            .filter((item: any) => item.type === 'text')
+            .map((item: any) => item.text)
+            .join('');
+          
+          if (paragraphText) {
+            result += paragraphText + '\n';
+          }
+        }
+      } else if (node.type === 'heading') {
+        // Extract text from heading
+        if (node.content) {
+          const headingText = node.content
+            .filter((item: any) => item.type === 'text')
+            .map((item: any) => item.text)
+            .join('');
+          
+          if (headingText) {
+            result += headingText + '\n';
+          }
+        }
+      } else if (node.type === 'taskList' && node.content) {
+        // Process task list items
+        node.content.forEach((taskItem: any) => {
+          if (taskItem.type === 'taskItem' && taskItem.content) {
+            const checked = taskItem.attrs?.checked ? '[x]' : '[ ]';
+            const taskText = taskItem.content
+              .filter((item: any) => item.type === 'paragraph')
+              .flatMap((para: any) => para.content || [])
+              .filter((item: any) => item.type === 'text')
+              .map((item: any) => item.text)
+              .join('');
+            
+            if (taskText) {
+              result += `${checked} ${taskText}\n`;
+            }
+          }
+        });
+      }
+    });
+    
+    return result;
   };
 
   if (isLoading) {
@@ -416,26 +537,53 @@ export default function TripDetail() {
                   <option>Campground B</option>
                 </select>
                 
-                {/* Campsites Link */}
-                <div className="mb-4">
-                  <button
-                    onClick={() => setIsCampsiteModalOpen(true)}
-                    className="text-[#10B981] hover:text-[#0E9F6E] hover:underline font-medium flex items-center"
-                    disabled={!trip.facility_id}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H3m2 0h4M9 7h6m-6 4h6m-6 4h6" />
-                    </svg>
-                    Campsites
-                  </button>
-                </div>
-                
-                <div className="flex space-x-4 text-[#10B981] mt-4">
-                  {trip.facility?.reservation_url && (
-                    <a href={trip.facility.reservation_url} target="_blank" rel="noopener noreferrer" className="hover:underline">Make reservation</a>
-                  )}
-                  <a href="#" className="hover:underline">Contact information</a>
-                </div>
+                {/* Site Details Section */}
+                {trip.facility && (
+                  <div className="mt-6 border-t border-gray-200 pt-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Site Details</h3>
+                    
+                    <div className="space-y-2 text-sm">
+                      {/* Facility Name */}
+                      {trip.facility.name && (
+                        <p><span className="font-medium">Name:</span> {trip.facility.name}</p>
+                      )}
+                      
+                      {/* Source */}
+                      {trip.facility.source && (
+                        <p><span className="font-medium">Source:</span> {trip.facility.source}</p>
+                      )}
+                      
+                      {/* Phone - with fallback */}
+                      <p>
+                        <span className="font-medium">Phone:</span>{' '}
+                        {trip.facility.phone || 'Not available'}
+                      </p>
+                      
+                      {/* Email - with fallback */}
+                      <p>
+                        <span className="font-medium">Email:</span>{' '}
+                        {trip.facility.email || 'Not available'}
+                      </p>
+                    </div>
+                    
+                    {/* Reservation Link */}
+                    {trip.facility.reservation_url && (
+                      <div className="mt-4">
+                        <a 
+                          href={trip.facility.reservation_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#10B981] hover:bg-[#0E9F6E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#10B981]"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Make Reservation
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -447,6 +595,12 @@ export default function TripDetail() {
               <h2 className="text-xl font-semibold text-gray-900 mb-6">Trip Details</h2>
               
               <div className="space-y-6">
+                {/* Status Dropdown */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Trip Status</label>
+                  <TripStatusDropdown trip={trip} onUpdate={setTrip} />
+                </div>
+              
                 {/* Date Pickers */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -469,40 +623,19 @@ export default function TripDetail() {
                   </div>
                 </div>
                 
-                {/* Checklist */}
-                <div>
-                  <div className="space-y-2">
-                    <div className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        id="book-campsite"
-                        checked={checklist.bookCampsite}
-                        onChange={(e) => handleChecklistChange('bookCampsite', e.target.checked)}
-                        className="h-5 w-5 text-[#10B981] rounded border-gray-300 focus:ring-[#10B981]"
-                      />
-                      <label htmlFor="book-campsite" className="ml-3 text-gray-700">Book campsite</label>
-                    </div>
-                    <div className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        id="buy-supplies"
-                        checked={checklist.buySupplies}
-                        onChange={(e) => handleChecklistChange('buySupplies', e.target.checked)}
-                        className="h-5 w-5 text-[#10B981] rounded border-gray-300 focus:ring-[#10B981]"
-                      />
-                      <label htmlFor="buy-supplies" className="ml-3 text-gray-700">Buy supplies</label>
-                    </div>
-                    <div className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        id="plan-hikes"
-                        checked={checklist.planHikes}
-                        onChange={(e) => handleChecklistChange('planHikes', e.target.checked)}
-                        className="h-5 w-5 text-[#10B981] rounded border-gray-300 focus:ring-[#10B981]"
-                      />
-                      <label htmlFor="plan-hikes" className="ml-3 text-gray-700">Plan hikes</label>
-                    </div>
-                  </div>
+                {/* Google Calendar Button - Replacing Checklist */}
+                <div className="mt-4">
+                  <a 
+                    href={generateGoogleCalendarUrl(trip)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 py-2 bg-[#10B981] text-white rounded-lg shadow-sm hover:bg-[#0E9F6E] transition-colors w-full"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Add to Google Calendar
+                  </a>
                 </div>
               </div>
             </div>

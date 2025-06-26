@@ -1,170 +1,226 @@
-import { useState, useRef, useEffect, KeyboardEvent, FocusEvent, RefObject } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Trip, NoteItem } from '../lib/types';
-import styles from '../styles/TripNotes.module.css';
+import { Trip } from '../lib/types';
+import { useEditor, EditorContent, Editor, Extension } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
+import CodeBlock from '@tiptap/extension-code-block';
+import Code from '@tiptap/extension-code';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import { InputRule } from '@tiptap/core';
+import styles from '../styles/TipTapEditor.module.css';
 
 interface TripNotesProps {
   trip: Trip;
   onUpdate: (trip: Trip) => void;
 }
 
+interface SlashCommand {
+  title: string;
+  description: string;
+  icon: string;
+  action: (editor: Editor) => void;
+}
+
+// Custom extension for task input rule
+const TaskInputRule = Extension.create({
+  name: 'taskInputRule',
+  
+  addInputRules() {
+    return [
+      // Convert [] at the beginning of a line to a task list
+      new InputRule({
+        find: /^\s*\[\]\s$/,
+        handler: ({ state, range, match }) => {
+          const { tr } = state;
+          
+          // Delete the [] characters
+          tr.delete(range.from, range.to);
+          
+          // Insert a task list
+          const taskList = {
+            type: 'taskList',
+            content: [{
+              type: 'taskItem',
+              attrs: { checked: false },
+              content: [{ type: 'paragraph' }]
+            }]
+          };
+          
+          const node = state.schema.nodeFromJSON(taskList);
+          tr.replaceRangeWith(range.from, range.from, node);
+        },
+      }),
+    ];
+  },
+});
+
 const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   const supabase = createClientComponentClient();
-  const [notes, setNotes] = useState<NoteItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const noteRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Initialize notes from trip or create empty list
-  useEffect(() => {
-    if (trip) {
-      // If trip has notes, use them, otherwise create an empty note
-      if (trip.notes && Array.isArray(trip.notes) && trip.notes.length > 0) {
-        setNotes(trip.notes);
-      } else {
-        setNotes([{ id: crypto.randomUUID(), content: '' }]);
-      }
-    }
-    
-    // Cleanup timeout on unmount
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [trip.id]); // Only run when trip ID changes
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  // Set initial content for editable divs after DOM elements are available
-  useEffect(() => {
-    // Populate the content of each editable div from state
-    notes.forEach((note, index) => {
-      if (noteRefs.current[index]) {
-        noteRefs.current[index]!.textContent = note.content;
+  // Initialize the editor with content from trip.notes
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        // Keep default list types enabled
+      }),
+      Underline,
+      Code,
+      CodeBlock,
+      TaskList.configure({
+        HTMLAttributes: {
+          class: 'task-list',
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: 'task-item',
+        },
+      }),
+      TaskInputRule,
+      Placeholder.configure({
+        placeholder: 'Type "/" for commands or "[]" for tasks...',
+      }),
+    ],
+    content: trip.notes || {},
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm focus:outline-none max-w-none',
+      },
+      handleKeyDown: (view, event) => {
+        // Check for slash key to show the menu
+        if (event.key === '/' && !showSlashMenu) {
+          const { state } = view;
+          const { selection } = state;
+          const { ranges } = selection;
+          const from = Math.min(...ranges.map(range => range.$from.pos));
+          
+          // Get the DOM position for the menu
+          const domPos = view.coordsAtPos(from);
+          
+          if (editorContainerRef.current) {
+            const containerRect = editorContainerRef.current.getBoundingClientRect();
+            
+            setSlashMenuPosition({
+              top: domPos.bottom - containerRect.top,
+              left: domPos.left - containerRect.left,
+            });
+          }
+          
+          setShowSlashMenu(true);
+          // Don't return true here, let the slash character be inserted
+          return false;
+        }
+        
+        // Hide menu on escape
+        if (event.key === 'Escape' && showSlashMenu) {
+          setShowSlashMenu(false);
+          return true;
+        }
+        
+        // Check for [] to create a task list
+        if (event.key === ']' && view.state.doc.textBetween(
+          Math.max(0, view.state.selection.from - 1),
+          view.state.selection.from
+        ) === '[') {
+          // Delete the [] characters
+          view.dispatch(
+            view.state.tr.delete(
+              view.state.selection.from - 2,
+              view.state.selection.from
+            )
+          );
+          
+          // Insert a task list
+          addTaskItem();
+          return true;
+        }
+        
+        return false;
+      },
+    },
+    onUpdate: ({ editor }) => {
+      // Check if the current input contains '/' to show the menu
+      const text = editor.getText();
+      const selection = editor.state.selection;
+      const currentPos = selection.anchor;
+      
+      // If we're at the start of a paragraph and typed '/', show the menu
+      if (text.endsWith('/') && currentPos === 1) {
+        const domPos = editor.view.coordsAtPos(currentPos);
+        
+        if (editorContainerRef.current) {
+          const containerRect = editorContainerRef.current.getBoundingClientRect();
+          
+          setSlashMenuPosition({
+            top: domPos.bottom - containerRect.top,
+            left: domPos.left - containerRect.left,
+          });
+          
+          setShowSlashMenu(true);
+        }
+      } else if (showSlashMenu && !text.includes('/')) {
+        // Hide menu if we're no longer at a slash
+        setShowSlashMenu(false);
       }
-    });
-  }, [notes.length]); // Only run when notes array length changes
+      
+      // Trigger save with debounce when content changes
+      handleContentChange(editor);
+    },
+  });
 
   // Save notes to database with debounce
-  const saveNotes = async () => {
+  const saveNotes = useCallback(async (editorContent: any) => {
     if (!trip) return;
-    
-    // Get current content from DOM
-    const currentNotes = notes.map((note, index) => ({
-      ...note,
-      content: noteRefs.current[index]?.textContent || ''
-    }));
-    
-    // Update state with current content
-    setNotes(currentNotes);
-    
-    // Clear any existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
     
     // Set saving status
     setSaveStatus('saving');
     
-    // Create a new timeout
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        setLoading(true);
-        
-        const { error } = await supabase
-          .from('trips')
-          .update({ notes: currentNotes })
-          .eq('id', trip.id);
-  
-        if (error) throw error;
-        
-        // Update the trip in parent component
-        onUpdate({ ...trip, notes: currentNotes });
-        
-        // Update save status
-        setSaveStatus('saved');
-        setLastSaved(new Date());
-      } catch (error) {
-        console.error('Error saving notes:', error);
-        setSaveStatus('error');
-      } finally {
-        setLoading(false);
-      }
-    }, 1000); // 1 second debounce
-  };
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('trips')
+        .update({ notes: editorContent })
+        .eq('id', trip.id);
 
-  // Handle key presses in editable divs
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>, index: number) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+      if (error) throw error;
       
-      // Get current content before updating state
-      const updatedNotes = notes.map((note, i) => ({
-        ...note,
-        content: noteRefs.current[i]?.textContent || ''
-      }));
+      // Update the trip in parent component
+      onUpdate({ ...trip, notes: editorContent });
       
-      // Create a new note item
-      const newId = crypto.randomUUID();
-      updatedNotes.splice(index + 1, 0, { id: newId, content: '' });
-      
-      setNotes(updatedNotes);
-      
-      // Focus the new note after render
-      setTimeout(() => {
-        if (noteRefs.current[index + 1]) {
-          noteRefs.current[index + 1]?.focus();
-        }
-        saveNotes();
-      }, 0);
-    } else if (e.key === 'Backspace' && (!noteRefs.current[index]?.textContent || noteRefs.current[index]?.textContent === '') && notes.length > 1) {
-      e.preventDefault();
-      
-      // Get current content before updating state
-      const updatedNotes = notes.map((note, i) => ({
-        ...note,
-        content: noteRefs.current[i]?.textContent || ''
-      }));
-      
-      // Remove the empty note
-      updatedNotes.splice(index, 1);
-      
-      setNotes(updatedNotes);
-      
-      // Focus the previous note
-      setTimeout(() => {
-        const prevIndex = index > 0 ? index - 1 : 0;
-        if (noteRefs.current[prevIndex]) {
-          noteRefs.current[prevIndex]?.focus();
-          
-          // Move cursor to end of text
-          const range = document.createRange();
-          const sel = window.getSelection();
-          const node = noteRefs.current[prevIndex]?.childNodes[0] || noteRefs.current[prevIndex];
-          if (node) {
-            range.setStart(node, node.textContent?.length || 0);
-            range.collapse(true);
-            sel?.removeAllRanges();
-            sel?.addRange(range);
-          }
-        }
-        saveNotes();
-      }, 0);
-    } else if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-      // Handle manual save with Ctrl+S or Cmd+S
-      e.preventDefault();
-      saveNotes();
+      // Update save status
+      setSaveStatus('saved');
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      setSaveStatus('error');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [trip, onUpdate, supabase]);
 
-  // Save changes when a note loses focus
-  const handleBlur = (e: FocusEvent<HTMLDivElement>, index: number) => {
-    // Trigger save when focus is lost
-    saveNotes();
-  };
+  // Debounce the save function
+  const handleContentChange = useCallback((editor: Editor) => {
+    // Clear any existing timeout
+    const timeoutId = setTimeout(() => {
+      const content = editor.getJSON();
+      saveNotes(content);
+    }, 500); // 500ms debounce
 
-  // Format the last saved time
+    return () => clearTimeout(timeoutId);
+  }, [saveNotes]);
+
+  // Format the last saved time and handle animation timing
   const formatLastSaved = (): string => {
     if (!lastSaved) return '';
     
@@ -173,8 +229,11 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
     const diffSec = Math.floor(diffMs / 1000);
     const diffMin = Math.floor(diffSec / 60);
     
-    if (diffSec < 60) {
+    // Only show "just now" for 3 seconds, then switch to minutes
+    if (diffSec < 3) {
       return 'just now';
+    } else if (diffMin < 1) {
+      return `${diffSec} seconds ago`;
     } else if (diffMin < 60) {
       return `${diffMin} minute${diffMin === 1 ? '' : 's'} ago`;
     } else {
@@ -183,6 +242,127 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
       return `at ${hours}:${minutes}`;
     }
   };
+
+  // Handle clicking outside the slash menu to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showSlashMenu && editorContainerRef.current && !editorContainerRef.current.contains(event.target as Node)) {
+        setShowSlashMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSlashMenu]);
+
+  if (!editor) {
+    return null;
+  }
+
+  // Helper function to add a task item
+  const addTaskItem = () => {
+    // First, create a paragraph if the editor is empty
+    if (editor.isEmpty) {
+      editor.commands.setContent('<p></p>');
+    }
+    
+    // Then insert the task list at the current position
+    editor.commands.insertContent({
+      type: 'taskList',
+      content: [{
+        type: 'taskItem',
+        attrs: { checked: false },
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New task' }] }]
+      }]
+    });
+    
+    // Focus the editor after inserting
+    editor.commands.focus();
+  };
+
+  // Toggle task item status
+  const toggleTaskItem = () => {
+    editor.chain().focus().toggleTaskList().run();
+  };
+
+  // Helper function to handle slash command actions
+  const handleSlashCommand = (action: (editor: Editor) => void) => {
+    // Delete the slash character at the current position
+    if (editor.getText().endsWith('/')) {
+      editor.commands.deleteRange({
+        from: editor.state.selection.from - 1,
+        to: editor.state.selection.from
+      });
+    }
+    
+    // Apply the action
+    action(editor);
+    
+    // Hide the menu
+    setShowSlashMenu(false);
+  };
+
+  // Define slash commands
+  const slashCommands: SlashCommand[] = [
+    {
+      title: 'Heading 1',
+      description: 'Large section heading',
+      icon: 'H1',
+      action: (editor) => {
+        handleSlashCommand((ed) => ed.chain().focus().toggleHeading({ level: 1 }).run());
+      },
+    },
+    {
+      title: 'Heading 2',
+      description: 'Medium section heading',
+      icon: 'H2',
+      action: (editor) => {
+        handleSlashCommand((ed) => ed.chain().focus().toggleHeading({ level: 2 }).run());
+      },
+    },
+    {
+      title: 'Task List',
+      description: 'Create a task list with checkboxes',
+      icon: '☑',
+      action: (editor) => {
+        handleSlashCommand(() => addTaskItem());
+      },
+    },
+    {
+      title: 'Bullet List',
+      description: 'Create a bulleted list',
+      icon: '•',
+      action: (editor) => {
+        handleSlashCommand((ed) => ed.chain().focus().toggleBulletList().run());
+      },
+    },
+    {
+      title: 'Numbered List',
+      description: 'Create a numbered list',
+      icon: '1.',
+      action: (editor) => {
+        handleSlashCommand((ed) => ed.chain().focus().toggleOrderedList().run());
+      },
+    },
+    {
+      title: 'Blockquote',
+      description: 'Add a quote block',
+      icon: '"',
+      action: (editor) => {
+        handleSlashCommand((ed) => ed.chain().focus().toggleBlockquote().run());
+      },
+    },
+    {
+      title: 'Code Block',
+      description: 'Add a code block',
+      icon: '</>',
+      action: (editor) => {
+        handleSlashCommand((ed) => ed.chain().focus().toggleCodeBlock().run());
+      },
+    },
+  ];
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mt-6">
@@ -199,7 +379,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
             </span>
           )}
           {saveStatus === 'saved' && lastSaved && (
-            <span className="text-sm text-gray-500">
+            <span className={`text-sm text-gray-500 ${formatLastSaved() === 'just now' ? styles.saveStatusJustNow : ''}`}>
               Saved {formatLastSaved()}
             </span>
           )}
@@ -208,39 +388,165 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
               Error saving
             </span>
           )}
-          <button
-            onClick={saveNotes}
-            className="ml-2 px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition-colors"
-            title="Save notes (Ctrl+S)"
-          >
-            Save
-          </button>
         </div>
       </div>
 
-      <div className="space-y-1">
-        {notes.map((note, index) => (
-          <div
-            key={note.id}
-            className={`flex items-start py-2 pl-3 border-l-2 border-transparent hover:border-emerald-500 transition-colors group ${styles.noteContainer}`}
-          >
-            <div 
-              ref={(el) => { noteRefs.current[index] = el; }}
-              contentEditable
-              suppressContentEditableWarning
-              onKeyDown={(e) => handleKeyDown(e, index)}
-              onBlur={(e) => handleBlur(e, index)}
-              className={`w-full min-h-[24px] focus:outline-none text-gray-700 ${!noteRefs.current[index]?.textContent ? styles.emptyNote : ''}`}
-              data-placeholder={index === 0 && (!noteRefs.current[0]?.textContent || noteRefs.current[0]?.textContent === '') ? 'Start typing your notes here...' : ''}
-            />
-          </div>
-        ))}
+      {/* Formatting toolbar */}
+      <div className={`border border-gray-200 rounded-lg mb-4 ${styles.toolbar}`}>
+        <button
+          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          className={`${styles.toolbarButton} ${editor.isActive('heading', { level: 1 }) ? styles.toolbarButtonActive : ''}`}
+          title="Heading 1"
+        >
+          H1
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          className={`${styles.toolbarButton} ${editor.isActive('heading', { level: 2 }) ? styles.toolbarButtonActive : ''}`}
+          title="Heading 2"
+        >
+          H2
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('bold') ? styles.toolbarButtonActive : ''}`}
+          title="Bold"
+        >
+          <strong>B</strong>
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('italic') ? styles.toolbarButtonActive : ''}`}
+          title="Italic"
+        >
+          <em>I</em>
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('underline') ? styles.toolbarButtonActive : ''}`}
+          title="Underline"
+        >
+          <u>U</u>
+        </button>
+        <button
+          onClick={addTaskItem}
+          className={`${styles.toolbarButton} ${editor.isActive('taskList') ? styles.toolbarButtonActive : ''}`}
+          title="Task List"
+        >
+          ☑ Tasks
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('bulletList') ? styles.toolbarButtonActive : ''}`}
+          title="Bullet List"
+        >
+          • List
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('orderedList') ? styles.toolbarButtonActive : ''}`}
+          title="Numbered List"
+        >
+          1. List
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('blockquote') ? styles.toolbarButtonActive : ''}`}
+          title="Quote"
+        >
+          ""
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('code') ? styles.toolbarButtonActive : ''}`}
+          title="Inline Code"
+        >
+          &lt;/&gt;
+        </button>
+        <button
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          className={`${styles.toolbarButton} ${editor.isActive('codeBlock') ? styles.toolbarButtonActive : ''}`}
+          title="Code Block"
+        >
+          &lt;/&gt; Block
+        </button>
       </div>
+
+      {/* Editor content */}
+      <div className={styles.editor} ref={editorContainerRef}>
+        <EditorContent editor={editor} />
+        
+        {/* Slash command menu */}
+        {showSlashMenu && (
+          <div 
+            className={styles.slashMenu}
+            style={{ 
+              top: slashMenuPosition.top, 
+              left: slashMenuPosition.left + 8 // Add offset to account for the visible slash character
+            }}
+          >
+            <div className={styles.slashMenuHeader}>
+              BASIC BLOCKS
+            </div>
+            {slashCommands.map((command, index) => (
+              <div 
+                key={index}
+                className={styles.slashMenuItem}
+                onClick={() => command.action(editor)}
+              >
+                <div className={styles.slashMenuIcon}>
+                  {command.icon}
+                </div>
+                <div>
+                  <div className={styles.slashMenuTitle}>{command.title}</div>
+                  <div className={styles.slashMenuDescription}>{command.description}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="mt-4 text-xs text-gray-500">
-        <p>Press Enter to add a new line • Delete empty lines with Backspace • Press Ctrl+S to save</p>
+        <p>Type '/' for commands • Type '[]' for tasks • Click checkboxes to toggle • Content saves automatically</p>
       </div>
     </div>
   );
 };
 
-export default TripNotes; 
+export default TripNotes;
+
+/*
+Future Migration Suggestion:
+
+To support real-time collaboration or more granular block control, consider migrating from 
+storing the entire document as a JSONB column to a structured blocks table:
+
+1. Create a new `note_blocks` table with structure:
+   - id: UUID (primary key)
+   - trip_id: UUID (foreign key to trips table)
+   - block_id: String (unique identifier for the block within the document)
+   - type: String (paragraph, heading, list, etc.)
+   - content: JSONB (the block's content)
+   - position: Integer (for ordering blocks)
+   - created_at: Timestamp
+   - updated_at: Timestamp
+   - created_by: UUID (user who created the block)
+   - updated_by: UUID (user who last updated the block)
+
+2. Implement a migration script to convert existing JSONB documents to individual blocks
+
+3. Update the editor to:
+   - Load blocks individually and reconstruct the document
+   - Save changes at the block level
+   - Subscribe to real-time updates using Supabase's realtime features
+   - Handle conflict resolution for concurrent edits
+
+4. Add version history by keeping track of block changes over time
+
+This approach would enable:
+- More efficient updates (only changed blocks are saved)
+- Real-time collaboration with less conflict
+- Block-level permissions
+- Version history and change tracking
+*/ 

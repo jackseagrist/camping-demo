@@ -1,0 +1,242 @@
+/* TipTap Editor Styles */
+.editor {
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  position: relative;
+  padding: 1rem;
+}
+
+.editor:focus-within {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+}
+
+/* Typography */
+.editor h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.editor h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.editor p {
+  margin-bottom: 0.5rem;
+}
+
+/* Lists */
+.editor ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.editor ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Task Lists (Checkboxes) */
+.editor ul[data-type="taskList"] {
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.25rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.editor ul[data-type="taskList"] li > label {
+  position: absolute;
+  left: 0;
+  top: 0.25rem;
+  user-select: none;
+}
+
+.editor ul[data-type="taskList"] li > label input[type="checkbox"] {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  background-color: #10b981;
+  border-color: #10b981;
+}
+
+.editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 0.3rem;
+  top: 0.1rem;
+  width: 0.4rem;
+  height: 0.7rem;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.editor ul[data-type="taskList"] li > label input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+.editor ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  color: #9ca3af;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* Blockquote */
+.editor blockquote {
+  border-left: 3px solid #e5e7eb;
+  padding-left: 1rem;
+  color: #6b7280;
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+/* Code */
+.editor code {
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  font-family: monospace;
+  font-size: 0.875em;
+}
+
+.editor pre {
+  background-color: #f3f4f6;
+  border-radius: 0.25rem;
+  padding: 0.75rem;
+  font-family: monospace;
+  font-size: 0.875em;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.toolbarButton {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #4b5563;
+  transition: background-color 0.2s;
+}
+
+.toolbarButton:hover {
+  background-color: #e5e7eb;
+}
+
+.toolbarButtonActive {
+  background-color: #d1fae5;
+  color: #047857;
+}
+
+.toolbarButtonActive:hover {
+  background-color: #a7f3d0;
+}
+
+/* Slash Command Menu */
+.slashMenu {
+  position: absolute;
+  background-color: white;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0;
+  z-index: 50;
+  width: 16rem;
+}
+
+.slashMenuHeader {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.slashMenuItem {
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.slashMenuItem:hover {
+  background-color: #f3f4f6;
+}
+
+.slashMenuIcon {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f3f4f6;
+  border-radius: 0.375rem;
+  color: #4b5563;
+  margin-right: 0.75rem;
+}
+
+.slashMenuTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.slashMenuDescription {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* Placeholder */
+.editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #9ca3af;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Save status animation */
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.saveStatusJustNow {
+  animation: fadeOut 3s forwards;
+} 

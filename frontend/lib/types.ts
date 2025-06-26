@@ -18,6 +18,9 @@ export interface Facility {
   description?: string;
   type?: string;
   reservation_url?: string;
+  source?: string;
+  phone?: string;
+  email?: string;
 }
 
 export interface Collaborator {
@@ -48,7 +51,7 @@ export interface Trip {
   end_date: Date | null;
   location: string;
   packing_list: Item[];
-  notes?: NoteItem[];
+  notes?: any;
   created_at: Date;
   trip_type?: string;
   group_size?: number;
@@ -57,4 +60,5 @@ export interface Trip {
   facility_id?: string;
   facility?: Facility;
   collaborators?: Collaborator[];
+  status?: string;
 } 
