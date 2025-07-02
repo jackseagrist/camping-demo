@@ -12,6 +12,8 @@ export interface NoteItem {
 }
 
 export interface Facility {
+  id?: string;
+  facility_id: string;
   lat: number;
   lon: number;
   name: string;
@@ -21,6 +23,19 @@ export interface Facility {
   source?: string;
   phone?: string;
   email?: string;
+  is_custom?: boolean;
+  user_id?: string;
+}
+
+export interface TripLocation {
+  id: string;
+  trip_id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Collaborator {
@@ -84,4 +99,5 @@ export interface Trip {
   facility?: Facility;
   collaborators?: Collaborator[];
   status?: string;
+  locations?: TripLocation[];
 } 

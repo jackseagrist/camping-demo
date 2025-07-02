@@ -7,7 +7,7 @@ import TripCommentsSection from '../../components/TripCommentsSection';
 import CollaboratorModal from '../../components/CollaboratorModal';
 import CampsiteModal from '../../components/CampsiteModal';
 import TripStatusDropdown from '../../components/TripStatusDropdown';
-import { Trip } from '../../lib/types';
+import { Trip, Facility as FacilityType, TripLocation } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format, parseISO } from 'date-fns';
 import styles from '../../styles/TripDetail.module.css';
@@ -54,6 +54,16 @@ export default function TripDetail() {
   const [isCampsiteModalOpen, setIsCampsiteModalOpen] = useState(false);
   const [collaborators, setCollaborators] = useState<{id: string; email: string; status: string}[]>([]);
   const [tripOwner, setTripOwner] = useState<{id: string; email: string} | null>(null);
+  const [facilities, setFacilities] = useState<FacilityType[]>([]);
+  const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
+  const [facilityError, setFacilityError] = useState<string | null>(null);
+  
+  // Location pins state
+  const [isAddingLocation, setIsAddingLocation] = useState(false);
+  const [locations, setLocations] = useState<TripLocation[]>([]);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationNotes, setNewLocationNotes] = useState('');
+  const [newLocationCoords, setNewLocationCoords] = useState<{lat: number; lng: number} | null>(null);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -83,19 +93,26 @@ export default function TripDetail() {
           .select(`
             *,
             facility:facility_id (
+              id,
               facility_id,
               name,
               lat,
               lon,
               description,
               type,
-              reservation_url
+              reservation_url,
+              source,
+              phone,
+              email
             )
           `)
           .eq('id', id)
           .single();
 
         if (error) throw error;
+
+        // Log the trip data to help debug
+        console.log('Fetched trip data:', tripData);
 
         // Check if user is owner or collaborator
         const { data: collaboratorData, error: collaboratorError } = await supabase
@@ -431,6 +448,197 @@ export default function TripDetail() {
     }
   };
 
+  // Function to fetch facilities
+  const fetchFacilities = async () => {
+    setIsLoadingFacilities(true);
+    setFacilityError(null);
+    try {
+      const { data, error } = await supabase
+        .from('facilities')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      
+      // Log the data to help debug
+      console.log('Fetched facilities:', data);
+      
+      // Make sure we have valid facility data
+      if (data && Array.isArray(data)) {
+        // Log the first facility to check its structure
+        if (data.length > 0) {
+          console.log('Sample facility structure:', data[0]);
+        }
+        
+        setFacilities(data);
+      } else {
+        console.error('Invalid facilities data returned from API');
+        setFacilities([]);
+        setFacilityError('Invalid data received from server');
+      }
+    } catch (error) {
+      console.error('Error fetching facilities:', error);
+      setFacilities([]);
+      setFacilityError('Failed to load campsites. Please try again.');
+    } finally {
+      setIsLoadingFacilities(false);
+    }
+  };
+
+  // Handle facility selection
+  const handleFacilityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const facilityId = e.target.value;
+    if (!trip) return;
+    
+    console.log('Selected facility ID:', facilityId);
+    setFacilityError(null);
+    
+    try {
+      // Update the trip's facility_id in the database
+      const { error } = await supabase
+        .from('trips')
+        .update({ facility_id: facilityId || null })
+        .eq('id', trip.id);
+      
+      if (error) throw error;
+      
+      // If a facility was selected, fetch its details
+      if (facilityId) {
+        const { data: facilityData, error: facilityError } = await supabase
+          .from('facilities')
+          .select('*')
+          .eq('id', facilityId)
+          .single();
+        
+        if (facilityError) throw facilityError;
+        
+        console.log('Selected facility data:', facilityData);
+        
+        // Update the trip object with the new facility
+        setTrip({
+          ...trip,
+          facility_id: facilityId,
+          facility: facilityData
+        });
+      } else {
+        // Clear the facility if none selected
+        setTrip({
+          ...trip,
+          facility_id: null,
+          facility: null
+        });
+      }
+    } catch (error) {
+      console.error('Error updating facility:', error);
+      setFacilityError('Failed to update campsite. Please try again.');
+    }
+  };
+
+  // Fetch facilities on component mount
+  useEffect(() => {
+    fetchFacilities();
+  }, [supabase]);
+
+  // Debug current trip facility
+  useEffect(() => {
+    if (trip?.facility) {
+      console.log('Current trip facility:', trip.facility);
+      console.log('Trip facility_id:', trip.facility_id);
+    }
+  }, [trip?.facility, trip?.facility_id]);
+
+  // Function to fetch trip locations
+  const fetchLocations = async () => {
+    if (!trip) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('trip_locations')
+        .select('*')
+        .eq('trip_id', trip.id);
+      
+      if (error) throw error;
+      
+      console.log('Fetched locations:', data);
+      setLocations(data || []);
+    } catch (error) {
+      console.error('Error fetching locations:', error);
+    }
+  };
+
+  // Fetch locations when trip loads
+  useEffect(() => {
+    if (trip?.id) {
+      fetchLocations();
+    }
+  }, [trip?.id]);
+
+  // Handle marker placement for new location
+  const handleLocationMarkerPlaced = (lng: number, lat: number) => {
+    console.log('New location marker placed at:', { lng, lat });
+    setNewLocationCoords({ lat, lng });
+  };
+
+  // Save a new location
+  const saveNewLocation = async () => {
+    if (!trip || !newLocationCoords || !newLocationName.trim()) {
+      alert('Please provide a name and place a marker on the map');
+      return;
+    }
+    
+    try {
+      const newLocation = {
+        trip_id: trip.id,
+        name: newLocationName.trim(),
+        lat: newLocationCoords.lat,
+        lng: newLocationCoords.lng,
+        notes: newLocationNotes.trim() || null
+      };
+      
+      const { data, error } = await supabase
+        .from('trip_locations')
+        .insert(newLocation)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Update locations state
+      setLocations([...locations, data]);
+      
+      // Reset form
+      setNewLocationName('');
+      setNewLocationNotes('');
+      setNewLocationCoords(null);
+      setIsAddingLocation(false);
+      
+      alert('Location added successfully!');
+    } catch (error) {
+      console.error('Error saving location:', error);
+      alert('Failed to save location');
+    }
+  };
+
+  // Delete a location
+  const deleteLocation = async (locationId: string) => {
+    if (!confirm('Are you sure you want to delete this location?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('trip_locations')
+        .delete()
+        .eq('id', locationId);
+      
+      if (error) throw error;
+      
+      // Update locations state
+      setLocations(locations.filter(loc => loc.id !== locationId));
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      alert('Failed to delete location');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
@@ -596,87 +804,270 @@ export default function TripDetail() {
           </div>
         </div>
         
+        {/* Map Section */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+          <div className="relative h-80 bg-gray-100">
+            {trip && (
+              <MapComponentTrip 
+                location={trip.location} 
+                lat={trip.facility?.lat} 
+                lon={trip.facility?.lon}
+                isCustomMarkerMode={isAddingLocation}
+                onMarkerPlaced={handleLocationMarkerPlaced}
+                locations={locations}
+              />
+            )}
+          </div>
+        </div>
+        
         {/* Main content - 2 column layout on wide screens */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Left Column - Map and Location Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+          {/* Left Column - Site Details */}
           <div>
-            {/* Map */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-              <div className="relative h-80 bg-gray-100">
-                {trip && (
-                  <MapComponentTrip 
-                    location={trip.location} 
-                    lat={trip.facility?.lat} 
-                    lon={trip.facility?.lon}
-                  />
-                )}
-              </div>
+            {/* Site Details Section */}
+            <section className="bg-white rounded-xl shadow-md p-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800">Site Details</h3>
               
-              {/* Location Info */}
-              <div className="p-6">
-                <select className="w-full bg-white border border-gray-300 rounded-lg py-2 px-4 mb-4 focus:outline-none focus:ring-2 focus:ring-[#10B981]">
-                  <option>{trip.location}</option>
-                  <option>George Washington State Forest</option>
-                  <option>Campground A</option>
-                  <option>Campground B</option>
+              {/* Campsite Selector */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Choose a campsite for your trip
+                  </label>
+                  <button
+                    onClick={fetchFacilities}
+                    disabled={isLoadingFacilities}
+                    className="text-emerald-600 hover:text-emerald-800 text-sm flex items-center"
+                    title="Refresh campsite list"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                  </button>
+                </div>
+                
+                <select 
+                  className="block w-full max-w-md bg-white border border-gray-300 rounded-lg py-2 px-4 mb-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  value={trip?.facility_id || ''}
+                  onChange={handleFacilityChange}
+                  disabled={isLoadingFacilities}
+                >
+                  <option value="">Select a campsite...</option>
+                  {isLoadingFacilities ? (
+                    <option disabled>Loading campsites...</option>
+                  ) : facilities.length > 0 ? (
+                    facilities.map(facility => (
+                      <option key={facility.id} value={facility.id}>
+                        {facility.name || `Campsite #${facility.id.substring(0, 6)}`}
+                      </option>
+                    ))
+                  ) : (
+                    <option disabled>No campsites available</option>
+                  )}
                 </select>
                 
-                {/* Site Details Section */}
-                {trip.facility && (
-                  <div className="mt-6 border-t border-gray-200 pt-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Site Details</h3>
-                    
-                    <div className="space-y-2 text-sm">
-                      {/* Facility Name */}
-                      {trip.facility.name && (
-                        <p><span className="font-medium">Name:</span> {trip.facility.name}</p>
-                      )}
-                      
-                      {/* Source */}
-                      {trip.facility.source && (
-                        <p><span className="font-medium">Source:</span> {trip.facility.source}</p>
-                      )}
-                      
-                      {/* Phone - with fallback */}
-                      <p>
-                        <span className="font-medium">Phone:</span>{' '}
-                        {trip.facility.phone || 'Not available'}
-                      </p>
-                      
-                      {/* Email - with fallback */}
-                      <p>
-                        <span className="font-medium">Email:</span>{' '}
-                        {trip.facility.email || 'Not available'}
-                      </p>
-                    </div>
-                    
-                    {/* Reservation Link */}
-                    {trip.facility.reservation_url && (
-                      <div className="mt-4">
-                        <a 
-                          href={trip.facility.reservation_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-[#10B981] hover:bg-[#0E9F6E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#10B981]"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Make Reservation
-                        </a>
-                      </div>
-                    )}
+                {isLoadingFacilities && (
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="animate-spin h-4 w-4 border-2 border-emerald-600 rounded-full border-t-transparent"></div>
+                    <span className="ml-2 text-xs text-gray-500">Loading campsites...</span>
+                  </div>
+                )}
+                
+                {facilityError && (
+                  <div className="text-red-500 text-xs mt-1 mb-2">
+                    {facilityError}
+                  </div>
+                )}
+                
+                {trip?.facility && (
+                  <div className="mt-2 text-xs text-emerald-600">
+                    ✓ Campsite selected: {trip.facility.name}
+                    <span className="text-gray-500 ml-1">(ID: {trip.facility_id})</span>
                   </div>
                 )}
               </div>
-            </div>
+              
+              {/* Facility Details */}
+              {trip.facility && (
+                <div className="mt-6 pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Campsite Information</h4>
+                  <div className="space-y-3 text-sm">
+                    {/* Facility Name */}
+                    {trip.facility.name && (
+                      <p className="flex">
+                        <span className="font-medium w-20">Name:</span> 
+                        <span>{trip.facility.name}</span>
+                      </p>
+                    )}
+                    
+                    {/* Source */}
+                    {trip.facility.source && (
+                      <p className="flex">
+                        <span className="font-medium w-20">Source:</span> 
+                        <span>{trip.facility.source}</span>
+                      </p>
+                    )}
+                    
+                    {/* Phone - with fallback */}
+                    <p className="flex">
+                      <span className="font-medium w-20">Phone:</span> 
+                      <span>{trip.facility.phone || 'Not available'}</span>
+                    </p>
+                    
+                    {/* Email - with fallback */}
+                    <p className="flex">
+                      <span className="font-medium w-20">Email:</span> 
+                      <span>{trip.facility.email || 'Not available'}</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Recreation.gov Reservation Button */}
+              <div className="mt-6 pt-4 border-t border-gray-100">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Reservations</h4>
+                {trip.facility?.facility_id ? (
+                  <a 
+                    href={`https://www.recreation.gov/camping/campgrounds/${trip.facility.facility_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${inter.className} inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Make Reservation
+                  </a>
+                ) : (
+                  <div className="relative inline-block group">
+                    <button 
+                      disabled
+                      className={`${inter.className} inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-gray-500 bg-gray-300 cursor-not-allowed`}
+                      title="Reservation not available"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Make Reservation
+                    </button>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
+                      Reservation not available
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
           
-          {/* Right Column - Trip Details and Tasks */}
-          <div>
+          {/* Right Column - Locations and Trip Details */}
+          <div className="space-y-6">
+            {/* Locations Card */}
+            <section className="bg-white rounded-xl shadow-md p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Locations</h3>
+                <button
+                  onClick={() => setIsAddingLocation(!isAddingLocation)}
+                  className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                    isAddingLocation 
+                      ? 'bg-red-500 hover:bg-red-600 text-white' 
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  }`}
+                >
+                  {isAddingLocation ? 'Cancel' : 'Add Location'}
+                </button>
+              </div>
+              
+              {/* Location Adding Mode */}
+              {isAddingLocation && (
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Add New Location</h4>
+                  <p className="text-xs text-gray-500 mb-3">Click on the map to place a marker for your location.</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Location Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newLocationName}
+                        onChange={(e) => setNewLocationName(e.target.value)}
+                        placeholder="e.g., Scenic Viewpoint"
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notes (Optional)
+                      </label>
+                      <textarea
+                        value={newLocationNotes}
+                        onChange={(e) => setNewLocationNotes(e.target.value)}
+                        placeholder="Any details about this location..."
+                        rows={2}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                      />
+                    </div>
+                    
+                    {newLocationCoords && (
+                      <div className="text-xs text-emerald-600">
+                        ✓ Marker placed at: {newLocationCoords.lat.toFixed(5)}, {newLocationCoords.lng.toFixed(5)}
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-end">
+                      <button
+                        onClick={saveNewLocation}
+                        disabled={!newLocationCoords || !newLocationName.trim()}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                      >
+                        Save Location
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Locations List */}
+              <div className="space-y-2">
+                {locations.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">No custom locations added yet.</p>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {locations.map(location => (
+                      <li key={location.id} className="py-2">
+                        <div className="flex justify-between">
+                          <div>
+                            <h4 className="text-sm font-medium">{location.name}</h4>
+                            {location.notes && (
+                              <p className="text-xs text-gray-500 mt-1">{location.notes}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">
+                              {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => deleteLocation(location.id)}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                            title="Delete location"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </section>
+            
             {/* Trip Details Panel */}
-            <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Trip Details</h2>
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Trip Details</h2>
               
               <div className="space-y-6">
                 {/* Status Dropdown */}
@@ -693,7 +1084,7 @@ export default function TripDetail() {
                       type="date" 
                       value={startDate}
                       onChange={(e) => handleDateChange('start_date', e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
                   <div>
@@ -702,7 +1093,7 @@ export default function TripDetail() {
                       type="date" 
                       value={endDate}
                       onChange={(e) => handleDateChange('end_date', e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#10B981]"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
                     />
                   </div>
                 </div>
@@ -713,7 +1104,7 @@ export default function TripDetail() {
                     href={generateGoogleCalendarUrl(trip)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center px-4 py-2 bg-[#10B981] text-white rounded-lg shadow-sm hover:bg-[#0E9F6E] transition-colors w-full"
+                    className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 transition-colors w-full"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

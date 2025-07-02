@@ -5,8 +5,6 @@ import { useEditor, EditorContent, Editor, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
-import CodeBlock from '@tiptap/extension-code-block';
-import Code from '@tiptap/extension-code';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { InputRule } from '@tiptap/core';
@@ -57,6 +55,74 @@ const TaskInputRule = Extension.create({
   },
 });
 
+// Extension for handling Tab and Shift+Tab in task lists
+const TaskItemKeymap = Extension.create({
+  name: 'taskItemKeymap',
+  
+  addKeyboardShortcuts() {
+    return {
+      Tab: ({ editor }) => {
+        // Check if we're in a task item
+        if (editor.isActive('taskItem')) {
+          // Try to indent the task item
+          return editor.commands.sinkListItem('taskItem');
+        }
+        return false;
+      },
+      'Shift-Tab': ({ editor }) => {
+        // Check if we're in a task item
+        if (editor.isActive('taskItem')) {
+          // Try to outdent the task item
+          return editor.commands.liftListItem('taskItem');
+        }
+        return false;
+      },
+    };
+  },
+});
+
+// Extension to prevent empty task items from stacking
+const PreventEmptyTaskItems = Extension.create({
+  name: 'preventEmptyTaskItems',
+  
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        // Only handle Enter in empty task items
+        if (!editor.isActive('taskItem')) {
+          return false;
+        }
+        
+        // Check if the current task item is empty
+        const { $head } = editor.state.selection;
+        const node = $head.node();
+        
+        // If node has no content or only has an empty paragraph
+        if (node.content.size === 0 || 
+            (node.content.childCount === 1 && 
+             node.content.firstChild?.type.name === 'paragraph' && 
+             node.content.firstChild.content.size === 0)) {
+          
+          // If this is the only task item in the list, convert to paragraph
+          if ($head.node(-1).childCount === 1) {
+            return editor.chain()
+              .deleteNode('taskList')
+              .insertContent('<p></p>')
+              .run();
+          }
+          
+          // Otherwise lift the task item out of the list
+          return editor.chain()
+            .liftListItem('taskItem')
+            .run();
+        }
+        
+        return false;
+      },
+    };
+  },
+});
+
 const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   const supabase = createClientComponentClient();
   const [loading, setLoading] = useState(false);
@@ -65,16 +131,18 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastContentRef = useRef<any>(null);
 
   // Initialize the editor with content from trip.notes
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        // Keep default list types enabled
+        // Disable code and codeBlock from StarterKit
+        code: false,
+        codeBlock: false,
       }),
       Underline,
-      Code,
-      CodeBlock,
       TaskList.configure({
         HTMLAttributes: {
           class: 'task-list',
@@ -87,6 +155,8 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
         },
       }),
       TaskInputRule,
+      TaskItemKeymap,
+      PreventEmptyTaskItems,
       Placeholder.configure({
         placeholder: 'Type "/" for commands or "[]" for tasks...',
       }),
@@ -182,6 +252,14 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   const saveNotes = useCallback(async (editorContent: any) => {
     if (!trip) return;
     
+    // Check if content has actually changed
+    if (JSON.stringify(editorContent) === JSON.stringify(lastContentRef.current)) {
+      return;
+    }
+    
+    // Update the reference to the current content
+    lastContentRef.current = editorContent;
+    
     // Set saving status
     setSaveStatus('saving');
     
@@ -212,13 +290,25 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   // Debounce the save function
   const handleContentChange = useCallback((editor: Editor) => {
     // Clear any existing timeout
-    const timeoutId = setTimeout(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Set a new timeout
+    saveTimeoutRef.current = setTimeout(() => {
       const content = editor.getJSON();
       saveNotes(content);
     }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeoutId);
   }, [saveNotes]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Format the last saved time and handle animation timing
   const formatLastSaved = (): string => {
@@ -274,7 +364,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
       content: [{
         type: 'taskItem',
         attrs: { checked: false },
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'New task' }] }]
+        content: [{ type: 'paragraph' }]
       }]
     });
     
@@ -352,14 +442,6 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
       icon: '"',
       action: (editor) => {
         handleSlashCommand((ed) => ed.chain().focus().toggleBlockquote().run());
-      },
-    },
-    {
-      title: 'Code Block',
-      description: 'Add a code block',
-      icon: '</>',
-      action: (editor) => {
-        handleSlashCommand((ed) => ed.chain().focus().toggleCodeBlock().run());
       },
     },
   ];
@@ -455,20 +537,6 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
           title="Quote"
         >
           &ldquo; &ldquo;
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          className={`${styles.toolbarButton} ${editor.isActive('code') ? styles.toolbarButtonActive : ''}`}
-          title="Inline Code"
-        >
-          &lt;/&gt;
-        </button>
-        <button
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={`${styles.toolbarButton} ${editor.isActive('codeBlock') ? styles.toolbarButtonActive : ''}`}
-          title="Code Block"
-        >
-          &lt;/&gt; Block
         </button>
       </div>
 

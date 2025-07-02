@@ -46,35 +46,56 @@
   margin-bottom: 0.5rem;
 }
 
-/* Task Lists (Checkboxes) */
+/* Task Lists (Checkboxes) - Improved alignment */
 .editor ul[data-type="taskList"] {
   list-style-type: none;
   padding-left: 0;
+  margin: 0.5rem 0;
 }
 
 .editor ul[data-type="taskList"] li {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
   position: relative;
+  padding-left: 1.75rem;
+}
+
+/* Proper indentation for nested task items */
+.editor ul[data-type="taskList"] > li > ul[data-type="taskList"] {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+  width: 100%;
+}
+
+/* Reset the padding for nested items to avoid double padding */
+.editor ul[data-type="taskList"] > li > ul[data-type="taskList"] > li {
+  padding-left: 1.75rem;
+}
+
+/* Third level nesting */
+.editor ul[data-type="taskList"] > li > ul[data-type="taskList"] > li > ul[data-type="taskList"] {
   padding-left: 1.5rem;
 }
 
 .editor ul[data-type="taskList"] li > label {
   position: absolute;
   left: 0;
-  top: 0.25rem;
+  top: 0.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   user-select: none;
 }
 
 .editor ul[data-type="taskList"] li > label input[type="checkbox"] {
   appearance: none;
-  width: 1rem;
-  height: 1rem;
+  width: 1.125rem;
+  height: 1.125rem;
   border: 1px solid #d1d5db;
   border-radius: 0.25rem;
   cursor: pointer;
-  vertical-align: middle;
+  margin: 0;
 }
 
 .editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
@@ -85,10 +106,10 @@
 .editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 0.3rem;
-  top: 0.1rem;
-  width: 0.4rem;
-  height: 0.7rem;
+  left: 0.375rem;
+  top: 0.25rem;
+  width: 0.375rem;
+  height: 0.625rem;
   border: solid white;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
@@ -99,11 +120,31 @@
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
 }
 
+.editor ul[data-type="taskList"] li > div {
+  width: 100%;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.editor ul[data-type="taskList"] li > div > p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .editor ul[data-type="taskList"] li[data-checked="true"] > div > p {
   color: #9ca3af;
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
+
+/* Hover effect for task items */
+.editor ul[data-type="taskList"] li:hover {
+  background-color: rgba(243, 244, 246, 0.5);
+  border-radius: 0.25rem;
+}
+
+/* Visual indicator for nested tasks - removed as it was causing issues */
 
 /* Blockquote */
 .editor blockquote {
