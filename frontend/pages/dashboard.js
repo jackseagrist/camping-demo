@@ -1,10 +1,10 @@
 // pages/dashboard.js
 import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/router';
 import SidebarLayout from '../components/SidebarLayout';
 import TripCard from '../components/TripCard';
 import TripList from '../components/TripList';
-import NewTripModal from '../components/NewTripModal';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -25,10 +25,10 @@ export default function Dashboard() {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [viewType, setViewType] = useState('card');
   const [activeTab, setActiveTab] = useState('my-trips');
-  const [isNewTripModalOpen, setIsNewTripModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const supabase = createClientComponentClient();
+  const router = useRouter();
 
   // Filter trips based on selected status
   const filteredTrips = statusFilter === 'all' 
@@ -128,6 +128,40 @@ export default function Dashboard() {
     checkAuth();
   }, [supabase]);
 
+  const createNewTrip = async () => {
+    try {
+      setIsLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: trip, error } = await supabase
+        .from('trips')
+        .insert([
+          {
+            user_id: user.id,
+            title: 'New Trip',
+            location: '',
+            packing_list: [],
+            status: 'idea'
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Navigate to the trip detail page
+      router.push(`/trips/${trip.id}`);
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      alert('Failed to create trip. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
   const acceptInvite = async (collaborationId) => {
     try {
       const { error } = await supabase
@@ -190,7 +224,7 @@ export default function Dashboard() {
             <p className="text-[#4B5563] mt-2">Plan and manage your camping adventures</p>
           </div>
           <button
-            onClick={() => setIsNewTripModalOpen(true)}
+            onClick={createNewTrip}
             className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -323,7 +357,7 @@ export default function Dashboard() {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No trips planned yet</h3>
                 <p className="text-gray-600 mb-4">Start by creating your first trip</p>
                 <button
-                  onClick={() => setIsNewTripModalOpen(true)}
+                  onClick={createNewTrip}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-emerald-500 hover:bg-emerald-600"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -413,12 +447,6 @@ export default function Dashboard() {
             )}
           </>
         )}
-
-        {/* New Trip Modal */}
-        <NewTripModal
-          isOpen={isNewTripModalOpen}
-          onClose={() => setIsNewTripModalOpen(false)}
-        />
       </div>
     </SidebarLayout>
   );

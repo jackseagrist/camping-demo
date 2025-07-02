@@ -7,9 +7,9 @@ import TripCommentsSection from '../../components/TripCommentsSection';
 import CollaboratorModal from '../../components/CollaboratorModal';
 import CampsiteModal from '../../components/CampsiteModal';
 import TripStatusDropdown from '../../components/TripStatusDropdown';
-import { Trip, Facility as FacilityType, TripLocation } from '../../lib/types';
+import { Trip, Facility as FacilityType } from '../../lib/types';
 import { Inter } from 'next/font/google';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import styles from '../../styles/TripDetail.module.css';
 import dynamic from 'next/dynamic';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -57,24 +57,12 @@ export default function TripDetail() {
   const [facilities, setFacilities] = useState<FacilityType[]>([]);
   const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
   const [facilityError, setFacilityError] = useState<string | null>(null);
-  
-  // Location pins state
-  const [isAddingLocation, setIsAddingLocation] = useState(false);
-  const [locations, setLocations] = useState<TripLocation[]>([]);
-  const [newLocationName, setNewLocationName] = useState('');
-  const [newLocationNotes, setNewLocationNotes] = useState('');
-  const [newLocationCoords, setNewLocationCoords] = useState<{lat: number; lng: number} | null>(null);
+  const [hasMoreFacilities, setHasMoreFacilities] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
-
-  // Uncomment and set your token here if environment variable isn't working
-  // useEffect(() => {
-  //   // If your .env.local isn't being read properly, you can set your token directly here
-  //   // Get a token from: https://account.mapbox.com/
-  //   setMapboxToken('pk.eyJ1IjoieW91ci11c2VybmFtZSIsImEiOiJjbGV4YW1wbGUtdG9rZW4tMTIzNDU2Nzg5MCJ9.notARealTokenJustAnExample');
-  // }, []);
-
+  
   useEffect(() => {
     const fetchTrip = async () => {
       if (!id) return;
@@ -449,36 +437,101 @@ export default function TripDetail() {
   };
 
   // Function to fetch facilities
-  const fetchFacilities = async () => {
+  const fetchFacilities = async (page = 0, limit = 50) => {
     setIsLoadingFacilities(true);
     setFacilityError(null);
     try {
-      const { data, error } = await supabase
+      // If this is the first page and we have a selected facility, make sure it's included
+      let query = supabase
         .from('facilities')
-        .select('*')
+        .select('id, name, facility_id, lat, lon, source')
         .order('name');
       
-      if (error) throw error;
-      
-      // Log the data to help debug
-      console.log('Fetched facilities:', data);
-      
-      // Make sure we have valid facility data
-      if (data && Array.isArray(data)) {
-        // Log the first facility to check its structure
-        if (data.length > 0) {
-          console.log('Sample facility structure:', data[0]);
+      if (page === 0 && trip?.facility_id) {
+        // First fetch the selected facility to ensure it's included
+        const { data: selectedFacility, error: selectedError } = await supabase
+          .from('facilities')
+          .select('id, name, facility_id, lat, lon, source')
+          .eq('id', trip.facility_id)
+          .single();
+          
+        if (selectedError) {
+          console.error('Error fetching selected facility:', selectedError);
         }
         
-        setFacilities(data);
+        // Then fetch the regular page of facilities
+        const { data: regularData, error } = await query
+          .range(page * limit, (page + 1) * limit - 1);
+        
+        if (error) throw error;
+        
+        // Combine the results, ensuring the selected facility is included
+        // and we don't exceed the limit
+        let combinedData = [];
+        
+        if (selectedFacility) {
+          // Check if the selected facility is already in the regular results
+          const isSelectedInRegular = regularData.some(f => f.id === selectedFacility.id);
+          
+          if (isSelectedInRegular) {
+            // If it's already in the results, just use the regular data
+            combinedData = regularData;
+          } else {
+            // If not, add it to the beginning and remove the last item if needed
+            combinedData = [selectedFacility, ...regularData];
+            if (combinedData.length > limit) {
+              combinedData = combinedData.slice(0, limit);
+            }
+          }
+        } else {
+          combinedData = regularData;
+        }
+        
+        // Check if we have more facilities to load
+        const hasMore = regularData.length === limit;
+        
+        // Update state
+        setFacilities(combinedData);
+        setHasMoreFacilities(hasMore);
+        setCurrentPage(page);
       } else {
-        console.error('Invalid facilities data returned from API');
-        setFacilities([]);
-        setFacilityError('Invalid data received from server');
+        // For subsequent pages, just fetch normally
+        const { data, error } = await query
+          .range(page * limit, (page + 1) * limit - 1);
+        
+        if (error) throw error;
+        
+        // Make sure we have valid facility data
+        if (data && Array.isArray(data)) {
+          // Check if we have more facilities to load
+          const hasMore = data.length === limit;
+          
+          if (page === 0) {
+            // Replace facilities for first page
+            setFacilities(data);
+          } else {
+            // Append facilities for subsequent pages
+            setFacilities(prev => [...prev, ...data]);
+          }
+          
+          // Update whether there are more facilities to load
+          setHasMoreFacilities(hasMore);
+          
+          // Update the current page
+          setCurrentPage(page);
+        } else {
+          console.error('Invalid facilities data returned from API');
+          if (page === 0) {
+            setFacilities([]);
+          }
+          setFacilityError('Invalid data received from server');
+        }
       }
     } catch (error) {
       console.error('Error fetching facilities:', error);
-      setFacilities([]);
+      if (page === 0) {
+        setFacilities([]);
+      }
       setFacilityError('Failed to load campsites. Please try again.');
     } finally {
       setIsLoadingFacilities(false);
@@ -489,6 +542,9 @@ export default function TripDetail() {
   const handleFacilityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const facilityId = e.target.value;
     if (!trip) return;
+    
+    // Skip if "load-more" is selected (this is handled in the onChange handler)
+    if (facilityId === 'load-more') return;
     
     console.log('Selected facility ID:', facilityId);
     setFacilityError(null);
@@ -534,10 +590,12 @@ export default function TripDetail() {
     }
   };
 
-  // Fetch facilities on component mount
+  // Fetch facilities on component mount or when trip changes
   useEffect(() => {
-    fetchFacilities();
-  }, [supabase]);
+    if (trip) {
+      fetchFacilities(0);
+    }
+  }, [trip?.id, supabase]);
 
   // Debug current trip facility
   useEffect(() => {
@@ -546,98 +604,6 @@ export default function TripDetail() {
       console.log('Trip facility_id:', trip.facility_id);
     }
   }, [trip?.facility, trip?.facility_id]);
-
-  // Function to fetch trip locations
-  const fetchLocations = async () => {
-    if (!trip) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('trip_locations')
-        .select('*')
-        .eq('trip_id', trip.id);
-      
-      if (error) throw error;
-      
-      console.log('Fetched locations:', data);
-      setLocations(data || []);
-    } catch (error) {
-      console.error('Error fetching locations:', error);
-    }
-  };
-
-  // Fetch locations when trip loads
-  useEffect(() => {
-    if (trip?.id) {
-      fetchLocations();
-    }
-  }, [trip?.id]);
-
-  // Handle marker placement for new location
-  const handleLocationMarkerPlaced = (lng: number, lat: number) => {
-    console.log('New location marker placed at:', { lng, lat });
-    setNewLocationCoords({ lat, lng });
-  };
-
-  // Save a new location
-  const saveNewLocation = async () => {
-    if (!trip || !newLocationCoords || !newLocationName.trim()) {
-      alert('Please provide a name and place a marker on the map');
-      return;
-    }
-    
-    try {
-      const newLocation = {
-        trip_id: trip.id,
-        name: newLocationName.trim(),
-        lat: newLocationCoords.lat,
-        lng: newLocationCoords.lng,
-        notes: newLocationNotes.trim() || null
-      };
-      
-      const { data, error } = await supabase
-        .from('trip_locations')
-        .insert(newLocation)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      // Update locations state
-      setLocations([...locations, data]);
-      
-      // Reset form
-      setNewLocationName('');
-      setNewLocationNotes('');
-      setNewLocationCoords(null);
-      setIsAddingLocation(false);
-      
-      alert('Location added successfully!');
-    } catch (error) {
-      console.error('Error saving location:', error);
-      alert('Failed to save location');
-    }
-  };
-
-  // Delete a location
-  const deleteLocation = async (locationId: string) => {
-    if (!confirm('Are you sure you want to delete this location?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('trip_locations')
-        .delete()
-        .eq('id', locationId);
-      
-      if (error) throw error;
-      
-      // Update locations state
-      setLocations(locations.filter(loc => loc.id !== locationId));
-    } catch (error) {
-      console.error('Error deleting location:', error);
-      alert('Failed to delete location');
-    }
-  };
 
   if (isLoading) {
     return (
@@ -809,12 +775,12 @@ export default function TripDetail() {
           <div className="relative h-80 bg-gray-100">
             {trip && (
               <MapComponentTrip 
-                location={trip.location} 
-                lat={trip.facility?.lat} 
-                lon={trip.facility?.lon}
-                isCustomMarkerMode={isAddingLocation}
-                onMarkerPlaced={handleLocationMarkerPlaced}
-                locations={locations}
+                location={trip.location || ''} 
+                lat={trip.facility?.lat || null} 
+                lon={trip.facility?.lon || null}
+                isCustomMarkerMode={false}
+                locations={[]}
+                onMarkerPlaced={() => {}}
               />
             )}
           </div>
@@ -834,34 +800,56 @@ export default function TripDetail() {
                   <label className="block text-sm font-medium text-gray-700">
                     Choose a campsite for your trip
                   </label>
+                </div>
+                
+                {/* Explore button replacing search input */}
+                <div className="mb-3">
                   <button
-                    onClick={fetchFacilities}
-                    disabled={isLoadingFacilities}
-                    className="text-emerald-600 hover:text-emerald-800 text-sm flex items-center"
-                    title="Refresh campsite list"
+                    onClick={() => router.push('/explore')}
+                    className="w-full max-w-md bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                     </svg>
-                    Refresh
+                    Explore Map
                   </button>
                 </div>
                 
                 <select 
                   className="block w-full max-w-md bg-white border border-gray-300 rounded-lg py-2 px-4 mb-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
                   value={trip?.facility_id || ''}
-                  onChange={handleFacilityChange}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Check if "load-more" option was selected
+                    if (value === 'load-more') {
+                      // Load more facilities
+                      fetchFacilities(currentPage + 1);
+                      // Reset selection to previous value to avoid showing "Load more" as selected
+                      e.target.value = trip?.facility_id || '';
+                    } else {
+                      // Handle normal facility selection
+                      handleFacilityChange(e);
+                    }
+                  }}
                   disabled={isLoadingFacilities}
                 >
                   <option value="">Select a campsite...</option>
-                  {isLoadingFacilities ? (
+                  {isLoadingFacilities && facilities.length === 0 ? (
                     <option disabled>Loading campsites...</option>
                   ) : facilities.length > 0 ? (
-                    facilities.map(facility => (
-                      <option key={facility.id} value={facility.id}>
-                        {facility.name || `Campsite #${facility.id.substring(0, 6)}`}
-                      </option>
-                    ))
+                    <>
+                      {facilities.map(facility => (
+                        <option key={facility.id} value={facility.id}>
+                          {facility.name || `Campsite #${facility.id.substring(0, 6)}`}
+                        </option>
+                      ))}
+                      {/* Load more option */}
+                      {hasMoreFacilities && (
+                        <option value="load-more" className="font-medium text-emerald-600 bg-gray-100 border-t border-gray-200 pt-2 mt-2">
+                          Load more campsites...
+                        </option>
+                      )}
+                    </>
                   ) : (
                     <option disabled>No campsites available</option>
                   )}
@@ -870,7 +858,9 @@ export default function TripDetail() {
                 {isLoadingFacilities && (
                   <div className="flex items-center justify-center mb-2">
                     <div className="animate-spin h-4 w-4 border-2 border-emerald-600 rounded-full border-t-transparent"></div>
-                    <span className="ml-2 text-xs text-gray-500">Loading campsites...</span>
+                    <span className="ml-2 text-xs text-gray-500">
+                      {currentPage > 0 ? "Loading more campsites..." : "Loading campsites..."}
+                    </span>
                   </div>
                 )}
                 
@@ -880,10 +870,11 @@ export default function TripDetail() {
                   </div>
                 )}
                 
-                {trip?.facility && (
-                  <div className="mt-2 text-xs text-emerald-600">
-                    ✓ Campsite selected: {trip.facility.name}
-                    <span className="text-gray-500 ml-1">(ID: {trip.facility_id})</span>
+                {/* Campsite count */}
+                {facilities.length > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Showing {facilities.length} campsites
+                    {!hasMoreFacilities && " (all loaded)"}
                   </div>
                 )}
               </div>
@@ -960,111 +951,8 @@ export default function TripDetail() {
             </section>
           </div>
           
-          {/* Right Column - Locations and Trip Details */}
+          {/* Right Column - Trip Details */}
           <div className="space-y-6">
-            {/* Locations Card */}
-            <section className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Locations</h3>
-                <button
-                  onClick={() => setIsAddingLocation(!isAddingLocation)}
-                  className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
-                    isAddingLocation 
-                      ? 'bg-red-500 hover:bg-red-600 text-white' 
-                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  }`}
-                >
-                  {isAddingLocation ? 'Cancel' : 'Add Location'}
-                </button>
-              </div>
-              
-              {/* Location Adding Mode */}
-              {isAddingLocation && (
-                <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Add New Location</h4>
-                  <p className="text-xs text-gray-500 mb-3">Click on the map to place a marker for your location.</p>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Location Name
-                      </label>
-                      <input
-                        type="text"
-                        value={newLocationName}
-                        onChange={(e) => setNewLocationName(e.target.value)}
-                        placeholder="e.g., Scenic Viewpoint"
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Notes (Optional)
-                      </label>
-                      <textarea
-                        value={newLocationNotes}
-                        onChange={(e) => setNewLocationNotes(e.target.value)}
-                        placeholder="Any details about this location..."
-                        rows={2}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-600"
-                      />
-                    </div>
-                    
-                    {newLocationCoords && (
-                      <div className="text-xs text-emerald-600">
-                        ✓ Marker placed at: {newLocationCoords.lat.toFixed(5)}, {newLocationCoords.lng.toFixed(5)}
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-end">
-                      <button
-                        onClick={saveNewLocation}
-                        disabled={!newLocationCoords || !newLocationName.trim()}
-                        className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                      >
-                        Save Location
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Locations List */}
-              <div className="space-y-2">
-                {locations.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">No custom locations added yet.</p>
-                ) : (
-                  <ul className="divide-y divide-gray-100">
-                    {locations.map(location => (
-                      <li key={location.id} className="py-2">
-                        <div className="flex justify-between">
-                          <div>
-                            <h4 className="text-sm font-medium">{location.name}</h4>
-                            {location.notes && (
-                              <p className="text-xs text-gray-500 mt-1">{location.notes}</p>
-                            )}
-                            <p className="text-xs text-gray-400 mt-1">
-                              {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => deleteLocation(location.id)}
-                            className="text-red-500 hover:text-red-700 text-sm"
-                            title="Delete location"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </section>
-            
             {/* Trip Details Panel */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Trip Details</h2>

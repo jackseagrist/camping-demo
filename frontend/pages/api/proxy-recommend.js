@@ -7,15 +7,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Get the backend URL from environment variables, with appropriate fallbacks
-    // In production, this should be set as an environment variable in your Vercel dashboard
-    const BACKEND_URL = process.env.BACKEND_URL || 
-      (process.env.NODE_ENV === 'production' 
-        ? 'https://your-backend-production-url.com' // Replace with your actual backend URL
-        : 'http://127.0.0.1:8000');
+    // Get the backend URL from environment variables
+    const BACKEND_URL = process.env.BACKEND_URL;
     
     // Get API key from environment variable
-    const API_KEY = process.env.BACKEND_API_KEY || 'default-dev-key';
+    const API_KEY = process.env.BACKEND_API_KEY;
+    
+    // Validate required environment variables
+    if (!BACKEND_URL) {
+      return res.status(500).json({ 
+        error: 'Server configuration error',
+        details: 'Backend URL not configured'
+      });
+    }
+    
+    if (!API_KEY) {
+      return res.status(500).json({ 
+        error: 'Server configuration error',
+        details: 'API Key not configured'
+      });
+    }
     
     console.log(`Using backend URL: ${BACKEND_URL}`);
     

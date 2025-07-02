@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,9 +8,15 @@ import requests
 import json
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Load environment variables
 load_dotenv()
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -20,6 +26,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Add rate limit exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Enable CORS (adjust allowed origins as needed)
 app.add_middleware(
@@ -40,12 +50,14 @@ supabase: Client = create_client(
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 )
 RIDB_API_KEY = os.getenv("RIDB_API_KEY")
-API_KEY = os.getenv("API_KEY", "default-dev-key")  # Set a secure API key in production
+API_KEY = os.getenv("API_KEY")  # Removed default fallback
 
 # API Key validation dependency
 async def validate_api_key(x_api_key: str = Header(None)):
     if not x_api_key:
         raise HTTPException(status_code=401, detail="API Key header is missing")
+    if not API_KEY:
+        raise HTTPException(status_code=500, detail="API Key not configured on server")
     if x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
     return x_api_key
@@ -53,11 +65,13 @@ async def validate_api_key(x_api_key: str = Header(None)):
 # ---------- ROUTES ----------
 
 @app.get("/")
-def read_root():
+@limiter.limit("10/minute")
+def read_root(request: Request):
     return {"message": "Hello from FastAPI on Render! Visit /docs for API documentation."}
 
 @app.get("/api/campgrounds", dependencies=[Depends(validate_api_key)])
-def get_campgrounds():
+@limiter.limit("5/minute")
+def get_campgrounds(request: Request):
     headers = {"apikey": RIDB_API_KEY}
     url = "https://ridb.recreation.gov/api/v1/facilities?state=CA&activity=CAMPING&limit=25"
     response = requests.get(url, headers=headers)
@@ -75,7 +89,8 @@ class TripDetails(BaseModel):
 
 
 @app.post("/packing-list/generate", dependencies=[Depends(validate_api_key)])
-async def generate_packing_list(data: TripDetails):
+@limiter.limit("3/minute")
+async def generate_packing_list(data: TripDetails, request: Request):
     prompt = f"""
     You're an experienced outdoor gear guide. Create a detailed camping packing list for the following trip:
 
@@ -109,9 +124,10 @@ class RecommendRequest(BaseModel):
     user_input: str
 
 
-@app.post("/recommend-facility")
-async def recommend_facility(request: RecommendRequest):
-    user_input = request.user_input
+@app.post("/recommend-facility", dependencies=[Depends(validate_api_key)])
+@limiter.limit("5/minute")
+async def recommend_facility(request: Request, recommend_request: RecommendRequest):
+    user_input = recommend_request.user_input
 
     try:
         # Step 1: Generate embedding for the user query
