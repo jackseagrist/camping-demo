@@ -9,6 +9,7 @@ import SidebarLayout from '../components/SidebarLayout';
 import { Inter } from 'next/font/google';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import { useBetaLimits } from '../lib/BetaLimitsContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -16,6 +17,7 @@ export default function Plan() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClientComponentClient();
+  const { incrementAiSearch, incrementTrip } = useBetaLimits();
   
   // Chat interface state
   const [prompt, setPrompt] = useState('');
@@ -117,6 +119,12 @@ export default function Plan() {
     e.preventDefault();
     if (!prompt.trim()) return;
     
+    // Check if user can perform an AI search
+    const canSearch = await incrementAiSearch();
+    if (!canSearch) {
+      return; // The limit modal will be shown by the context
+    }
+    
     setIsGenerating(true);
     setError(null);
 
@@ -189,6 +197,14 @@ export default function Plan() {
     setSelectedCardIndex(cardIndex);
 
     try {
+      // Check if user can create a new trip
+      const canCreateTrip = await incrementTrip();
+      if (!canCreateTrip) {
+        setIsCreatingTrip(false);
+        setSelectedCardIndex(null);
+        return; // The limit modal will be shown by the context
+      }
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {

@@ -4,6 +4,7 @@ import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { useState } from 'react';
 import { Analytics } from '@vercel/analytics/next';
+import { BetaLimitsProvider } from '../lib/BetaLimitsContext';
 
 export default function MyApp({ Component, pageProps }) {
   const [supabaseClient] = useState(() => createPagesBrowserClient());
@@ -13,8 +14,10 @@ export default function MyApp({ Component, pageProps }) {
       supabaseClient={supabaseClient}
       initialSession={pageProps.initialSession}
     >
-      <Component {...pageProps} />
-      <Analytics />
+      <BetaLimitsProvider>
+        <Component {...pageProps} />
+        <Analytics />
+      </BetaLimitsProvider>
     </SessionContextProvider>
   );
 }

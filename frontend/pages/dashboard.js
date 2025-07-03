@@ -6,6 +6,7 @@ import SidebarLayout from '../components/SidebarLayout';
 import TripCard from '../components/TripCard';
 import TripList from '../components/TripList';
 import { Inter } from 'next/font/google';
+import { useBetaLimits } from '../lib/BetaLimitsContext';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const supabase = createClientComponentClient();
   const router = useRouter();
+  const { incrementTrip } = useBetaLimits();
 
   // Filter trips based on selected status
   const filteredTrips = statusFilter === 'all' 
@@ -130,6 +132,12 @@ export default function Dashboard() {
 
   const createNewTrip = async () => {
     try {
+      // Check if user can create a new trip
+      const canCreateTrip = await incrementTrip();
+      if (!canCreateTrip) {
+        return; // The limit modal will be shown by the context
+      }
+      
       setIsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       
