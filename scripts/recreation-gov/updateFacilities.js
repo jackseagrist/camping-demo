@@ -63,16 +63,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Configuration
 const BATCH_SIZE = 50;  // 50 facilities per batch
 const INTERVAL_MS = 60000;  // 1 minute interval between batches
-const STATE_FILTER = 'CA';  // Filter for California only
 let currentOffset = 0;
 let totalFacilities = 0;
 let processedFacilities = 0;
 let skippedFacilities = 0;
 
 async function fetchFacilities(offset = 0) {
-  // Adding state filter for California and only get facilities with campsites
-  const url = `https://ridb.recreation.gov/api/v1/facilities?limit=${BATCH_SIZE}&offset=${offset}&state=${STATE_FILTER}&activity=CAMPING`;
-  console.log(`Fetching California facilities from offset ${offset}...`);
+  // Remove state filter, keep the activity=CAMPING filter
+  const url = `https://ridb.recreation.gov/api/v1/facilities?limit=${BATCH_SIZE}&offset=${offset}&activity=CAMPING`;
+  console.log(`Fetching facilities from offset ${offset}...`);
   console.log('URL:', url);
 
   const response = await fetch(url, {
@@ -107,7 +106,7 @@ async function fetchFacilityDetails(facilityId) {
 
 async function processBatch(offset) {
   try {
-    console.log(`\nFetching batch of ${BATCH_SIZE} California facilities at offset ${offset}...`);
+    console.log(`\nFetching batch of ${BATCH_SIZE} facilities at offset ${offset}...`);
     
     const data = await fetchFacilities(offset);
     
@@ -118,7 +117,7 @@ async function processBatch(offset) {
 
     if (totalFacilities === 0 && data.METADATA && data.METADATA.RESULTS) {
       totalFacilities = data.METADATA.RESULTS.TOTAL_COUNT;
-      console.log(`Total available California facilities: ${totalFacilities}`);
+      console.log(`Total available facilities: ${totalFacilities}`);
     }
 
     // If we received fewer items than requested, we might be at the end
@@ -126,12 +125,8 @@ async function processBatch(offset) {
     
     for (const facility of data.RECDATA) {
       try {
-        // Verify the facility is in California
-        if (!facility.FacilityStateCode || facility.FacilityStateCode !== STATE_FILTER) {
-          console.log(`Skipping facility ${facility.FacilityID} - not in California`);
-          skippedFacilities++;
-          continue;
-        }
+        // Remove the California verification check
+        // No need to skip facilities based on state
 
         // Get additional facility details
         let facilityDetails;
@@ -160,7 +155,7 @@ async function processBatch(offset) {
             address_line1: addressData.FacilityStreetAddress1 || '',
             address_line2: addressData.FacilityStreetAddress2 || '',
             city: addressData.City || '',
-            state: facility.FacilityStateCode || STATE_FILTER,
+            state: facility.FacilityStateCode || '',
             zip: addressData.PostalCode || '',
             lat: facility.FacilityLatitude,
             lon: facility.FacilityLongitude,
@@ -180,7 +175,7 @@ async function processBatch(offset) {
           console.log(`Error upserting facility ${facility.FacilityID}:`, error);
         } else {
           processedFacilities++;
-          console.log(`Successfully processed California facility ${facility.FacilityID}`);
+          console.log(`Successfully processed facility ${facility.FacilityID}`);
         }
       } catch (error) {
         console.log(`Error processing facility ${facility.FacilityID}:`, error);
@@ -188,8 +183,7 @@ async function processBatch(offset) {
     }
 
     console.log(`\nProcessed batch: ${data.RECDATA.length} facilities`);
-    console.log(`Total California facilities processed: ${processedFacilities}`);
-    console.log(`Total facilities skipped (non-California): ${skippedFacilities}`);
+    console.log(`Total facilities processed: ${processedFacilities}`);
     console.log(`Progress: ${processedFacilities}/${totalFacilities} (${((processedFacilities/totalFacilities)*100).toFixed(2)}%)`);
 
     return { 

@@ -80,7 +80,7 @@ export default function Profile() {
 
         setUser(session.user);
 
-        // Fetch user's trips
+        // Fetch user's trips (owned trips)
         const { data: userTrips, error: tripsError } = await supabase
           .from('trips')
           .select('*')
@@ -88,10 +88,50 @@ export default function Profile() {
           .order('created_at', { ascending: false });
 
         if (tripsError) {
-          console.error('Error fetching trips:', tripsError);
-        } else {
-          setTrips(userTrips || []);
+          console.error('Error fetching owned trips:', tripsError);
         }
+
+        // Fetch trips where user is a collaborator
+        const { data: collaboratorTrips, error: collaboratorError } = await supabase
+          .from('trip_collaborators')
+          .select(`
+            *,
+            trip:trip_id (*)
+          `)
+          .eq('email', session.user.email)
+          .eq('status', 'Accepted');
+
+        if (collaboratorError) {
+          console.error('Error fetching collaborator trips:', collaboratorError);
+        }
+
+        // Combine and deduplicate trips
+        const ownedTrips = userTrips || [];
+        const collaboratorTripData = collaboratorTrips?.map(collab => collab.trip) || [];
+        
+        // Create a Map to deduplicate by trip ID
+        const tripMap = new Map();
+        
+        // Add owned trips first
+        ownedTrips.forEach(trip => {
+          tripMap.set(trip.id, trip);
+        });
+        
+        // Add collaborator trips (won't overwrite if already exists)
+        collaboratorTripData.forEach(trip => {
+          if (!tripMap.has(trip.id)) {
+            tripMap.set(trip.id, trip);
+          }
+        });
+        
+        // Convert back to array and sort by created_at
+        const allTrips = Array.from(tripMap.values()).sort((a, b) => {
+          const dateA = new Date(a.created_at).getTime();
+          const dateB = new Date(b.created_at).getTime();
+          return dateB - dateA;
+        });
+        
+        setTrips(allTrips);
 
         // Fetch profile image if exists
         if (session.user?.user_metadata?.avatar_url) {
@@ -255,22 +295,6 @@ export default function Profile() {
                     <span className="text-xl">{trips.length}</span> Trips
                   </div>
                 </div>
-                
-                {/* Links */}
-                <div className="w-full space-y-2 pt-4 border-t border-gray-100">
-                  <Link href="/stats" className="text-[#4B5563] hover:text-[#1B2E2B] transition-colors flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                    Trip Stats
-                  </Link>
-                  <Link href="/lists" className="text-[#4B5563] hover:text-[#1B2E2B] transition-colors flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Trip Lists
-                  </Link>
-                </div>
               </div>
             </div>
           </div>
@@ -333,8 +357,9 @@ export default function Profile() {
                               <h3 className="font-semibold text-[#111827]">{trip.title}</h3>
                               <p className="text-[#4B5563] text-sm mt-1">{trip.location}</p>
                               <p className="text-[#4B5563] text-sm mt-1">
-                                {new Date(trip.start_date).toLocaleDateString()} - 
-                                {trip.end_date && ` ${new Date(trip.end_date).toLocaleDateString()}`}
+                                {trip.start_date ? 
+                                  `${new Date(trip.start_date).toLocaleDateString()}${trip.end_date ? ` - ${new Date(trip.end_date).toLocaleDateString()}` : ''}` : 
+                                  'No dates yet'}
                               </p>
                             </div>
                             <Link 

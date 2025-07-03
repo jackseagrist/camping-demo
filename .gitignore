@@ -120,3 +120,7 @@ temp/
 # Local development files
 local.settings.json
 appsettings.local.json 
+
+# Cursor
+.cursor/
+mcp.json
