@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Trip, Facility } from '../lib/types';
 import { Inter } from 'next/font/google';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -93,6 +94,15 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
       // Find the selected facility
       const selectedFacility = [...facilities, ...customFacilities].find(f => f.facility_id === value);
       
+      // Track facility selected event
+      posthog.capture('facility_selected', {
+        trip_id: trip.id,
+        facility_id: value,
+        facility_name: selectedFacility?.name || 'Unknown',
+        facility_type: selectedFacility?.type || 'Unknown',
+        is_custom: !!selectedFacility?.is_custom
+      });
+      
       // Update the trip object with the new facility
       onUpdate({
         ...trip,
@@ -142,6 +152,14 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
           .eq('id', trip.id);
         
         if (tripError) throw tripError;
+        
+        // Track custom location added event
+        posthog.capture('custom_location_added', {
+          trip_id: trip.id,
+          facility_id: data.id,
+          facility_name: name,
+          has_notes: !!notes.trim()
+        });
         
         // Update local state
         setCustomFacilities([...customFacilities, data]);

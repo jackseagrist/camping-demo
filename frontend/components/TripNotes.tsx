@@ -9,6 +9,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import { InputRule } from '@tiptap/core';
 import styles from '../styles/TipTapEditor.module.css';
+import posthog from '../posthog';
 
 interface TripNotesProps {
   trip: Trip;
@@ -273,6 +274,13 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
 
       if (error) throw error;
       
+      // Track notes saved event
+      posthog.capture('notes_saved', {
+        trip_id: trip.id,
+        content_length: JSON.stringify(editorContent).length,
+        has_task_list: JSON.stringify(editorContent).includes('taskList')
+      });
+      
       // Update the trip in parent component
       onUpdate({ ...trip, notes: editorContent });
       
@@ -289,6 +297,11 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
 
   // Debounce the save function
   const handleContentChange = useCallback((editor: Editor) => {
+    // Track notes edited event
+    posthog.capture('notes_edited', {
+      trip_id: trip?.id
+    });
+    
     // Clear any existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -299,7 +312,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
       const content = editor.getJSON();
       saveNotes(content);
     }, 500); // 500ms debounce
-  }, [saveNotes]);
+  }, [saveNotes, trip]);
 
   // Clean up timeout on unmount
   useEffect(() => {

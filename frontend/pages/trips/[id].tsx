@@ -14,6 +14,7 @@ import styles from '../../styles/TripDetail.module.css';
 import dynamic from 'next/dynamic';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import mapboxgl from 'mapbox-gl';
+import posthog from '../../posthog';
 
 // Set Mapbox token to match explore.js
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
@@ -98,6 +99,15 @@ export default function TripDetail() {
           .single();
 
         if (error) throw error;
+
+        // Track trip view event
+        posthog.capture('trip_viewed', {
+          trip_id: tripData.id,
+          trip_title: tripData.title,
+          has_facility: !!tripData.facility_id,
+          has_dates: !!(tripData.start_date && tripData.end_date),
+          trip_status: tripData.status || 'idea'
+        });
 
         // Log the trip data to help debug
         console.log('Fetched trip data:', tripData);
@@ -993,6 +1003,13 @@ export default function TripDetail() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-sm hover:bg-emerald-700 transition-colors w-full"
+                    onClick={() => {
+                      posthog.capture('calendar_export', {
+                        trip_id: trip.id,
+                        trip_title: trip.title,
+                        has_dates: !!(trip.start_date && trip.end_date)
+                      });
+                    }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

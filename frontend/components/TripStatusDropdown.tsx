@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Trip } from '../lib/types';
+import posthog from '../posthog';
 
 interface TripStatusDropdownProps {
   trip: Trip;
@@ -61,6 +62,13 @@ export default function TripStatusDropdown({ trip, onUpdate }: TripStatusDropdow
       // Show confetti animation
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2000);
+      
+      // Track status change event
+      posthog.capture('trip_status_changed', {
+        trip_id: trip.id,
+        previous_status: trip.status,
+        new_status: newStatus
+      });
       
       // Update local state
       if (onUpdate && data) {

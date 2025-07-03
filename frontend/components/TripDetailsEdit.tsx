@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/router';
 import { Trip } from '../lib/types';
+import posthog from '../posthog';
 
 interface TripDetailsEditProps {
   trip: Trip;
@@ -46,6 +47,17 @@ export default function TripDetailsEdit({ trip, onUpdate }: TripDetailsEditProps
 
       if (error) throw error;
 
+      // Track trip update event
+      posthog.capture('trip_updated', {
+        trip_id: trip.id,
+        title: formData.title,
+        location: formData.location,
+        trip_type: formData.tripType,
+        group_size: formData.groupSize,
+        duration: formData.duration,
+        experience_level: formData.experienceLevel
+      });
+
       onUpdate(updatedTrip);
     } catch (error) {
       console.error('Error updating trip:', error);
@@ -68,6 +80,14 @@ export default function TripDetailsEdit({ trip, onUpdate }: TripDetailsEditProps
         .eq('id', trip.id);
 
       if (error) throw error;
+
+      // Track trip deletion event
+      posthog.capture('trip_deleted', {
+        trip_id: trip.id,
+        trip_title: trip.title,
+        trip_type: trip.trip_type,
+        trip_location: trip.location
+      });
 
       router.push('/dashboard');
     } catch (error) {

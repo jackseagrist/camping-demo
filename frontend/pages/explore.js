@@ -6,6 +6,7 @@ import SidebarLayout from '../components/SidebarLayout';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Inter } from 'next/font/google';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -69,24 +70,40 @@ export default function Explore() {
     setFilters(prevFilters => {
       const currentValues = [...prevFilters[filterType]];
       
+      let newValues;
       if (currentValues.includes(value)) {
         // Remove the value if it's already selected
-        return {
-          ...prevFilters,
-          [filterType]: currentValues.filter(v => v !== value)
-        };
+        newValues = currentValues.filter(v => v !== value);
       } else {
         // Add the value if it's not selected
-        return {
-          ...prevFilters,
-          [filterType]: [...currentValues, value]
-        };
+        newValues = [...currentValues, value];
       }
+      
+      // Track filter applied event
+      posthog.capture('filter_applied', {
+        filter_type: filterType,
+        filter_values: newValues,
+        display_mode: displayMode,
+        location_type: locationType
+      });
+      
+      return {
+        ...prevFilters,
+        [filterType]: newValues
+      };
     });
   };
 
   // Set a single filter value (for dropdowns)
   const setFilterValue = (filterType, value) => {
+    // Track filter applied event
+    posthog.capture('filter_applied', {
+      filter_type: filterType,
+      filter_values: value ? [value] : [],
+      display_mode: displayMode,
+      location_type: locationType
+    });
+    
     setFilters(prevFilters => ({
       ...prevFilters,
       [filterType]: value ? [value] : []
@@ -831,6 +848,12 @@ export default function Explore() {
       map.current.addControl(new mapboxgl.NavigationControl());
       console.log('✅ Map controls added');
 
+      // Track explore page viewed event
+      posthog.capture('explore_page_viewed', {
+        display_mode: displayMode,
+        location_type: locationType
+      });
+
       // Wait for map to load before setting mapLoaded to true
       map.current.on('load', () => {
         console.log('✅ Map loaded event fired');
@@ -964,6 +987,14 @@ export default function Explore() {
   const showFacilityDetailsPanel = (facility) => {
     setSelectedFacility(facility);
     setShowDetailPanel(true);
+    
+    // Track facility viewed event
+    posthog.capture('facility_viewed', {
+      facility_id: facility.facility_id || facility.id,
+      facility_name: facility.name,
+      facility_type: facility.type || 'unknown',
+      display_mode: displayMode
+    });
     
     // Highlight the marker
     if (markers.current[facility.facility_id || facility.id]) {

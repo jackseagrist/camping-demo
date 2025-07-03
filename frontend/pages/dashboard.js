@@ -7,6 +7,7 @@ import TripCard from '../components/TripCard';
 import TripList from '../components/TripList';
 import { Inter } from 'next/font/google';
 import { useBetaLimits } from '../lib/BetaLimitsContext';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -172,6 +173,16 @@ export default function Dashboard() {
 
   const acceptInvite = async (collaborationId) => {
     try {
+      // Get the invite details before updating
+      const { data: inviteData, error: inviteError } = await supabase
+        .from('trip_collaborators')
+        .select('*, trip:trip_id(*)')
+        .eq('id', collaborationId)
+        .single();
+        
+      if (inviteError) throw inviteError;
+      
+      // Update the status
       const { error } = await supabase
         .from('trip_collaborators')
         .update({ status: 'Accepted' })
@@ -179,6 +190,13 @@ export default function Dashboard() {
         .select();
 
       if (error) throw error;
+      
+      // Track invitation accepted event
+      posthog.capture('invitation_accepted', {
+        trip_id: inviteData.trip_id,
+        trip_title: inviteData.trip?.title || 'Unknown trip',
+        inviter_email: inviteData.invited_by || 'Unknown'
+      });
 
       // Move the accepted invite from pendingInvites to trips
       const acceptedInvite = pendingInvites.find(invite => invite.id === collaborationId);

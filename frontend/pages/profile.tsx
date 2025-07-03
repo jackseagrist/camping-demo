@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Inter } from 'next/font/google';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -92,6 +93,12 @@ export default function Profile() {
         }
         
         setUser(userData.user);
+
+        // Track profile viewed event
+        posthog.capture('profile_viewed', {
+          user_id: userData.user.id,
+          email_domain: userData.user.email?.split('@')[1] || 'unknown'
+        });
 
         // Fetch user's trips (owned trips)
         const { data: userTrips, error: tripsError } = await supabase
@@ -206,6 +213,13 @@ export default function Profile() {
         throw updateError;
       }
       
+      // Track avatar changed event
+      posthog.capture('avatar_changed', {
+        user_id: user.id,
+        file_type: fileExt,
+        file_size_mb: fileSizeInMB.toFixed(2)
+      });
+      
       setProfileImage(avatarUrl);
       
     } catch (error) {
@@ -228,6 +242,11 @@ export default function Profile() {
       );
       
       if (error) throw error;
+      
+      // Track password reset requested event
+      posthog.capture('password_reset_requested', {
+        user_id: user.id
+      });
       
       setResetPasswordMessage('Password reset link sent to your email');
       setTimeout(() => setResetPasswordMessage(''), 5000); // Clear message after 5 seconds
@@ -253,6 +272,13 @@ export default function Profile() {
       const { error } = await supabase.auth.updateUser({ email: newEmail });
       
       if (error) throw error;
+      
+      // Track email change requested event
+      posthog.capture('email_change_requested', {
+        user_id: user.id,
+        old_email_domain: user.email.split('@')[1],
+        new_email_domain: newEmail.split('@')[1]
+      });
       
       setEmailChangeMessage('Verification email sent to your new address. Please check your inbox.');
       setNewEmail('');

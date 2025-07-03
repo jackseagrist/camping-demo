@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Trip, Collaborator } from '../lib/types';
+import posthog from '../posthog';
 
 interface CollaboratorModalProps {
   isOpen: boolean;
@@ -14,10 +15,13 @@ export default function CollaboratorModal({ isOpen, onClose, tripId }: Collabora
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [invitedEmails, setInvitedEmails] = useState<string[]>([]);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && tripId) {
       fetchCollaborators();
+      fetchInvitedEmails();
     }
   }, [isOpen, tripId]);
 
@@ -35,62 +39,81 @@ export default function CollaboratorModal({ isOpen, onClose, tripId }: Collabora
     }
   };
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Simple email validation
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
-    // Check if email is already invited
-    if (collaborators.some(c => c.email.toLowerCase() === email.toLowerCase())) {
-      setError('This person has already been invited');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError('');
-
+  const fetchInvitedEmails = async () => {
     try {
-      // Remove the trip ownership check - let RLS policies handle permissions
-      // Now try to insert the collaborator directly
       const { data, error } = await supabase
         .from('trip_collaborators')
-        .insert([
-          { 
-            trip_id: tripId, 
-            email: email.toLowerCase(), 
-            status: 'Pending',
-            invited_at: new Date().toISOString()
-          }
-        ])
-        .select();
+        .select('email, status')
+        .eq('trip_id', tripId);
+      
+      if (error) throw error;
+      
+      setInvitedEmails(data.map(item => item.email));
+    } catch (error) {
+      console.error('Error fetching invited emails:', error);
+    }
+  };
 
-      if (error) {
-        console.error('Supabase error details:', error);
-        if (error.code === '42501') {
-          setError('Permission denied. You may not have the right access level.');
-        } else if (error.code === '23505') {
-          setError('This person has already been invited to this trip.');
-        } else if (error.code === '23514') {
-          setError('Invalid status value. Please try again.');
-        } else {
-          setError(`Failed to send invitation: ${error.message}`);
-        }
-        setIsSubmitting(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email.trim() || isSubmitting) return;
+    
+    setError(null);
+    setSuccess(null);
+    setIsSubmitting(true);
+    
+    try {
+      // Check if email is already invited
+      if (invitedEmails.includes(email)) {
+        setError('This email has already been invited');
         return;
       }
       
-      // Add the new collaborator to the list
-      if (data && data.length > 0) {
-        setCollaborators([...collaborators, data[0]]);
-        setEmail(''); // Clear input field
+      // Get current user's email for the notification
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
       }
+      
+      // Get trip details for the notification
+      const { data: tripData, error: tripError } = await supabase
+        .from('trips')
+        .select('title')
+        .eq('id', tripId)
+        .single();
+      
+      if (tripError) throw tripError;
+      
+      // Insert the collaborator
+      const { error } = await supabase
+        .from('trip_collaborators')
+        .insert([
+          {
+            trip_id: tripId,
+            email: email.toLowerCase().trim(),
+            invited_by: session.user.email,
+            status: 'Pending'
+          }
+        ]);
+      
+      if (error) throw error;
+      
+      // Track collaborator invited event
+      posthog.capture('collaborator_invited', {
+        trip_id: tripId,
+        trip_title: tripData.title,
+        inviter_email: session.user.email
+      });
+      
+      // Update UI
+      setInvitedEmails([...invitedEmails, email]);
+      setSuccess(`Invitation sent to ${email}`);
+      setEmail('');
+      
     } catch (error: any) {
       console.error('Error inviting collaborator:', error);
-      setError(`Failed to send invitation: ${error.message || 'Unknown error'}`);
+      setError(error.message || 'Failed to send invitation');
     } finally {
       setIsSubmitting(false);
     }
@@ -132,7 +155,7 @@ export default function CollaboratorModal({ isOpen, onClose, tripId }: Collabora
         </div>
         
         <div className="p-6 flex-1 overflow-y-auto">
-          <form onSubmit={handleInvite} className="mb-6">
+          <form onSubmit={handleSubmit} className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
             </label>
@@ -153,6 +176,7 @@ export default function CollaboratorModal({ isOpen, onClose, tripId }: Collabora
               </button>
             </div>
             {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            {success && <p className="mt-2 text-sm text-emerald-600">{success}</p>}
           </form>
           
           <div>

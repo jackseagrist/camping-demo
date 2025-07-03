@@ -10,7 +10,20 @@ export default function MyApp({ Component, pageProps }) {
   const [supabaseClient] = useState(() => createPagesBrowserClient());
 
   useEffect(() => {
-    import('../posthog');
+    // Import PostHog
+    const loadPosthog = async () => {
+      const posthog = (await import('../posthog')).default;
+      
+      // Track session started event
+      posthog.capture('session_started', {
+        referrer: document.referrer,
+        url_path: window.location.pathname,
+        screen_width: window.innerWidth,
+        screen_height: window.innerHeight
+      });
+    };
+    
+    loadPosthog();
   }, []);
 
   return (

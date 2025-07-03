@@ -3,6 +3,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Trip, Comment, Collaborator } from '../lib/types';
 import { format } from 'date-fns';
 import { Inter } from 'next/font/google';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -333,6 +334,15 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
     const mentionMatches = [...commentText.matchAll(mentionRegex)];
     const mentions = mentionMatches.map(match => match[1]);
     
+    // Track mention usage if any mentions exist
+    if (mentions.length > 0) {
+      posthog.capture('mention_used', {
+        trip_id: trip.id,
+        mention_count: mentions.length,
+        mentioned_users: mentions
+      });
+    }
+    
     // Create an optimistic comment
     const optimisticComment = {
       id: 'temp-' + Date.now(),
@@ -395,6 +405,13 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
         
         throw error;
       }
+      
+      // Track comment added event
+      posthog.capture('comment_added', {
+        trip_id: trip.id,
+        comment_length: commentText.length,
+        has_mentions: mentions.length > 0
+      });
       
       console.log('Comment saved successfully');
       

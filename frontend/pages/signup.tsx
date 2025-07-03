@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Inter } from 'next/font/google';
 import { getRedirectURL } from '../lib/utils';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -40,7 +41,7 @@ export default function Signup() {
     setSuccess(null);
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password
       });
@@ -48,6 +49,12 @@ export default function Signup() {
       if (signUpError) {
         throw signUpError;
       }
+
+      // Track signup event
+      posthog.capture('user_signup', {
+        method: 'email',
+        email_domain: email.split('@')[1]
+      });
 
       setSuccess('Success! Please check your email for confirmation.');
       setEmail('');
@@ -59,6 +66,12 @@ export default function Signup() {
   };
 
   const signUpWithGoogle = async () => {
+    // Track signup attempt with Google
+    posthog.capture('user_signup', {
+      method: 'google',
+      provider: 'google'
+    });
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
