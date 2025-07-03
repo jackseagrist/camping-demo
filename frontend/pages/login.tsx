@@ -6,6 +6,7 @@ import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Inter } from 'next/font/google';
 import { getRedirectURL } from '../lib/utils';
+import posthog from '../posthog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -24,6 +25,12 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // Identify user with PostHog
+        posthog.identify(session.user.id, {
+          email: session.user.email,
+          signup_method: session.user.user_metadata?.provider ?? 'email',
+          invitation: session.user.user_metadata?.invitation ?? false,
+        });
         router.replace('/dashboard');
       } else {
         setCheckingSession(false);
@@ -38,13 +45,25 @@ export default function Login() {
     setError(null);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (signInError) {
         throw signInError;
+      }
+
+      // Identify user with PostHog after successful login
+      if (data.user) {
+        posthog.identify(data.user.id, {
+          email: data.user.email,
+          signup_method: data.user.user_metadata?.provider ?? 'email',
+          invitation: data.user.user_metadata?.invitation ?? false,
+        });
+        posthog.capture('user_login', {
+          login_method: 'email'
+        });
       }
 
       // Redirect to dashboard after successful login
@@ -56,6 +75,8 @@ export default function Login() {
   };
 
   const signInWithGoogle = async () => {
+    posthog.capture('login_attempt', { provider: 'google' });
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

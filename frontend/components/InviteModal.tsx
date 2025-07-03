@@ -144,7 +144,7 @@ export default function InviteModal({ isOpen, onClose }: InviteModalProps) {
           </div>
           
           <p className="text-gray-600 mb-4">
-            Invite your friends to join the BaseLodge beta. They'll receive an email with a link to sign up.
+            Invite your friends to join the BaseLodge beta. They&apos;ll receive an email with a link to sign up.
           </p>
           
           <div className="mb-4">

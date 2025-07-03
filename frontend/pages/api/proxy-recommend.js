@@ -1,12 +1,22 @@
 /**
  * API endpoint to proxy requests to the backend recommend-facility endpoint
  */
+import posthog from '../../posthog';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    // Track AI search event if there's a user ID in the request
+    if (req.body.userId) {
+      posthog.capture('ai_search_triggered', {
+        query: req.body.query || '',
+        userId: req.body.userId,
+      });
+    }
+
     // Get the backend URL from environment variables
     const BACKEND_URL = process.env.BACKEND_URL;
     

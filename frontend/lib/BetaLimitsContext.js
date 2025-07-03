@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import posthog from '../posthog';
 
 const BetaLimitsContext = createContext();
 
@@ -88,6 +89,13 @@ export function BetaLimitsProvider({ children }) {
       setLimitType('ai_search');
       setShowLimitModal(true);
       incrementLimitModalShown();
+      
+      // Track limit reached event
+      posthog.capture('limit_reached', {
+        type: 'ai_search',
+        current_count: aiSearchesToday
+      });
+      
       return false;
     }
     
@@ -145,6 +153,13 @@ export function BetaLimitsProvider({ children }) {
       setLimitType('trips');
       setShowLimitModal(true);
       incrementLimitModalShown();
+      
+      // Track limit reached event
+      posthog.capture('limit_reached', {
+        type: 'trip_limit',
+        current_count: totalTrips
+      });
+      
       return false;
     }
     

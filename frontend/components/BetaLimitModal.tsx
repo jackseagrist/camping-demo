@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import posthog from '../posthog';
 
 interface BetaLimitModalProps {
   isOpen: boolean;
@@ -7,11 +8,26 @@ interface BetaLimitModalProps {
 }
 
 export default function BetaLimitModal({ isOpen, onClose, limitType }: BetaLimitModalProps) {
+  useEffect(() => {
+    if (isOpen) {
+      // Track when the limit modal is shown
+      posthog.capture('limit_modal_shown', {
+        type: limitType
+      });
+    }
+  }, [isOpen, limitType]);
+
   if (!isOpen) return null;
 
   const limitMessage = limitType === 'ai_search' 
     ? "You've reached your daily limit of 5 AI searches." 
     : "You've reached the limit of 5 trips for your beta account.";
+
+  const handleFeedbackClick = () => {
+    posthog.capture('limit_modal_feedback_clicked', {
+      type: limitType
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -35,7 +51,7 @@ export default function BetaLimitModal({ isOpen, onClose, limitType }: BetaLimit
             </h3>
             
             <p className="text-gray-600 mb-4">
-              {limitMessage} We're currently in beta and testing interest in these features.
+              {limitMessage} We&apos;re currently in beta and testing interest in these features.
             </p>
           </div>
           
@@ -45,6 +61,7 @@ export default function BetaLimitModal({ isOpen, onClose, limitType }: BetaLimit
               target="_blank"
               rel="noopener noreferrer"
               className="w-full bg-emerald-500 text-white py-2 px-4 rounded-lg hover:bg-emerald-600 transition-colors text-center"
+              onClick={handleFeedbackClick}
             >
               Share Your Feedback
             </a>

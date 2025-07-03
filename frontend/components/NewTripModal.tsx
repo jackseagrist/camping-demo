@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import posthog from '../posthog';
 
 interface NewTripModalProps {
   isOpen: boolean;
@@ -46,6 +47,16 @@ export default function NewTripModal({ isOpen, onClose }: NewTripModalProps) {
         .single();
 
       if (error) throw error;
+
+      // Track plan creation event
+      posthog.capture('plan_created', {
+        trip_id: trip.id,
+        trip_type: formData.tripType,
+        group_size: formData.groupSize,
+        duration: formData.duration,
+        experience_level: formData.experienceLevel,
+        location: formData.location
+      });
 
       router.push(`/trips/${trip.id}`);
       onClose();

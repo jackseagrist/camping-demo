@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Head from 'next/head'
+import posthog from '../../posthog'
 
 export default function AuthCallback() {
   const router = useRouter()
@@ -19,6 +20,17 @@ export default function AuthCallback() {
         if (!session) {
           throw new Error('No session')
         }
+
+        // Identify user with PostHog after successful OAuth login
+        posthog.identify(session.user.id, {
+          email: session.user.email,
+          signup_method: session.user.user_metadata?.provider ?? 'email',
+          invitation: session.user.user_metadata?.invitation ?? false,
+        })
+        
+        posthog.capture('user_login', {
+          login_method: session.user.user_metadata?.provider || 'oauth'
+        })
 
         // Always redirect to dashboard after successful authentication
         router.replace('/dashboard')
