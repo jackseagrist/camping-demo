@@ -83,7 +83,6 @@ export default function SidebarLayout({ children }) {
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/explore', label: 'Explore', icon: ExploreIcon },
     { href: '/plan', label: 'Plan', icon: PlanIcon },
   ];
 

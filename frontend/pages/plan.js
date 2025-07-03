@@ -35,6 +35,9 @@ export default function Plan() {
   // Track which card is being selected for animation
   const [selectedCardIndex, setSelectedCardIndex] = useState(null);
 
+  // Mapbox access token
+  const [mapboxToken, setMapboxToken] = useState('');
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -70,6 +73,12 @@ export default function Plan() {
     };
   }, [supabase.auth]);
 
+  useEffect(() => {
+    // Set the Mapbox token from the environment variable
+    setMapboxToken(process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '');
+    console.log('Mapbox token available:', process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ? 'Yes' : 'No');
+  }, []);
+
   // Initialize AOS animations
   useEffect(() => {
     AOS.init({ duration: 700, once: true });
@@ -79,6 +88,28 @@ export default function Plan() {
     const value = e.target.value;
     if (value.length <= MAX_PROMPT_LENGTH) {
       setPrompt(value);
+    }
+  };
+
+  // Function to fetch complete facility details from Supabase
+  const fetchFacilityDetails = async (facilityIds) => {
+    if (!facilityIds || facilityIds.length === 0) return [];
+    
+    try {
+      console.log("Fetching complete facility details for:", facilityIds);
+      
+      const { data, error } = await supabase
+        .from('facilities')
+        .select('*')
+        .in('id', facilityIds);
+      
+      if (error) throw error;
+      
+      console.log("Fetched facility details:", data);
+      return data || [];
+    } catch (err) {
+      console.error("Error fetching facility details:", err);
+      return [];
     }
   };
 
@@ -114,19 +145,36 @@ export default function Plan() {
         throw new Error('No facilities were recommended. Please try a different prompt.');
       }
       
-      // Transform the facility data to match our trip options format
-      const formattedTripOptions = responseData.recommendations.map(facility => ({
-        facility_name: facility.name,
-        facility_id: facility.id,
-        description: facility.summary || 'No description available',
-        image: facility.image || '/images/default-camp.jpg',
-        trip_type: 'Camping',
-        difficulty: 'Moderate',
-        recommended_activities: ['Hiking', 'Camping'],
-        best_season: 'Summer',
-        duration: 3,
-      }));
+      // Extract facility IDs to fetch complete details
+      const facilityIds = responseData.recommendations.map(facility => facility.id);
       
+      // Fetch complete facility details including coordinates
+      const facilityDetails = await fetchFacilityDetails(facilityIds);
+      
+      // Map the API response to our trip options format, enriched with the complete facility details
+      const formattedTripOptions = responseData.recommendations.map(facility => {
+        // Find the complete facility details
+        const details = facilityDetails.find(detail => detail.id === facility.id) || {};
+        
+        return {
+          facility_name: facility.name,
+          facility_id: facility.id,
+          description: facility.summary || details.summary || 'No description available',
+          image: facility.image || details.image || '/images/default-camp.jpg',
+          trip_type: 'Camping',
+          difficulty: 'Moderate',
+          recommended_activities: ['Hiking', 'Camping'],
+          best_season: 'Summer',
+          duration: 3,
+          lat: details.lat || null,
+          lon: details.lon || null,
+          demand_assessment: details.demand_assessment || 'Medium',
+          cost_assessment: details.cost_assessment_2 || 'Affordable',
+          cost_value: details.cost_assessment_1 || 45,
+        };
+      });
+      
+      console.log("Formatted trip options:", formattedTripOptions);
       setTripOptions(formattedTripOptions);
     } catch (err) {
       console.error("Error getting facility recommendations:", err);
@@ -170,6 +218,81 @@ export default function Plan() {
       setIsCreatingTrip(false);
       setSelectedCardIndex(null);
     }
+  };
+
+  // Helper function to get demand badge color - updated to match explore page
+  const getDemandBadgeColor = (demand) => {
+    switch (demand) {
+      case 'Very high':
+      case 'High':
+        return {
+          bg: '#EF4444', // Red for high demand
+          text: '#FFFFFF'
+        };
+      case 'Medium':
+        return {
+          bg: '#F59E0B', // Amber for medium demand
+          text: '#FFFFFF'
+        };
+      case 'Low':
+        return {
+          bg: '#10B981', // Green for low demand
+          text: '#FFFFFF'
+        };
+      default:
+        return {
+          bg: '#9CA3AF', // Gray for unknown
+          text: '#FFFFFF'
+        };
+    }
+  };
+
+  // Helper function to get cost badge color - updated to match explore page
+  const getCostBadgeColor = (cost) => {
+    switch (cost) {
+      case 'Very expensive':
+        return {
+          bg: '#EF4444', // Red for very expensive
+          text: '#FFFFFF'
+        };
+      case 'Expensive':
+        return {
+          bg: '#F59E0B', // Amber for expensive
+          text: '#FFFFFF'
+        };
+      case 'Affordable':
+        return {
+          bg: '#10B981', // Green for affordable
+          text: '#FFFFFF'
+        };
+      case 'Bargain':
+        return {
+          bg: '#3B82F6', // Blue for bargain
+          text: '#FFFFFF'
+        };
+      default:
+        return {
+          bg: '#9CA3AF', // Gray for unknown
+          text: '#FFFFFF'
+        };
+    }
+  };
+
+  // Function to get static map URL
+  const getStaticMapUrl = (lat, lon) => {
+    if (!lat || !lon) {
+      console.log('Missing coordinates for map:', { lat, lon });
+      return null;
+    }
+    
+    if (!mapboxToken) {
+      console.log('Missing Mapbox token for map');
+      return null;
+    }
+    
+    const url = `https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/static/pin-s+10B981(${lon},${lat})/${lon},${lat},11,0/300x150@2x?access_token=${mapboxToken}`;
+    console.log('Generated map URL (first 50 chars):', url.substring(0, 50) + '...');
+    return url;
   };
 
   if (isLoading) {
@@ -336,8 +459,65 @@ export default function Plan() {
                   onClick={() => !isCreatingTrip && handleCreateTrip(trip, index)}
                 >
                   <div className="p-5 flex flex-col flex-grow">
-                    <h3 className="font-bold text-lg text-[#111827] mb-2">{trip.facility_name}</h3>
+                    {/* Header with title */}
+                    <div className="mb-2">
+                      <h3 className="font-bold text-lg text-[#111827]">{trip.facility_name}</h3>
+                    </div>
+                    
+                    {/* Description */}
                     <p className="text-[#4B5563] text-sm mb-4 flex-grow">{trip.description}</p>
+                    
+                    {/* Map preview */}
+                    {trip.lat && trip.lon ? (
+                      <div className="mb-3 rounded-lg overflow-hidden border border-gray-200">
+                        <img 
+                          src={getStaticMapUrl(trip.lat, trip.lon)} 
+                          alt={`Map of ${trip.facility_name}`}
+                          className="w-full h-[120px] object-cover"
+                          onError={(e) => {
+                            console.error('Map image failed to load');
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="mb-3 p-4 rounded-lg bg-gray-100 text-gray-500 text-center text-sm">
+                        Map preview not available
+                      </div>
+                    )}
+                    
+                    {/* Demand and Cost badges below map */}
+                    <div className="flex justify-between mb-4">
+                      {/* Demand badge */}
+                      <div className="flex items-center">
+                        <span className="text-xs mr-1 text-gray-500">Demand:</span>
+                        <span 
+                          className="text-xs px-2 py-1 rounded-full font-medium"
+                          style={{
+                            backgroundColor: getDemandBadgeColor(trip.demand_assessment).bg,
+                            color: getDemandBadgeColor(trip.demand_assessment).text
+                          }}
+                        >
+                          {trip.demand_assessment}
+                        </span>
+                      </div>
+                      
+                      {/* Cost badge */}
+                      <div className="flex items-center">
+                        <span className="text-xs mr-1 text-gray-500">Cost:</span>
+                        <span 
+                          className="text-xs px-2 py-1 rounded-full font-medium"
+                          style={{
+                            backgroundColor: getCostBadgeColor(trip.cost_assessment).bg,
+                            color: getCostBadgeColor(trip.cost_assessment).text
+                          }}
+                        >
+                          {trip.cost_assessment}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Button */}
                     <button 
                       className={`w-full font-medium py-2 rounded-lg transition-all duration-200 mt-auto ${
                         selectedCardIndex === index 
@@ -355,9 +535,43 @@ export default function Plan() {
             
             {/* Feedback Hint */}
             <div className="bg-white rounded-xl shadow-sm p-6 text-center border border-gray-200 mb-16">
-              <p className="text-[#6B7280] text-base font-medium">
-                💡 Not finding what you want? Try adding more details to your search description or selecting dropdowns.
+              <p className="text-[#6B7280] text-base font-medium mb-4">
+                💡 Not finding what you want? Try adding more details to your search description, selecting preferences from the dropdowns, or create a trip from scratch.
               </p>
+              <button 
+                onClick={async () => {
+                  try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    
+                    if (!user) {
+                      throw new Error('User not authenticated');
+                    }
+
+                    const { data: trip, error } = await supabase
+                      .from('trips')
+                      .insert([
+                        {
+                          user_id: user.id,
+                          title: 'New Trip',
+                          location: '',
+                          packing_list: [],
+                          status: 'idea'
+                        },
+                      ])
+                      .select()
+                      .single();
+
+                    if (error) throw error;
+                    router.push(`/trips/${trip.id}`);
+                  } catch (error) {
+                    console.error('Error creating trip:', error);
+                    alert('Failed to create trip. Please try again.');
+                  }
+                }}
+                className="bg-[#10B981] text-white font-medium px-6 py-2 rounded-lg shadow-sm hover:bg-[#14B8A6] transition-colors focus:ring-2 focus:ring-[#10B981] focus:ring-offset-2"
+              >
+                Create from scratch
+              </button>
             </div>
           </div>
         )}
