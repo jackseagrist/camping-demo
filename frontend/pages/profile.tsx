@@ -60,6 +60,12 @@ export default function Profile() {
   const [profileImage, setProfileImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [newEmail, setNewEmail] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const [showEmailFields, setShowEmailFields] = useState(false);
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [emailChangeMessage, setEmailChangeMessage] = useState('');
+  const [resetPasswordMessage, setResetPasswordMessage] = useState('');
   
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -78,7 +84,14 @@ export default function Profile() {
           return;
         }
 
-        setUser(session.user);
+        // Get full user details including created_at timestamp
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          throw userError;
+        }
+        
+        setUser(userData.user);
 
         // Fetch user's trips (owned trips)
         const { data: userTrips, error: tripsError } = await supabase
@@ -205,6 +218,63 @@ export default function Profile() {
 
   const triggerFileInput = () => {
     fileInputRef.current.click();
+  };
+
+  const handleResetPassword = async () => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        user.email,
+        { redirectTo: `${window.location.origin}/auth/callback?next=/profile` }
+      );
+      
+      if (error) throw error;
+      
+      setResetPasswordMessage('Password reset link sent to your email');
+      setTimeout(() => setResetPasswordMessage(''), 5000); // Clear message after 5 seconds
+    } catch (error) {
+      console.error('Error sending reset password email:', error);
+      setResetPasswordMessage('Failed to send reset password email. Please try again.');
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    if (!newEmail) {
+      setEmailChangeMessage('Please enter a new email address');
+      return;
+    }
+
+    if (newEmail !== confirmEmail) {
+      setEmailChangeMessage('Email addresses do not match');
+      return;
+    }
+
+    try {
+      setIsChangingEmail(true);
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+      
+      if (error) throw error;
+      
+      setEmailChangeMessage('Verification email sent to your new address. Please check your inbox.');
+      setNewEmail('');
+      setConfirmEmail('');
+      setShowEmailFields(false);
+    } catch (error) {
+      console.error('Error updating email:', error);
+      setEmailChangeMessage('Failed to update email. Please try again.');
+    } finally {
+      setIsChangingEmail(false);
+      setTimeout(() => setEmailChangeMessage(''), 5000); // Clear message after 5 seconds
+    }
+  };
+
+  const toggleEmailFields = () => {
+    setShowEmailFields(!showEmailFields);
+    // Reset fields and messages when toggling
+    if (!showEmailFields) {
+      setNewEmail('');
+      setConfirmEmail('');
+      setEmailChangeMessage('');
+    }
   };
 
   if (loading) {
@@ -381,17 +451,82 @@ export default function Profile() {
                   <div className="border border-gray-100 rounded-lg p-5 hover:shadow-sm transition-shadow">
                     <h3 className="font-semibold text-[#111827] mb-2">Reset Password</h3>
                     <p className="text-[#4B5563] text-sm mb-3">Change your account password.</p>
-                    <button className="bg-[#F3F4F6] text-[#1B2E2B] px-4 py-2 rounded-lg hover:bg-[#E5E7EB] transition-colors font-medium text-sm">
+                    <button 
+                      onClick={handleResetPassword} 
+                      className="bg-[#F3F4F6] text-[#1B2E2B] px-4 py-2 rounded-lg hover:bg-[#E5E7EB] transition-colors font-medium text-sm"
+                    >
                       Reset Password
                     </button>
+                    {resetPasswordMessage && (
+                      <p className="mt-2 text-sm text-[#10B981]">{resetPasswordMessage}</p>
+                    )}
                   </div>
                   
                   <div className="border border-gray-100 rounded-lg p-5 hover:shadow-sm transition-shadow">
                     <h3 className="font-semibold text-[#111827] mb-2">Change Email</h3>
                     <p className="text-[#4B5563] text-sm mb-3">Update your email address.</p>
-                    <button className="bg-[#F3F4F6] text-[#1B2E2B] px-4 py-2 rounded-lg hover:bg-[#E5E7EB] transition-colors font-medium text-sm">
-                      Change Email
-                    </button>
+                    
+                    <div className="mb-3 text-sm text-[#4B5563]">
+                      <span className="font-medium">Current Email:</span> {user?.email}
+                    </div>
+                    
+                    {!showEmailFields ? (
+                      <button 
+                        onClick={toggleEmailFields} 
+                        className="bg-[#F3F4F6] text-[#1B2E2B] px-4 py-2 rounded-lg hover:bg-[#E5E7EB] transition-colors font-medium text-sm"
+                      >
+                        Change Email
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex flex-col">
+                          <label htmlFor="new-email" className="text-sm text-[#4B5563] mb-1">New Email Address</label>
+                          <input
+                            id="new-email"
+                            type="email"
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                            placeholder="Enter new email address"
+                            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                          />
+                        </div>
+                        
+                        <div className="flex flex-col">
+                          <label htmlFor="confirm-email" className="text-sm text-[#4B5563] mb-1">Confirm Email Address</label>
+                          <input
+                            id="confirm-email"
+                            type="email"
+                            value={confirmEmail}
+                            onChange={(e) => setConfirmEmail(e.target.value)}
+                            placeholder="Confirm new email address"
+                            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                          />
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={handleChangeEmail}
+                            disabled={isChangingEmail || !newEmail || !confirmEmail}
+                            className={`bg-[#F3F4F6] text-[#1B2E2B] px-4 py-2 rounded-lg hover:bg-[#E5E7EB] transition-colors font-medium text-sm ${(isChangingEmail || !newEmail || !confirmEmail) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            {isChangingEmail ? 'Sending...' : 'Update Email'}
+                          </button>
+                          
+                          <button 
+                            onClick={toggleEmailFields}
+                            className="bg-white border border-gray-300 text-[#4B5563] px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {emailChangeMessage && (
+                      <p className={`mt-2 text-sm ${emailChangeMessage === 'Email addresses do not match' || emailChangeMessage === 'Failed to update email. Please try again.' || emailChangeMessage === 'Please enter a new email address' ? 'text-red-500' : 'text-[#10B981]'}`}>
+                        {emailChangeMessage}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="border border-gray-100 rounded-lg p-5 hover:shadow-sm transition-shadow">
