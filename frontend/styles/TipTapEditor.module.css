@@ -46,6 +46,75 @@
   margin-bottom: 0.5rem;
 }
 
+/* Nested Ordered Lists with different list styles */
+.editor ol {
+  list-style-type: decimal; /* Default: 1, 2, 3, ... */
+}
+
+/* Style based on nesting level classes */
+.editor ol.list-level-0 {
+  list-style-type: decimal; /* 1, 2, 3, ... */
+}
+
+.editor ol.list-level-1 {
+  list-style-type: lower-alpha; /* a, b, c, ... */
+}
+
+.editor ol.list-level-2 {
+  list-style-type: lower-roman; /* i, ii, iii, ... */
+}
+
+.editor ol.list-level-3 {
+  list-style-type: upper-alpha; /* A, B, C, ... */
+}
+
+.editor ol.list-level-4 {
+  list-style-type: upper-roman; /* I, II, III, ... */
+}
+
+/* Fallback for deeply nested lists */
+.editor ol ol ol ol ol ol {
+  list-style-type: decimal; /* Back to decimal for very deep nesting */
+}
+
+/* Also keep the CSS nesting approach as fallback */
+.editor ol ol {
+  list-style-type: lower-alpha; /* First nested level: a, b, c, ... */
+}
+
+.editor ol ol ol {
+  list-style-type: lower-roman; /* Second nested level: i, ii, iii, ... */
+}
+
+.editor ol ol ol ol {
+  list-style-type: upper-alpha; /* Third nested level: A, B, C, ... */
+}
+
+.editor ol ol ol ol ol {
+  list-style-type: upper-roman; /* Fourth nested level: I, II, III, ... */
+}
+
+/* Custom list styles based on attributes */
+.editor ol[style*="list-style-type: decimal"] {
+  list-style-type: decimal;
+}
+
+.editor ol[style*="list-style-type: lower-alpha"] {
+  list-style-type: lower-alpha;
+}
+
+.editor ol[style*="list-style-type: lower-roman"] {
+  list-style-type: lower-roman;
+}
+
+.editor ol[style*="list-style-type: upper-alpha"] {
+  list-style-type: upper-alpha;
+}
+
+.editor ol[style*="list-style-type: upper-roman"] {
+  list-style-type: upper-roman;
+}
+
 /* Task Lists (Checkboxes) - Improved alignment */
 .editor ul[data-type="taskList"] {
   list-style-type: none;
@@ -58,26 +127,54 @@
   align-items: flex-start;
   margin-bottom: 0.5rem;
   position: relative;
-  padding-left: 1.75rem;
+  padding-left: 1.5rem; /* Reduced from 1.75rem */
 }
 
 /* Proper indentation for nested task items */
-.editor ul[data-type="taskList"] > li > ul[data-type="taskList"] {
+.editor ul[data-type="taskList"] ul[data-type="taskList"] {
   margin: 0.5rem 0 0 0;
   padding-left: 1.5rem;
   width: 100%;
 }
 
 /* Reset the padding for nested items to avoid double padding */
-.editor ul[data-type="taskList"] > li > ul[data-type="taskList"] > li {
-  padding-left: 1.75rem;
+.editor ul[data-type="taskList"] li ul[data-type="taskList"] {
+  margin-left: 0;
+  padding-left: 0;
 }
 
-/* Third level nesting */
-.editor ul[data-type="taskList"] > li > ul[data-type="taskList"] > li > ul[data-type="taskList"] {
-  padding-left: 1.5rem;
+.editor ul[data-type="taskList"] li ul[data-type="taskList"] li {
+  padding-left: 1.5rem; /* Reduced from 1.75rem */
 }
 
+/* Ensure nested task items have proper spacing */
+.editor ul[data-type="taskList"] li {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Ensure task items with content have proper layout */
+.editor ul[data-type="taskList"] li > div {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor ul[data-type="taskList"] li > div > p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Ensure nested task lists don't overlap */
+.editor ul[data-type="taskList"] li > div > ul[data-type="taskList"] {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  padding-left: 0;
+  width: 100%;
+}
+
+/* Checkbox positioning */
 .editor ul[data-type="taskList"] li > label {
   position: absolute;
   left: 0;
@@ -86,33 +183,81 @@
   align-items: center;
   justify-content: center;
   user-select: none;
+  width: 1rem; /* Set explicit width */
+  height: 1rem; /* Set explicit height */
+}
+
+/* Specific styles for custom task item view */
+.editor li.task-item {
+  position: relative;
+  padding-left: 1.5rem; /* Reduced from 1.75rem */
+  margin-bottom: 0.25rem;
+}
+
+.editor li.task-item > label {
+  position: absolute;
+  left: 0;
+  top: 0.125rem;
+}
+
+.editor li.task-item > .task-content {
+  width: 100%;
+}
+
+/* Fix for nested task lists */
+.editor li.task-item > .task-content > ul[data-type="taskList"] {
+  padding-left: 0;
+  margin-left: 0;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Ensure proper spacing between nested items */
+.editor ul[data-type="taskList"] + ul[data-type="taskList"],
+.editor ul[data-type="taskList"] li + li {
+  margin-top: 0.25rem;
+}
+
+/* Ensure task items with nested content have proper spacing */
+.editor ul[data-type="taskList"] li > div > *:not(:first-child) {
+  margin-top: 0.25rem;
+}
+
+/* Fix for deeply nested task lists */
+.editor ul[data-type="taskList"] ul[data-type="taskList"] ul[data-type="taskList"] {
+  margin-left: 0.5rem;
 }
 
 .editor ul[data-type="taskList"] li > label input[type="checkbox"] {
   appearance: none;
-  width: 1.125rem;
-  height: 1.125rem;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem; /* Ensure square shape */
+  min-height: 1rem; /* Ensure square shape */
   border: 1px solid #d1d5db;
   border-radius: 0.25rem;
   cursor: pointer;
   margin: 0;
+  margin-right: 0.25rem;
+  box-sizing: border-box; /* Ensure border is included in dimensions */
 }
 
 .editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
   background-color: #10b981;
   border-color: #10b981;
+  position: relative;
 }
 
 .editor ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
-  left: 0.375rem;
-  top: 0.25rem;
-  width: 0.375rem;
-  height: 0.625rem;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 0.3rem;
+  height: 0.5rem;
   border: solid white;
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
 }
 
 .editor ul[data-type="taskList"] li > label input[type="checkbox"]:focus {
@@ -120,11 +265,13 @@
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
 }
 
+/* Fix the gap between checkbox and text */
 .editor ul[data-type="taskList"] li > div {
   width: 100%;
   margin: 0;
-  display: inline-flex;
-  align-items: center;
+  margin-left: -0.15rem; /* Adjusted from -0.25rem for better spacing */
+  display: flex;
+  flex-direction: column;
 }
 
 .editor ul[data-type="taskList"] li > div > p {

@@ -7,6 +7,7 @@ import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
+import OrderedList from '@tiptap/extension-ordered-list';
 import { InputRule } from '@tiptap/core';
 import styles from '../styles/TipTapEditor.module.css';
 import posthog from '../posthog';
@@ -66,7 +67,17 @@ const TaskItemKeymap = Extension.create({
         // Check if we're in a task item
         if (editor.isActive('taskItem')) {
           // Try to indent the task item
-          return editor.commands.sinkListItem('taskItem');
+          // First check if we're at the beginning of the task item
+          const { selection } = editor.state;
+          const { $from } = selection;
+          
+          // If we're at the beginning of a task item, sink it
+          if ($from.parentOffset === 0) {
+            return editor.commands.sinkListItem('taskItem');
+          }
+          
+          // Otherwise, insert a tab character
+          return false;
         }
         return false;
       },
@@ -99,27 +110,264 @@ const PreventEmptyTaskItems = Extension.create({
         const node = $head.node();
         
         // If node has no content or only has an empty paragraph
-        if (node.content.size === 0 || 
+        const isEmpty = node.content.size === 0 || 
             (node.content.childCount === 1 && 
              node.content.firstChild?.type.name === 'paragraph' && 
-             node.content.firstChild.content.size === 0)) {
+             node.content.firstChild.content.size === 0);
+        
+        if (isEmpty) {
+          // Check if this is a nested task item
+          const isNested = $head.node(-1).childCount > 1 || $head.depth > 3;
           
-          // If this is the only task item in the list, convert to paragraph
-          if ($head.node(-1).childCount === 1) {
+          if (isNested) {
+            // If nested, just lift it out one level
+            return editor.chain()
+              .liftListItem('taskItem')
+              .run();
+          } else {
+            // If this is the only task item in the list, convert to paragraph
             return editor.chain()
               .deleteNode('taskList')
               .insertContent('<p></p>')
               .run();
           }
-          
-          // Otherwise lift the task item out of the list
+        }
+        
+        return false;
+      },
+      // Handle Backspace key to prevent orphaned task items
+      Backspace: ({ editor }) => {
+        // Only handle Backspace in task items at the start of the item
+        if (!editor.isActive('taskItem')) {
+          return false;
+        }
+        
+        const { selection } = editor.state;
+        const { $from } = selection;
+        
+        // Only handle if we're at the beginning of the task item
+        if ($from.parentOffset !== 0) {
+          return false;
+        }
+        
+        // Check if this is a nested task item
+        const isNested = $from.node(-1).childCount > 1 || $from.depth > 3;
+        
+        if (isNested) {
+          // If nested, lift it out one level
           return editor.chain()
             .liftListItem('taskItem')
             .run();
         }
         
         return false;
+      }
+    };
+  },
+});
+
+// Custom extension for ordered lists with different styles based on nesting level
+const NestedOrderedList = OrderedList.extend({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      HTMLAttributes: {
+        class: 'nested-ordered-list',
       },
+    };
+  },
+});
+
+// Extension to handle tab/shift+tab in ordered and bullet lists
+const ListKeymap = Extension.create({
+  name: 'listKeymap',
+  
+  addKeyboardShortcuts() {
+    return {
+      Tab: ({ editor }) => {
+        // Check if we're in a list item
+        if (editor.isActive('listItem')) {
+          // Try to indent the list item
+          return editor.commands.sinkListItem('listItem');
+        }
+        return false;
+      },
+      'Shift-Tab': ({ editor }) => {
+        // Check if we're in a list item
+        if (editor.isActive('listItem')) {
+          // Try to outdent the list item
+          return editor.commands.liftListItem('listItem');
+        }
+        return false;
+      },
+    };
+  },
+});
+
+// Custom extension for task lists to handle nesting properly
+const TaskListStructure = Extension.create({
+  name: 'taskListStructure',
+
+  addNodeView() {
+    return ({ node, getPos, editor }) => {
+      const dom = document.createElement('ul');
+      dom.setAttribute('data-type', 'taskList');
+      
+      // Add proper class for styling
+      dom.classList.add('task-list');
+      
+      // Set proper role for accessibility
+      dom.setAttribute('role', 'list');
+      
+      return {
+        dom,
+        contentDOM: dom,
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== 'taskList') {
+            return false;
+          }
+          
+          // Make sure the DOM element has the correct attributes
+          dom.setAttribute('data-type', 'taskList');
+          dom.classList.add('task-list');
+          dom.setAttribute('role', 'list');
+          
+          return true;
+        },
+      };
+    };
+  },
+});
+
+// Custom extension for task items to handle nesting properly
+const TaskItemView = Extension.create({
+  name: 'taskItemView',
+
+  addNodeView() {
+    return ({ node, getPos, editor }) => {
+      if (!editor.isEditable) {
+        return {};
+      }
+      
+      const dom = document.createElement('li');
+      dom.setAttribute('data-type', 'taskItem');
+      dom.setAttribute('data-checked', node.attrs.checked.toString());
+      
+      // Add proper class for styling
+      dom.classList.add('task-item');
+      
+      // Create checkbox label
+      const label = document.createElement('label');
+      label.style.width = '1rem';
+      label.style.height = '1rem';
+      label.style.display = 'inline-flex';
+      label.style.alignItems = 'center';
+      label.style.justifyContent = 'center';
+      
+      // Create checkbox input
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = node.attrs.checked;
+      checkbox.style.margin = '0';
+      checkbox.style.width = '1rem';
+      checkbox.style.height = '1rem';
+      checkbox.style.minWidth = '1rem';
+      checkbox.style.minHeight = '1rem';
+      checkbox.style.boxSizing = 'border-box';
+      checkbox.style.appearance = 'none';
+      checkbox.style.webkitAppearance = 'none';
+      checkbox.style.border = '1px solid #d1d5db';
+      checkbox.style.borderRadius = '0.25rem';
+      checkbox.style.backgroundColor = node.attrs.checked ? '#10b981' : 'white';
+      checkbox.style.position = 'relative';
+      
+      // Add checkmark for checked state
+      if (node.attrs.checked) {
+        const checkmark = document.createElement('span');
+        checkmark.style.position = 'absolute';
+        checkmark.style.left = '50%';
+        checkmark.style.top = '40%';
+        checkmark.style.transform = 'translate(-50%, -50%) rotate(45deg)';
+        checkmark.style.width = '0.3rem';
+        checkmark.style.height = '0.5rem';
+        checkmark.style.borderRight = '2px solid white';
+        checkmark.style.borderBottom = '2px solid white';
+        checkbox.appendChild(checkmark);
+      }
+      
+      // Add event listener to toggle checkbox
+      checkbox.addEventListener('change', (event) => {
+        if (typeof getPos === 'function') {
+          const position = getPos();
+          const { tr } = editor.state;
+          
+          tr.setNodeMarkup(position, undefined, {
+            ...node.attrs,
+            checked: checkbox.checked,
+          });
+          
+          editor.view.dispatch(tr);
+        }
+        
+        // Prevent default to avoid form submission
+        event.preventDefault();
+      });
+      
+      // Append checkbox to label
+      label.appendChild(checkbox);
+      
+      // Create content container
+      const content = document.createElement('div');
+      content.classList.add('task-content');
+      content.style.marginLeft = '0.25rem'; // Add explicit spacing
+      
+      // Append label and content container to list item
+      dom.appendChild(label);
+      dom.appendChild(content);
+      
+      return {
+        dom,
+        contentDOM: content,
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== 'taskItem') {
+            return false;
+          }
+          
+          // Update checked state
+          if (updatedNode.attrs.checked !== checkbox.checked) {
+            checkbox.checked = updatedNode.attrs.checked;
+            dom.setAttribute('data-checked', updatedNode.attrs.checked.toString());
+            
+            // Update checkbox appearance
+            checkbox.style.backgroundColor = updatedNode.attrs.checked ? '#10b981' : 'white';
+            
+            // Add or remove checkmark
+            if (updatedNode.attrs.checked) {
+              // Only add checkmark if it doesn't exist
+              if (!checkbox.querySelector('span')) {
+                const checkmark = document.createElement('span');
+                checkmark.style.position = 'absolute';
+                checkmark.style.left = '50%';
+                checkmark.style.top = '40%';
+                checkmark.style.transform = 'translate(-50%, -50%) rotate(45deg)';
+                checkmark.style.width = '0.3rem';
+                checkmark.style.height = '0.5rem';
+                checkmark.style.borderRight = '2px solid white';
+                checkmark.style.borderBottom = '2px solid white';
+                checkbox.appendChild(checkmark);
+              }
+            } else {
+              // Remove checkmark if it exists
+              const checkmark = checkbox.querySelector('span');
+              if (checkmark) {
+                checkbox.removeChild(checkmark);
+              }
+            }
+          }
+          
+          return true;
+        },
+      };
     };
   },
 });
@@ -131,6 +379,9 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastContentRef = useRef<any>(null);
@@ -142,6 +393,13 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
         // Disable code and codeBlock from StarterKit
         code: false,
         codeBlock: false,
+        // Replace the default OrderedList with our custom one
+        orderedList: false,
+      }),
+      NestedOrderedList.configure({
+        HTMLAttributes: {
+          class: 'nested-ordered-list',
+        },
       }),
       Underline,
       TaskList.configure({
@@ -157,6 +415,9 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
       }),
       TaskInputRule,
       TaskItemKeymap,
+      TaskListStructure,
+      TaskItemView,
+      ListKeymap,
       PreventEmptyTaskItems,
       Placeholder.configure({
         placeholder: 'Type "/" for commands or "[]" for tasks...',
@@ -346,6 +607,20 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
     }
   };
 
+  // Handle clicking outside the export menu to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportMenu && exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportMenu]);
+
   // Handle clicking outside the slash menu to close it
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -459,11 +734,207 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
     },
   ];
 
+  // Convert editor content to plain text for export
+  const getPlainTextContent = () => {
+    if (!editor) return '';
+    
+    // Get the JSON content
+    const content = editor.getJSON();
+    
+    // Convert the JSON content to plain text
+    let plainText = '';
+    
+    // Helper function to recursively extract text from nodes
+    const extractText = (nodes: any[]) => {
+      if (!nodes) return;
+      
+      nodes.forEach(node => {
+        if (node.type === 'text') {
+          plainText += node.text;
+        } else if (node.type === 'paragraph') {
+          extractText(node.content);
+          plainText += '\n\n';
+        } else if (node.type === 'heading') {
+          extractText(node.content);
+          plainText += '\n\n';
+        } else if (node.type === 'bulletList' || node.type === 'orderedList') {
+          extractText(node.content);
+          plainText += '\n';
+        } else if (node.type === 'listItem') {
+          plainText += '• ';
+          extractText(node.content);
+        } else if (node.type === 'taskList') {
+          extractText(node.content);
+          plainText += '\n';
+        } else if (node.type === 'taskItem') {
+          plainText += node.attrs.checked ? '[✓] ' : '[ ] ';
+          extractText(node.content);
+          plainText += '\n';
+        } else if (node.content) {
+          extractText(node.content);
+        }
+      });
+    };
+    
+    if (content.content) {
+      extractText(content.content);
+    }
+    
+    return plainText.trim();
+  };
+
+  // Export notes to iPhone Notes app
+  const exportToiPhoneNotes = () => {
+    try {
+      // Get the plain text content
+      const plainText = getPlainTextContent();
+      
+      // Create a title for the note based on the trip title
+      const noteTitle = `${trip.title} - Trip Notes`;
+      
+      // Create the URL with the notes-specific URL scheme
+      const notesUrl = `notes://x-callback-url/create?text=${encodeURIComponent(plainText)}&name=${encodeURIComponent(noteTitle)}`;
+      
+      // Open the URL which will trigger the Notes app
+      window.open(notesUrl);
+      
+      // Track the export event
+      posthog.capture('notes_exported_to_iphone', {
+        trip_id: trip.id,
+        content_length: plainText.length
+      });
+    } catch (error) {
+      console.error('Error exporting notes:', error);
+    }
+  };
+
+  // Copy notes to clipboard
+  const copyToClipboard = async () => {
+    try {
+      const plainText = getPlainTextContent();
+      await navigator.clipboard.writeText(plainText);
+      
+      // Show success message
+      setCopySuccess('Copied!');
+      
+      // Clear success message after 2 seconds
+      setTimeout(() => {
+        setCopySuccess(null);
+      }, 2000);
+      
+      // Track the copy event
+      posthog.capture('notes_copied_to_clipboard', {
+        trip_id: trip.id,
+        content_length: plainText.length
+      });
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      setCopySuccess('Failed to copy');
+      
+      setTimeout(() => {
+        setCopySuccess(null);
+      }, 2000);
+    }
+  };
+
+  // Download notes as text file
+  const downloadAsTextFile = () => {
+    try {
+      const plainText = getPlainTextContent();
+      const fileName = `${trip.title.replace(/\s+/g, '-').toLowerCase()}-notes.txt`;
+      
+      // Create a blob with the text content
+      const blob = new Blob([plainText], { type: 'text/plain' });
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      
+      // Trigger the download
+      document.body.appendChild(a);
+      a.click();
+      
+      // Clean up
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Track the download event
+      posthog.capture('notes_downloaded_as_text', {
+        trip_id: trip.id,
+        content_length: plainText.length
+      });
+    } catch (error) {
+      console.error('Error downloading notes:', error);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mt-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900">Trip Notes</h2>
         <div className="flex items-center space-x-2">
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded-full flex items-center transition-colors"
+              title="Export options"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              {copySuccess || 'Export'}
+            </button>
+            
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      copyToClipboard();
+                      setShowExportMenu(false);
+                    }}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                      <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                    </svg>
+                    Copy to clipboard
+                  </button>
+                  <button
+                    onClick={() => {
+                      downloadAsTextFile();
+                      setShowExportMenu(false);
+                    }}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                    Download as text file
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportToiPhoneNotes();
+                      setShowExportMenu(false);
+                    }}
+                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                      <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 3a1 1 0 011-1h10a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1V7z" clipRule="evenodd" />
+                    </svg>
+                    Save to iPhone Notes
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
           {saveStatus === 'saving' && (
             <span className="text-sm text-gray-500 flex items-center">
               <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

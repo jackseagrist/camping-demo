@@ -25,6 +25,7 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const mentionSuggestionsRef = useRef<HTMLDivElement>(null);
+  const commentFormRef = useRef<HTMLFormElement>(null);
 
   // Fetch comments, collaborators, and current user on component mount
   useEffect(() => {
@@ -296,6 +297,19 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Submit on Enter without Shift key
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevent default to avoid new line
+      
+      // Trigger form submission
+      if (commentFormRef.current) {
+        const submitEvent = new Event('submit', { cancelable: true, bubbles: true });
+        commentFormRef.current.dispatchEvent(submitEvent);
+      }
+    }
+  };
+
   const handleMentionSelect = (email: string) => {
     if (mentionStartIndex !== -1) {
       // Replace the @query with the selected @email
@@ -497,33 +511,36 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
       </div>
       
       {/* Comment Input */}
-      <form onSubmit={handleSubmitComment} className="relative">
-        <textarea
-          ref={commentInputRef}
-          value={commentInput}
-          onChange={handleCommentInputChange}
-          placeholder="Write a comment... (use @ to mention collaborators)"
-          className="w-full border border-gray-300 rounded-lg p-3 pr-16 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent resize-none min-h-[60px] transition-all duration-200"
-          rows={1}
-        />
-        
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting || !commentInput.trim()}
-          className="absolute right-3 bottom-3 bg-[#10B981] text-white p-2 rounded-md hover:bg-[#0E9F6E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? (
-            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-            </svg>
-          )}
-        </button>
+      <form ref={commentFormRef} onSubmit={handleSubmitComment} className="relative">
+        <div className="flex items-center relative">
+          <textarea
+            ref={commentInputRef}
+            value={commentInput}
+            onChange={handleCommentInputChange}
+            onKeyDown={handleKeyPress}
+            placeholder="Write a comment... (use @ to mention collaborators, press Enter to send)"
+            className="w-full border border-gray-300 rounded-lg p-3 pr-16 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent resize-none min-h-[60px] transition-all duration-200"
+            rows={1}
+          />
+          
+          {/* Submit Button - Vertically centered */}
+          <button
+            type="submit"
+            disabled={isSubmitting || !commentInput.trim()}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-[#10B981] text-white p-2 rounded-md hover:bg-[#0E9F6E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              </svg>
+            )}
+          </button>
+        </div>
         
         {/* Mention Suggestions */}
         {showMentionSuggestions && filteredCollaborators.length > 0 && (
