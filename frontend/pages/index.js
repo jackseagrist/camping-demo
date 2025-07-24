@@ -96,13 +96,13 @@ export default function Home() {
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
                 <div className="text-4xl mb-4">🏕️</div>
                 <h3 className="text-xl font-semibold mb-4 text-[#111827]">Find sites</h3>
-                <p className="text-[#4B5563]">Stop checking multiple websites. We aggregate sites from Recreation.gov, state parks, and private campgrounds in one place.</p>
+                <p className="text-[#4B5563]">Stop checking multiple websites. We plan to aggregate sites from Recreation.gov, state parks, and private campgrounds in one place.</p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
                 <div className="text-4xl mb-4">🎒</div>
                 <h3 className="text-xl font-semibold mb-4 text-[#111827]">Never forget essentials</h3>
-                <p className="text-[#4B5563]">Get smart packing lists based on your destination, weather, and trip length. No more wondering &ldquo;did I pack everything?&ldquo;</p>
+                <p className="text-[#4B5563]">Build smart packing lists based on your destination, weather, and trip length. No more wondering &ldquo;did I pack everything?&ldquo;</p>
               </div>
 
               <div className="bg-white rounded-xl p-8 shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border border-[#D1D5DB]">
@@ -122,30 +122,30 @@ export default function Home() {
               {/* First set of cards */}
               <div className="testimonial-track flex gap-6">
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Finally, a way to see all the open campsites in one spot. No more endless searching.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Finally, I can plan a trip and split the work between my friends.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Could be you</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I didn&apos;t realize how much I was forgetting until the packing list reminded me. Total lifesaver.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Did we bring everything?&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Us</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Everything I needed to plan was right here. Super helpful and way less stressful.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Wow, this is so cool.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Mom</span>
                 </div>
                 
                 {/* Duplicate set for seamless looping */}
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Finally, a way to see all the open campsites in one spot. No more endless searching.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Marcus</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Finally, I can plan a trip and split the work between my friends.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Could be you</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;I didn&apos;t realize how much I was forgetting until the packing list reminded me. Total lifesaver.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Taylor</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Did we bring everything?&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Us</span>
                 </div>
                 <div className="flex-none w-80 bg-white border border-[#D1D5DB] rounded-xl p-6 shadow-md">
-                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Everything I needed to plan was right here. Super helpful and way less stressful.&rdquo;</p>
-                  <span className="block mt-4 text-sm text-[#6B7280]">– Casey</span>
+                  <p className="italic text-[#4B5563] font-serif overflow-hidden text-ellipsis break-words">&ldquo;Wow, this is so cool.&rdquo;</p>
+                  <span className="block mt-4 text-sm text-[#6B7280]">– Mom</span>
                 </div>
               </div>
             </div>

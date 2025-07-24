@@ -124,3 +124,6 @@ appsettings.local.json
 # Cursor
 .cursor/
 mcp.json
+
+# Removed features
+frontend/components/InviteModal.tsx

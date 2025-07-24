@@ -7,7 +7,6 @@ import { useEffect, useState, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Inter } from 'next/font/google';
 import { useBetaLimits } from '../lib/BetaLimitsContext';
-import InviteModal from './InviteModal';
 import BetaLimitModal from './BetaLimitModal';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -52,8 +51,6 @@ export default function SidebarLayout({ children }) {
   const settingsRef = useRef(null);
   const isPlanPage = router.pathname === '/plan';
   const { 
-    showInviteModal, 
-    setShowInviteModal, 
     showLimitModal, 
     setShowLimitModal, 
     limitType,
@@ -188,15 +185,6 @@ export default function SidebarLayout({ children }) {
                         <path fillRule="evenodd" d="M5.22 14.78a.75.75 0 001.06 0l7.22-7.22v5.69a.75.75 0 001.5 0v-7.5a.75.75 0 00-.75-.75h-7.5a.75.75 0 000 1.5h5.69l-7.22 7.22a.75.75 0 000 1.06z" clipRule="evenodd" />
                       </svg>
                     </a>
-                    <button
-                      onClick={() => setShowInviteModal(true)}
-                      className={`${inter.className} text-xs text-blue-600 font-medium hover:text-blue-800 hover:underline inline-flex items-center`}
-                    >
-                      Invite friends
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 ml-1">
-                        <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-                      </svg>
-                    </button>
                   </div>
                 </div>
               )}
@@ -215,15 +203,6 @@ export default function SidebarLayout({ children }) {
                       <span className={`${inter.className} text-xs text-blue-600 font-medium`}>{totalTrips}/5</span>
                     </div>
                   </a>
-                  <button
-                    onClick={() => setShowInviteModal(true)}
-                    className={`${inter.className} bg-blue-50 border border-blue-100 rounded-lg p-2 flex items-center justify-center`}
-                    title="Invite friends to join the beta"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-blue-600">
-                      <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 00-13.074.003z" />
-                    </svg>
-                  </button>
                 </div>
               )}
               <div className="relative" ref={settingsRef}>
@@ -287,7 +266,6 @@ export default function SidebarLayout({ children }) {
       </div>
       
       {/* Modals */}
-      <InviteModal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
       <BetaLimitModal isOpen={showLimitModal} onClose={() => setShowLimitModal(false)} limitType={limitType} />
     </div>
   );

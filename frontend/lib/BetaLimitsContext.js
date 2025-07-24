@@ -8,7 +8,6 @@ export function BetaLimitsProvider({ children }) {
   const [aiSearchesToday, setAiSearchesToday] = useState(0);
   const [totalTrips, setTotalTrips] = useState(0);
   const [showLimitModal, setShowLimitModal] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [limitType, setLimitType] = useState('');
   const [userId, setUserId] = useState(null);
   const supabase = createClientComponentClient();
@@ -222,8 +221,6 @@ export function BetaLimitsProvider({ children }) {
       totalTrips,
       showLimitModal,
       setShowLimitModal,
-      showInviteModal,
-      setShowInviteModal,
       limitType,
       incrementAiSearch,
       incrementTrip
