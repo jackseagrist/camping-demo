@@ -5,6 +5,7 @@ import { Inter } from 'next/font/google';
 import { useEffect, useState } from 'react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
+import { cookieUtils } from '../lib/utils';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -57,7 +58,7 @@ export default function Privacy() {
         <div className="bg-white p-6 sm:p-8 rounded-xl shadow-lg border border-[#D1D5DB]">
           <h1 className="text-3xl font-bold text-[#111827] mb-6">BaseLodge Privacy Policy</h1>
           
-          <p className="text-sm text-[#6B7280] italic mb-8">Last updated: June 25, 2025</p>
+          <p className="text-sm text-[#6B7280] italic mb-8">Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
           
           <div className="space-y-6 text-[#4B5563]">
             <p>We respect your privacy and are committed to protecting your personal information. This policy outlines what we collect and how we use it.</p>
@@ -87,6 +88,7 @@ export default function Privacy() {
                 <li><strong>Supabase</strong> (authentication, database)</li>
                 <li><strong>Mapbox</strong> (map display)</li>
                 <li><strong>Vercel</strong> (hosting)</li>
+                <li><strong>PostHog</strong> (analytics)</li>
                 <li><strong>OpenAI, Google Cloud, and others</strong> (for certain features)</li>
               </ul>
               <p className="mt-2">These providers may collect limited data per their own privacy policies.</p>
@@ -97,9 +99,36 @@ export default function Privacy() {
               <p>We don&apos;t sell your personal information. We only share it with trusted partners to operate the service.</p>
             </section>
             
-            <section className="mt-8">
+            <section className="mt-8" id="cookies-tracking">
               <h2 className="text-xl font-semibold text-[#111827] mb-3">5. Cookies & Tracking</h2>
-              <p>We may use cookies or analytics tools in the future. If so, we&apos;ll update this policy.</p>
+              <p>We use cookies and similar tracking technologies to collect information about how you interact with our website. This helps us improve your experience and our services.</p>
+              
+              <h3 className="text-lg font-semibold text-[#111827] mt-4 mb-2">Analytics</h3>
+              <p>We use PostHog analytics to understand how users interact with our application. This service collects anonymous usage data such as:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Pages visited and features used</li>
+                <li>Time spent on different sections</li>
+                <li>Technical information about your device and browser</li>
+                <li>General location information (country/region)</li>
+              </ul>
+              
+              <h3 className="text-lg font-semibold text-[#111827] mt-4 mb-2">Your Choices</h3>
+              <p>You can control cookie preferences through our consent banner. You may also:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Configure your browser to block cookies</li>
+                <li>Use private browsing modes</li>
+                <li>Request deletion of your data by contacting us</li>
+                <li>
+                  <button 
+                    onClick={() => cookieUtils.resetCookiePreferences()}
+                    className="text-[#10B981] hover:underline focus:outline-none"
+                  >
+                    Change your cookie preferences
+                  </button>
+                </li>
+              </ul>
+              
+              <p className="mt-2">By using our service, you consent to our use of these technologies as described. If you do not wish to allow cookies or analytics tracking, please adjust your browser settings or do not use our service.</p>
             </section>
             
             <section className="mt-8">
@@ -110,6 +139,18 @@ export default function Privacy() {
             <section className="mt-8">
               <h2 className="text-xl font-semibold text-[#111827] mb-3">7. Contact</h2>
               <p>If you have questions, reach out at <a href="mailto:climbcovers@gmail.com" className="text-[#10B981] hover:underline">climbcovers@gmail.com</a>.</p>
+            </section>
+
+            <section className="mt-8">
+              <h2 className="text-xl font-semibold text-[#111827] mb-3">8. Legal Basis and Consent</h2>
+              <p>We process your data based on:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Consent</strong>: When you explicitly agree to our use of cookies and tracking technologies</li>
+                <li><strong>Legitimate Interest</strong>: To improve our services and provide a better user experience</li>
+                <li><strong>Contractual Necessity</strong>: To fulfill our obligations in providing the service</li>
+              </ul>
+              <p className="mt-2">By using BaseLodge, you acknowledge this privacy policy. Your continued use of our services constitutes your acceptance of our data practices as described herein.</p>
+              <p className="mt-2">We reserve the right to modify this policy at any time. Changes will be effective immediately upon posting to this page.</p>
             </section>
           </div>
         </div>

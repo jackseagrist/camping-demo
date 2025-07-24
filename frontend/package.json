@@ -33,6 +33,7 @@
     "openai": "^4.104.0",
     "posthog-js": "^1.256.1",
     "react": "^19.0.0",
+    "react-cookie-consent": "^9.0.0",
     "react-dom": "^19.0.0",
     "tailwind-scrollbar-hide": "^2.0.0"
   },

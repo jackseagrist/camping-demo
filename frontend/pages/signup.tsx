@@ -43,7 +43,14 @@ export default function Signup() {
     try {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: {
+            agreed_to_terms: true,
+            agreed_to_privacy: true,
+            agreed_date: new Date().toISOString()
+          }
+        }
       });
 
       if (signUpError) {
@@ -53,7 +60,8 @@ export default function Signup() {
       // Track signup event
       posthog.capture('user_signup', {
         method: 'email',
-        email_domain: email.split('@')[1]
+        email_domain: email.split('@')[1],
+        agreed_to_terms: true
       });
 
       setSuccess('Success! Please check your email for confirmation.');
@@ -69,7 +77,8 @@ export default function Signup() {
     // Track signup attempt with Google
     posthog.capture('user_signup', {
       method: 'google',
-      provider: 'google'
+      provider: 'google',
+      agreed_to_terms: true
     });
     
     const { error } = await supabase.auth.signInWithOAuth({
@@ -160,6 +169,7 @@ export default function Signup() {
               className="w-full border border-[#D1D5DB] rounded-md px-4 py-2"
               required
             />
+            
             {error && <p className="text-red-500 text-sm">{error}</p>}
             {success && <p className="text-green-500 text-sm">{success}</p>}
             <button
