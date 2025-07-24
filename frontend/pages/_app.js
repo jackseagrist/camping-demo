@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { BetaLimitsProvider } from '../lib/BetaLimitsContext';
 import CookieConsent from "react-cookie-consent";
 import { cookieUtils } from '../lib/utils';
+import Link from 'next/link';
 
 export default function MyApp({ Component, pageProps }) {
   const [supabaseClient] = useState(() => createPagesBrowserClient());
@@ -91,9 +92,9 @@ export default function MyApp({ Component, pageProps }) {
         >
           This website uses cookies to enhance the user experience and analyze site traffic.{" "}
           <span style={{ fontSize: "13px" }}>
-            <a href="/privacy#cookies-tracking" style={{ color: "#fff", textDecoration: "underline" }}>
+            <Link href="/privacy#cookies-tracking" style={{ color: "#fff", textDecoration: "underline" }}>
               Learn more in our Privacy Policy
-            </a>
+            </Link>
           </span>
         </CookieConsent>
       </BetaLimitsProvider>
