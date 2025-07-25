@@ -1142,7 +1142,7 @@ export default function Explore() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
-              <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you've found one you like, go back to the trip to update your selection.</p>
+              <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you&apos;ve found one you like, go back to the trip to update your selection.</p>
               <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>{filteredFacilities.length} campgrounds found</p>
             </div>
           </div>
