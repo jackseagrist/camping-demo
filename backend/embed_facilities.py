@@ -13,11 +13,47 @@ supabase: Client = create_client(
     os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 )
 
-# Fetch all facilities
-print("Fetching facilities from Supabase...")
-response = supabase.table('facilities').select('id, description').execute()
-facilities = response.data
-print(f"Found {len(facilities)} facilities.")
+def get_all_facilities():
+    """Fetch all facilities with pagination to overcome the 1000 record limit"""
+    all_facilities = []
+    page = 0
+    page_size = 1000  # Supabase default page size
+    has_more = True
+    
+    print("Fetching facilities from Supabase with pagination...")
+    
+    while has_more:
+        print(f"Fetching page {page + 1}...")
+        
+        # Calculate range for current page
+        start = page * page_size
+        end = start + page_size - 1
+        
+        # Fetch current page
+        response = supabase.table('facilities') \
+            .select('id, description') \
+            .range(start, end) \
+            .execute()
+        
+        page_facilities = response.data
+        
+        if not page_facilities or len(page_facilities) == 0:
+            has_more = False
+        else:
+            all_facilities.extend(page_facilities)
+            print(f"Retrieved {len(page_facilities)} facilities (total so far: {len(all_facilities)})")
+            
+            # Check if we got less than the page size (meaning we've reached the end)
+            if len(page_facilities) < page_size:
+                has_more = False
+                
+            page += 1
+    
+    return all_facilities
+
+# Fetch all facilities using pagination
+facilities = get_all_facilities()
+print(f"Found {len(facilities)} facilities total.")
 
 # Loop over and embed
 for i, facility in enumerate(facilities, start=1):

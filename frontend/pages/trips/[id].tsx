@@ -7,6 +7,7 @@ import TripCommentsSection from '../../components/TripCommentsSection';
 import CollaboratorModal from '../../components/CollaboratorModal';
 import CampsiteModal from '../../components/CampsiteModal';
 import TripStatusDropdown from '../../components/TripStatusDropdown';
+import CampsiteSelector from '../../components/CampsiteSelector';
 import { Trip, Facility as FacilityType } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
@@ -55,11 +56,7 @@ export default function TripDetail() {
   const [isCampsiteModalOpen, setIsCampsiteModalOpen] = useState(false);
   const [collaborators, setCollaborators] = useState<{id: string; email: string; status: string}[]>([]);
   const [tripOwner, setTripOwner] = useState<{id: string; email: string} | null>(null);
-  const [facilities, setFacilities] = useState<FacilityType[]>([]);
-  const [isLoadingFacilities, setIsLoadingFacilities] = useState(false);
-  const [facilityError, setFacilityError] = useState<string | null>(null);
-  const [hasMoreFacilities, setHasMoreFacilities] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
+  const [isCustomMarkerMode, setIsCustomMarkerMode] = useState(false);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -446,164 +443,38 @@ export default function TripDetail() {
     }
   };
 
-  // Function to fetch facilities
-  const fetchFacilities = async (page = 0, limit = 50) => {
-    setIsLoadingFacilities(true);
-    setFacilityError(null);
-    try {
-      // If this is the first page and we have a selected facility, make sure it's included
-      let query = supabase
-        .from('facilities')
-        .select('id, name, facility_id, lat, lon, source')
-        .order('name');
-      
-      if (page === 0 && trip?.facility_id) {
-        // First fetch the selected facility to ensure it's included
-        const { data: selectedFacility, error: selectedError } = await supabase
-          .from('facilities')
-          .select('id, name, facility_id, lat, lon, source')
-          .eq('id', trip.facility_id)
-          .single();
-          
-        if (selectedError) {
-          console.error('Error fetching selected facility:', selectedError);
-        }
-        
-        // Then fetch the regular page of facilities
-        const { data: regularData, error } = await query
-          .range(page * limit, (page + 1) * limit - 1);
-        
-        if (error) throw error;
-        
-        // Combine the results, ensuring the selected facility is included
-        // and we don't exceed the limit
-        let combinedData = [];
-        
-        if (selectedFacility) {
-          // Check if the selected facility is already in the regular results
-          const isSelectedInRegular = regularData.some(f => f.id === selectedFacility.id);
-          
-          if (isSelectedInRegular) {
-            // If it's already in the results, just use the regular data
-            combinedData = regularData;
-          } else {
-            // If not, add it to the beginning and remove the last item if needed
-            combinedData = [selectedFacility, ...regularData];
-            if (combinedData.length > limit) {
-              combinedData = combinedData.slice(0, limit);
-            }
-          }
-        } else {
-          combinedData = regularData;
-        }
-        
-        // Check if we have more facilities to load
-        const hasMore = regularData.length === limit;
-        
-        // Update state
-        setFacilities(combinedData);
-        setHasMoreFacilities(hasMore);
-        setCurrentPage(page);
-      } else {
-        // For subsequent pages, just fetch normally
-        const { data, error } = await query
-          .range(page * limit, (page + 1) * limit - 1);
-        
-        if (error) throw error;
-        
-        // Make sure we have valid facility data
-        if (data && Array.isArray(data)) {
-          // Check if we have more facilities to load
-          const hasMore = data.length === limit;
-          
-          if (page === 0) {
-            // Replace facilities for first page
-            setFacilities(data);
-          } else {
-            // Append facilities for subsequent pages
-            setFacilities(prev => [...prev, ...data]);
-          }
-          
-          // Update whether there are more facilities to load
-          setHasMoreFacilities(hasMore);
-          
-          // Update the current page
-          setCurrentPage(page);
-        } else {
-          console.error('Invalid facilities data returned from API');
-          if (page === 0) {
-            setFacilities([]);
-          }
-          setFacilityError('Invalid data received from server');
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching facilities:', error);
-      if (page === 0) {
-        setFacilities([]);
-      }
-      setFacilityError('Failed to load campsites. Please try again.');
-    } finally {
-      setIsLoadingFacilities(false);
-    }
+  // Handle facility selection via CampsiteSelector
+  const handleTripUpdate = (updatedTrip: Trip) => {
+    setTrip(updatedTrip);
   };
 
-  // Handle facility selection
-  const handleFacilityChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const facilityId = e.target.value;
+  // Handle custom marker mode
+  const handleCustomMarkerMode = (isActive: boolean) => {
+    setIsCustomMarkerMode(isActive);
+  };
+
+  // Handle saving custom facility
+  const handleSaveCustomFacility = async (facility: Partial<FacilityType>) => {
     if (!trip) return;
-    
-    // Skip if "load-more" is selected (this is handled in the onChange handler)
-    if (facilityId === 'load-more') return;
-    
-    console.log('Selected facility ID:', facilityId);
-    setFacilityError(null);
-    
+
     try {
-      // Update the trip's facility_id in the database
-      const { error } = await supabase
-        .from('trips')
-        .update({ facility_id: facilityId || null })
-        .eq('id', trip.id);
-      
-      if (error) throw error;
-      
-      // If a facility was selected, fetch its details
-      if (facilityId) {
-        const { data: facilityData, error: facilityError } = await supabase
-          .from('facilities')
-          .select('*')
-          .eq('id', facilityId)
-          .single();
-        
-        if (facilityError) throw facilityError;
-        
-        console.log('Selected facility data:', facilityData);
-        
-        // Update the trip object with the new facility
-        setTrip({
-          ...trip,
-          facility_id: facilityId,
-          facility: facilityData
-        });
-      } else {
-        // Clear the facility if none selected
-        setTrip({
-          ...trip,
-          facility_id: null,
-          facility: null
-        });
-      }
+      // Get the current map position
+      // This would be implemented with the map component
+      const lat = trip.facility?.lat || 0;
+      const lon = trip.facility?.lon || 0;
+
+      // Placeholder for saving custom facility
+      console.log('Saving custom facility:', { ...facility, lat, lon });
     } catch (error) {
-      console.error('Error updating facility:', error);
-      setFacilityError('Failed to update campsite. Please try again.');
+      console.error('Error saving custom facility:', error);
     }
   };
 
   // Fetch facilities on component mount or when trip changes
   useEffect(() => {
     if (trip) {
-      fetchFacilities(0);
+      // The CampsiteSelector component handles its own facility fetching
+      // This useEffect is now primarily for the MapComponentTrip
     }
   }, [trip?.id, supabase]);
 
@@ -788,7 +659,7 @@ export default function TripDetail() {
                 location={trip.location || ''} 
                 lat={trip.facility?.lat || null} 
                 lon={trip.facility?.lon || null}
-                isCustomMarkerMode={false}
+                isCustomMarkerMode={isCustomMarkerMode}
                 locations={[]}
                 onMarkerPlaced={() => {}}
               />
@@ -804,7 +675,7 @@ export default function TripDetail() {
             <section className="bg-white rounded-xl shadow-md p-6">
               <h3 className="text-lg font-semibold mb-4 text-gray-800">Site Details</h3>
               
-              {/* Campsite Selector */}
+              {/* Replace the dropdown with CampsiteSelector */}
               <div className="mb-6">
                 <div className="flex justify-between items-center mb-3">
                   <label className="block text-sm font-medium text-gray-700">
@@ -812,7 +683,7 @@ export default function TripDetail() {
                   </label>
                 </div>
                 
-                {/* Explore button replacing search input */}
+                {/* Explore button */}
                 <div className="mb-3">
                   <button
                     onClick={() => router.push('/explore')}
@@ -825,68 +696,13 @@ export default function TripDetail() {
                   </button>
                 </div>
                 
-                <select 
-                  className="block w-full max-w-md bg-white border border-gray-300 rounded-lg py-2 px-4 mb-2 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
-                  value={trip?.facility_id || ''}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Check if "load-more" option was selected
-                    if (value === 'load-more') {
-                      // Load more facilities
-                      fetchFacilities(currentPage + 1);
-                      // Reset selection to previous value to avoid showing "Load more" as selected
-                      e.target.value = trip?.facility_id || '';
-                    } else {
-                      // Handle normal facility selection
-                      handleFacilityChange(e);
-                    }
-                  }}
-                  disabled={isLoadingFacilities}
-                >
-                  <option value="">Select a campsite...</option>
-                  {isLoadingFacilities && facilities.length === 0 ? (
-                    <option disabled>Loading campsites...</option>
-                  ) : facilities.length > 0 ? (
-                    <>
-                      {facilities.map(facility => (
-                        <option key={facility.id} value={facility.id}>
-                          {facility.name || `Campsite #${facility.id.substring(0, 6)}`}
-                        </option>
-                      ))}
-                      {/* Load more option */}
-                      {hasMoreFacilities && (
-                        <option value="load-more" className="font-medium text-emerald-600 bg-gray-100 border-t border-gray-200 pt-2 mt-2">
-                          Load more campsites...
-                        </option>
-                      )}
-                    </>
-                  ) : (
-                    <option disabled>No campsites available</option>
-                  )}
-                </select>
-                
-                {isLoadingFacilities && (
-                  <div className="flex items-center justify-center mb-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-emerald-600 rounded-full border-t-transparent"></div>
-                    <span className="ml-2 text-xs text-gray-500">
-                      {currentPage > 0 ? "Loading more campsites..." : "Loading campsites..."}
-                    </span>
-                  </div>
-                )}
-                
-                {facilityError && (
-                  <div className="text-red-500 text-xs mt-1 mb-2">
-                    {facilityError}
-                  </div>
-                )}
-                
-                {/* Campsite count */}
-                {facilities.length > 0 && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Showing {facilities.length} campsites
-                    {!hasMoreFacilities && " (all loaded)"}
-                  </div>
-                )}
+                {/* CampsiteSelector Component */}
+                <CampsiteSelector 
+                  trip={trip}
+                  onUpdate={handleTripUpdate}
+                  onCustomMarkerMode={handleCustomMarkerMode}
+                  onSaveCustomFacility={handleSaveCustomFacility}
+                />
               </div>
               
               {/* Facility Details */}

@@ -42,29 +42,65 @@ async function summarizeDescription(description) {
   }
 }
 
-async function processFacilities() {
-  // Get facilities with descriptions but no summaries
-  const { data: facilities, error } = await supabase
-    .from('facilities')
-    .select('id, facility_id, name, description')
-    .not('description', 'is', null)
-    .is('summary', null)
-    .order('id');
+async function getAllFacilitiesNeedingSummary() {
+  let allFacilities = [];
+  let page = 0;
+  const pageSize = 1000; // Supabase default page size
+  let hasMore = true;
   
-  if (error) {
-    console.error('Error fetching facilities:', error);
-    return;
+  while (hasMore) {
+    console.log(`Fetching facilities page ${page + 1}...`);
+    
+    const { data: facilities, error } = await supabase
+      .from('facilities')
+      .select('id, facility_id, name, description')
+      .not('description', 'is', null)
+      .is('summary', null)
+      .order('id')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    
+    if (error) {
+      console.error('Error fetching facilities:', error);
+      break;
+    }
+    
+    if (facilities.length === 0) {
+      hasMore = false;
+    } else {
+      allFacilities = [...allFacilities, ...facilities];
+      page++;
+      console.log(`Retrieved ${facilities.length} facilities (total so far: ${allFacilities.length})`);
+      
+      // If we got less than pageSize, we've reached the end
+      if (facilities.length < pageSize) {
+        hasMore = false;
+      }
+    }
   }
   
-  console.log(`Found ${facilities.length} facilities to summarize`);
+  return allFacilities;
+}
+
+async function processFacilities() {
+  console.log('Fetching all facilities that need summarization...');
+  
+  // Get all facilities using pagination
+  const facilities = await getAllFacilitiesNeedingSummary();
+  
+  console.log(`Found ${facilities.length} facilities that need summarization`);
+  
+  if (facilities.length === 0) {
+    console.log('No facilities require summarization. All done!');
+    return;
+  }
   
   let successCount = 0;
   let errorCount = 0;
   
-  // Process facilities in batches to avoid rate limiting
+  // Process all facilities
   for (let i = 0; i < facilities.length; i++) {
     const facility = facilities[i];
-    console.log(`Processing (${i+1}/${facilities.length}): ${facility.name}`);
+    console.log(`Processing (${i+1}/${facilities.length}): ${facility.name} (ID: ${facility.facility_id})`);
     
     const summary = await summarizeDescription(facility.description);
     
@@ -83,6 +119,7 @@ async function processFacilities() {
         successCount++;
       }
     } else {
+      console.error(`Failed to generate summary for: ${facility.name}`);
       errorCount++;
     }
     
@@ -92,10 +129,11 @@ async function processFacilities() {
     }
   }
   
-  console.log(`Completed: ${successCount} successes, ${errorCount} errors`);
+  console.log(`Processing complete: ${successCount} summaries created, ${errorCount} errors`);
 }
 
 // Execute the script
+console.log('Starting facility description summarization...');
 processFacilities()
-  .then(() => console.log('Script completed'))
-  .catch(error => console.error('Script failed:', error)); 
+  .then(() => console.log('Script completed successfully'))
+  .catch(error => console.error('Script failed with error:', error)); 

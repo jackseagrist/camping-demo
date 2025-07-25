@@ -17,11 +17,12 @@ export default function Explore() {
   const [facilities, setFacilities] = useState([]);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [displayMode, setDisplayMode] = useState('demand'); // 'demand' or 'cost'
-  const [locationType, setLocationType] = useState('campgrounds'); // 'campgrounds' or 'climbcovers'
+  const [searchQuery, setSearchQuery] = useState('');
   const [filteredFacilities, setFilteredFacilities] = useState([]);
   const [filters, setFilters] = useState({
-    demand: [],
-    cost: []
+    state: '',
+    demand: '',
+    cost: ''
   });
   const [selectedFacility, setSelectedFacility] = useState(null); // Track selected facility
   const [showDetailPanel, setShowDetailPanel] = useState(false); // Control the detail panel visibility
@@ -48,49 +49,52 @@ export default function Explore() {
 
     let filtered = [...facilities];
     
-    // Apply demand filters if any are selected
-    if (filters.demand.length > 0) {
+    // Apply search filter if there's a query
+    if (searchQuery.trim()) {
       filtered = filtered.filter(facility => 
-        filters.demand.includes(facility.demand_assessment)
+        facility.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        facility.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        facility.state?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        facility.type?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     
-    // Apply cost filters if any are selected
-    if (filters.cost.length > 0) {
+    // Apply state filter if selected
+    if (filters.state) {
       filtered = filtered.filter(facility => 
-        filters.cost.includes(facility.cost_assessment_2)
+        facility.state === filters.state
+      );
+    }
+    
+    // Apply demand filter if selected
+    if (filters.demand) {
+      filtered = filtered.filter(facility => 
+        facility.demand_assessment === filters.demand
+      );
+    }
+    
+    // Apply cost filter if selected
+    if (filters.cost) {
+      filtered = filtered.filter(facility => 
+        facility.cost_assessment_2 === filters.cost
       );
     }
     
     setFilteredFacilities(filtered);
-  }, [facilities, filters]);
+  }, [facilities, filters, searchQuery]);
 
-  // Toggle a filter value
-  const toggleFilter = (filterType, value) => {
-    setFilters(prevFilters => {
-      const currentValues = [...prevFilters[filterType]];
-      
-      let newValues;
-      if (currentValues.includes(value)) {
-        // Remove the value if it's already selected
-        newValues = currentValues.filter(v => v !== value);
-      } else {
-        // Add the value if it's not selected
-        newValues = [...currentValues, value];
-      }
-      
-      // Track filter applied event
-      posthog.capture('filter_applied', {
-        filter_type: filterType,
-        filter_values: newValues,
-        display_mode: displayMode,
-        location_type: locationType
-      });
-      
-      return {
-        ...prevFilters,
-        [filterType]: newValues
-      };
+  // Clear all filters
+  const clearFilters = () => {
+    setFilters({
+      state: '',
+      demand: '',
+      cost: ''
+    });
+    setSearchQuery('');
+    
+    // Track filter cleared event
+    posthog.capture('filters_cleared', {
+      display_mode: displayMode
     });
   };
 
@@ -99,18 +103,17 @@ export default function Explore() {
     // Track filter applied event
     posthog.capture('filter_applied', {
       filter_type: filterType,
-      filter_values: value ? [value] : [],
-      display_mode: displayMode,
-      location_type: locationType
+      filter_value: value,
+      display_mode: displayMode
     });
     
     setFilters(prevFilters => ({
       ...prevFilters,
-      [filterType]: value ? [value] : []
+      [filterType]: value
     }));
   };
 
-  // Helper function to process and normalize facility data
+  // Helper function to process and normalize facility data - optimized for performance
   const processData = (data) => {
     console.log('🔍 processData called with', data?.length || 0, 'facilities');
     
@@ -121,132 +124,133 @@ export default function Explore() {
       return;
     }
     
-    if (data.length > 0) {
+    // Reduce console logging for performance
+    if (data.length > 0 && data.length <= 10) {
       console.log('🔍 Sample facility structure:', JSON.stringify(data[0], null, 2));
     }
     
+    // Process facilities with less logging for better performance
     const validFacilities = data.filter(facility => {
-      if (!facility) {
-        console.warn('⚠️ Skipping undefined/null facility');
-        return false;
-      }
+      if (!facility) return false;
       
-      // Log full facility for debugging
-      console.log('🔍 Processing facility:', JSON.stringify(facility));
-      
-      // Check if assessment fields exist
-      if (locationType === 'campgrounds') {
-        console.log(`🔍 Assessment fields for "${facility.name || 'unnamed'}":`, {
-          demand: facility.demand_assessment,
-          cost: facility.cost_assessment_2
-        });
-      }
-      
-      // Normalize coordinates based on location type
-      let latitude, longitude;
-      
-      if (locationType === 'campgrounds') {
-        latitude = facility.lat || facility.Lat || facility.latitude || facility.Latitude;
-        longitude = facility.lon || facility.Lon || facility.longitude || facility.Longitude;
-      } else {
-        // ClimbCover locations use latitude/longitude field names
-        latitude = facility.latitude;
-        longitude = facility.longitude;
-      }
+      // Normalize coordinates
+      let latitude = facility.lat || facility.Lat || facility.latitude || facility.Latitude;
+      let longitude = facility.lon || facility.Lon || facility.longitude || facility.Longitude;
       
       const hasLat = latitude !== null && latitude !== undefined;
       const hasLon = longitude !== null && longitude !== undefined;
       const latValid = hasLat && !isNaN(parseFloat(latitude));
       const lonValid = hasLon && !isNaN(parseFloat(longitude));
-      
-      console.log(`🔍 Facility ${facility.name || facility.id || 'unnamed'} - lat: ${latitude} (${latValid}), lon: ${longitude} (${lonValid})`);
       
       if (latValid && lonValid) {
         // Add normalized lat/lon to make sure we use consistent fields
         facility.normalizedLat = parseFloat(latitude);
         facility.normalizedLon = parseFloat(longitude);
         
-        // Ensure campground facilities have assessment values
-        if (locationType === 'campgrounds') {
-          // Set default values if missing
-          if (!facility.demand_assessment) facility.demand_assessment = 'Medium';
-          if (!facility.cost_assessment_2) facility.cost_assessment_2 = 'Affordable';
-        }
+        // Set default values if missing
+        if (!facility.demand_assessment) facility.demand_assessment = 'Medium';
+        if (!facility.cost_assessment_2) facility.cost_assessment_2 = 'Affordable';
         
         return true;
       }
       
-      console.warn(`⚠️ Skipping facility with invalid coordinates: ${facility.name || facility.id}`);
       return false;
     });
     
     console.log(`✅ Found ${validFacilities.length} valid facilities out of ${data.length} total`);
     
-    if (validFacilities.length > 0) {
-      console.log('✅ First valid facility:', JSON.stringify(validFacilities[0], null, 2));
-    } else {
-      console.warn('⚠️ No valid facilities with coordinates found');
-    }
-    
     // Update state to trigger map update
-    console.log('🔍 Setting facilities state:', validFacilities.length, 'items');
     setFacilities(validFacilities);
-    setIsLoading(false);
-    
-    // Add a slight delay and log to confirm state was updated
-    setTimeout(() => {
-      console.log('✅ Current facilities state:', facilities.length, 'items');
-    }, 100);
   };
 
-  // Process location data (for ClimbCover locations)
-  const processLocationData = (data) => {
-    console.log('🔍 processLocationData called with', data?.length || 0, 'locations');
-    
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.warn('⚠️ processLocationData received no data or invalid data');
-      setFacilities([]);
-      setIsLoading(false);
-      return;
-    }
-    
-    const validLocations = data.filter(location => {
-      if (!location) {
-        console.warn('⚠️ Skipping undefined/null location');
-        return false;
+  // Fetch facilities - optimized for performance
+  useEffect(() => {
+    const fetchData = async () => {
+      console.log('=== STARTING FACILITY FETCH ===');
+      setIsLoading(true);
+      
+      try {
+        // Get initial batch of facilities quickly to show something on screen fast
+        // Fetch first batch with essential fields only
+        console.log('Fetching initial batch of facilities...');
+        const initialBatchSize = 200;
+        
+        const { data: initialFacilities, error: initialError } = await supabase
+            .from('facilities')
+          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+            .not('lat', 'is', null)
+            .not('lon', 'is', null)
+          .limit(initialBatchSize);
+          
+        if (initialError) {
+          console.error('Error fetching initial facilities:', initialError);
+        } else if (initialFacilities?.length > 0) {
+          console.log(`✅ Fetched initial ${initialFacilities.length} facilities`);
+          // Process this initial data to show something on screen quickly
+          processData(initialFacilities);
+          // This will exit the loading state and show the map with initial data
+            setIsLoading(false);
+        }
+        
+        // Now fetch the rest of the data in the background - this won't block the UI
+        console.log('Fetching remaining facilities in background...');
+        let allFacilities = [...(initialFacilities || [])];
+        let page = 1; // Start from page 1 since we already have page 0
+        const pageSize = 1000;
+        let hasMore = true;
+        
+        // Use a timeout to give the UI a moment to render before continuing
+        setTimeout(async () => {
+          while (hasMore) {
+            const startIndex = page * pageSize;
+            console.log(`Fetching batch ${page} (starting from ${startIndex})...`);
+            
+            const { data: pagedData, error: pagedError } = await supabase
+              .from('facilities')
+              .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+              .not('lat', 'is', null)
+              .not('lon', 'is', null)
+              .range(startIndex, startIndex + pageSize - 1);
+              
+            if (pagedError) {
+              console.error(`Error fetching page ${page}:`, pagedError);
+              break;
+            }
+            
+            if (pagedData && pagedData.length > 0) {
+              console.log(`✅ Fetched additional ${pagedData.length} facilities`);
+              allFacilities = [...allFacilities, ...pagedData];
+              // Update facilities incrementally so UI stays responsive
+              processData(allFacilities);
+              page++;
+              
+              // If we got fewer than pageSize, we're at the end
+              if (pagedData.length < pageSize) {
+                console.log('Reached end of data');
+                hasMore = false;
+              }
+              
+              // Add a small delay between batches to keep UI responsive
+              if (hasMore) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+              }
+        } else {
+              console.log('No more facilities to fetch');
+              hasMore = false;
+        }
+          }
+          
+          console.log(`✅ FETCH COMPLETE: Loaded ${allFacilities.length} total facilities`);
+        }, 500);
+        
+      } catch (error) {
+        console.error('❌ Unexpected error in fetchData:', error);
+        setIsLoading(false);
       }
-      
-      const latitude = location.latitude;
-      const longitude = location.longitude;
-      
-      const hasLat = latitude !== null && latitude !== undefined;
-      const hasLon = longitude !== null && longitude !== undefined;
-      const latValid = hasLat && !isNaN(parseFloat(latitude));
-      const lonValid = hasLon && !isNaN(parseFloat(longitude));
-      
-      if (latValid && lonValid) {
-        // Add normalized fields and assessment fields for compatibility with the UI
-        location.normalizedLat = parseFloat(latitude);
-        location.normalizedLon = parseFloat(longitude);
-        
-        // Set default assessment values for locations
-        location.demand_assessment = 'Medium';
-        location.cost_assessment_2 = 'Affordable';
-        
-        // Add ID fields for compatibility
-        location.facility_id = location.id;
-        
-        return true;
-      }
-      
-      return false;
-    });
+    };
     
-    console.log(`✅ Found ${validLocations.length} valid locations out of ${data.length} total`);
-    
-    setFacilities(validLocations);
-    setIsLoading(false);
-  };
+    fetchData();
+  }, [supabase]);
 
   // Create a custom marker element
   const createCustomMarker = (facility, assessmentValue) => {
@@ -263,63 +267,36 @@ export default function Explore() {
     const markerEl = document.createElement('div');
     markerEl.className = 'marker-bubble';
     
-    // Determine color based on assessment value and location type
+    // Determine color based on assessment value
     let bgColor = '#FFFFFF';
     let textColor = '#222222';
     
-    if (locationType === 'campgrounds') {
-      if (displayMode === 'demand') {
-        // Colors for demand levels
-        if (assessmentValue === 'High') {
-          bgColor = '#EF4444'; // Red for high demand
-          textColor = '#FFFFFF';
-        } else if (assessmentValue === 'Medium') {
-          bgColor = '#F59E0B'; // Amber for medium demand
-          textColor = '#FFFFFF';
-        } else if (assessmentValue === 'Low') {
-          bgColor = '#10B981'; // Green for low demand
-          textColor = '#FFFFFF';
-        }
-      } else {
-        // Colors for cost levels - using more appropriate cost categories
-        if (assessmentValue === 'Very Expensive') {
-          bgColor = '#EF4444'; // Red for premium/luxury
-          textColor = '#FFFFFF';
-        } else if (assessmentValue === 'Expensive') {
-          bgColor = '#F59E0B'; // Amber for moderate/standard
-          textColor = '#FFFFFF';
-        } else if (assessmentValue === 'Affordable') {
-          bgColor = '#10B981'; // Green for bargain/affordable
-          textColor = '#FFFFFF';
-        } else if (assessmentValue === 'Bargain') {
-          bgColor = '#3B82F6'; // Blue for free
-          textColor = '#FFFFFF';
-        }
+    if (displayMode === 'demand') {
+      // Colors for demand levels
+      if (assessmentValue === 'High') {
+        bgColor = '#EF4444'; // Red for high demand
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Medium') {
+        bgColor = '#F59E0B'; // Amber for medium demand
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Low') {
+        bgColor = '#10B981'; // Green for low demand
+        textColor = '#FFFFFF';
       }
     } else {
-      // ClimbCover locations - use a different color scheme
-      bgColor = '#6366F1'; // Indigo as base color for ClimbCover locations
-      textColor = '#FFFFFF';
-      
-      // We could still vary colors based on demand/cost if needed
-      if (displayMode === 'demand') {
-        if (assessmentValue === 'High') {
-          bgColor = '#8B5CF6'; // Purple variant for high demand
-        } else if (assessmentValue === 'Medium') {
-          bgColor = '#6366F1'; // Indigo for medium demand
-        } else if (assessmentValue === 'Low') {
-          bgColor = '#4F46E5'; // Darker indigo for low demand
-        }
-      } else {
-        if (assessmentValue === 'Very Expensive') {
-          bgColor = '#8B5CF6'; // Purple variant for expensive
-        } else if (assessmentValue === 'Expensive') {
-          bgColor = '#6366F1'; // Indigo for moderate
-        } else if (assessmentValue === 'Affordable') {
-          bgColor = '#4F46E5'; // Darker indigo for affordable
-        } else if (assessmentValue === 'Bargain') {
-          bgColor = '#4338CA'; // Darkest indigo for bargain
-        }
+      // Colors for cost levels
+      if (assessmentValue === 'Very expensive') {
+        bgColor = '#EF4444'; // Red for premium/luxury
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Expensive') {
+        bgColor = '#F59E0B'; // Amber for moderate/standard
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Affordable') {
+        bgColor = '#10B981'; // Green for bargain/affordable
+        textColor = '#FFFFFF';
+      } else if (assessmentValue === 'Bargain') {
+        bgColor = '#3B82F6'; // Blue for free
+        textColor = '#FFFFFF';
       }
     }
     
@@ -377,12 +354,8 @@ export default function Explore() {
     textSpan.style.overflow = 'hidden';
     textSpan.style.textOverflow = 'ellipsis';
     
-    // For ClimbCover locations, display a house icon instead of text
-    if (locationType === 'climbcovers') {
-      textSpan.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>';
-    } else {
-      textSpan.innerText = assessmentValue;
-    }
+    // Display assessment value as text
+    textSpan.innerText = assessmentValue;
     
     // Assemble elements
     contentDiv.appendChild(textSpan);
@@ -410,296 +383,321 @@ export default function Explore() {
     return wrapperDiv;
   };
 
+  // Helper function to get marker colors based on assessment value and display mode
+  const getMarkerColor = (mode, value) => {
+    if (mode === 'demand') {
+      // Colors for demand levels
+      if (value === 'High') return '#EF4444'; // Red for high demand
+      if (value === 'Medium') return '#F59E0B'; // Amber for medium demand
+      if (value === 'Low') return '#10B981'; // Green for low demand
+      return '#888888'; // Default grey
+    } else {
+      // Colors for cost levels
+      if (value === 'Very expensive') return '#EF4444'; // Red
+      if (value === 'Expensive') return '#F59E0B'; // Amber
+      if (value === 'Affordable') return '#10B981'; // Green
+      if (value === 'Bargain') return '#3B82F6'; // Blue
+      return '#888888'; // Default grey
+    }
+  };
+
   const updateMarkers = () => {
-    console.log('🔍 updateMarkers called');
+    console.log('🔍 updateMarkers called with clustering');
     
     if (!map.current || !filteredFacilities.length) {
       console.warn('⚠️ Cannot update markers - map or facilities not ready');
       return;
     }
 
-    console.log('🔍 Updating map with', filteredFacilities.length, 'facilities');
-    console.log('🔍 Map object status:', map.current ? 'Available' : 'Not available');
-    console.log('🔍 Current display mode:', displayMode);
+    console.log('🔍 Updating map with', filteredFacilities.length, 'facilities using clustering');
     
     try {
-      // Clear existing markers
-      console.log('🔍 Clearing', Object.keys(markers.current).length, 'existing markers');
+      // Clear existing markers and sources/layers
+      console.log('🔍 Clearing existing markers and layers');
+      
+      // Remove individual markers if they exist
       Object.values(markers.current).forEach(marker => marker.remove());
       markers.current = {};
 
-      let addedCount = 0;
+      // Remove previous mapbox layers and sources if they exist
+      if (map.current.getLayer('clusters')) {
+        map.current.removeLayer('clusters');
+      }
+      
+      if (map.current.getLayer('cluster-count')) {
+        map.current.removeLayer('cluster-count');
+      }
+      
+      if (map.current.getLayer('unclustered-point')) {
+        map.current.removeLayer('unclustered-point');
+      }
+      
+      if (map.current.getSource('facilities')) {
+        map.current.removeSource('facilities');
+      }
 
-      // If we have a lot of markers, adjust the map zoom to fit them all
+      // Create bounds for fitting the map view
       const bounds = new mapboxgl.LngLatBounds();
       
-      console.log('🔍 Looping through facilities to create markers...');
-      
-      filteredFacilities.forEach((facility, index) => {
-        console.log(`🔍 Processing facility ${index+1}/${filteredFacilities.length}: ${facility.name || 'Unnamed'}`);
-        
-        // Use normalized coordinates that we added during filtering
+      // Convert facilities to GeoJSON for clustering
+      const points = {
+        type: 'FeatureCollection',
+        features: filteredFacilities
+          .filter(facility => {
+            // Filter out facilities with invalid coordinates
         const lat = facility.normalizedLat;
         const lon = facility.normalizedLon;
-        
-        if (isNaN(lat) || isNaN(lon)) {
-          console.warn(`⚠️ Skipping facility with invalid coordinates:`, facility);
-          return;
-        }
-
-        console.log(`🔍 Adding marker at [${lon}, ${lat}] for "${facility.name || 'Unnamed'}"`);
-        
-        // Extend bounds for auto-fitting the map view
-        try {
-          bounds.extend([lon, lat]);
-          console.log(`🔍 Extended bounds to include facility at [${lon}, ${lat}]`);
-        } catch (boundsError) {
-          console.error(`❌ Error extending bounds:`, boundsError);
-        }
-
-        try {
-          // Get the assessment value based on the current display mode
-          const assessmentValue = displayMode === 'demand' 
-            ? (facility.demand_assessment || 'N/A')
-            : (facility.cost_assessment_2 || 'N/A');
-          
-          // Log assessment values for debugging
-          console.log(`🔍 Assessment values for "${facility.name || 'Unnamed'}":`, {
-            demand: facility.demand_assessment,
-            cost: facility.cost_assessment_2,
-            used: assessmentValue
-          });
-          
-          // Create a popup that shows on hover with a button to see more details
-          console.log(`🔍 Creating popup for "${facility.name || 'Unnamed'}"`);
-          
-          // Different popup content based on location type
-          let popupHtml = '';
-          
-          if (locationType === 'campgrounds') {
-            popupHtml = `
-              <div class="p-3">
-                <h3 class="font-semibold text-base">${facility.name || 'Unnamed Facility'}</h3>
-                <p class="text-sm text-gray-600">${facility.type || 'Campground'}</p>
-                <div class="text-xs mt-2 text-gray-500">
-                  <p>${facility.city}${facility.city && facility.state ? ', ' : ''}${facility.state || ''}</p>
-                  <div class="mt-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <span class="font-medium">Demand:</span> ${facility.demand_assessment || 'N/A'}
-                    </div>
-                    <div>
-                      <span class="font-medium">Cost:</span> ${facility.cost_assessment_2 || 'N/A'}
-                    </div>
-                  </div>
-                </div>
-                <button class="mt-3 px-3 py-1 bg-[#10B981] text-white text-xs rounded-md hover:bg-[#0E9F6E] transition-colors w-full view-details-btn">
-                  View Details
-                </button>
-              </div>
-            `;
-          } else {
-            // ClimbCover location popup
-            popupHtml = `
-              <div class="p-3">
-                <h3 class="font-semibold text-base">${facility.location || 'Unnamed Location'}</h3>
-                <p class="text-sm text-gray-600">${facility.name || 'ClimbCover'}</p>
-                ${facility.note ? `<p class="text-xs mt-1">${facility.note.substring(0, 100)}${facility.note.length > 100 ? '...' : ''}</p>` : ''}
-                <div class="text-xs mt-2 text-gray-500">
-                  <p>${facility.city || ''}${facility.address ? ` • ${facility.address}` : ''}</p>
-                </div>
-                <button class="mt-3 px-3 py-1 bg-[#6366F1] text-white text-xs rounded-md hover:bg-[#4F46E5] transition-colors w-full view-details-btn">
-                  View Details
-                </button>
-              </div>
-            `;
-          }
-          
-          const popup = new mapboxgl.Popup({
-            closeButton: true,
-            closeOnClick: false,
-            offset: 25,
-            className: 'facility-popup',
-            maxWidth: '300px'
-          }).setHTML(popupHtml);
-
-          // Create custom marker element
-          const customMarkerElement = createCustomMarker(facility, assessmentValue);
-          
-          // Create marker with popup and custom element
-          console.log(`🔍 Creating marker for "${facility.name || 'Unnamed'}"`);
-          const marker = new mapboxgl.Marker({
-            element: customMarkerElement
-          })
-          .setLngLat([lon, lat])
-          .setPopup(popup)
-          .addTo(map.current);
-          
-          console.log(`🔍 Successfully added marker to map for "${facility.name || 'Unnamed'}"`);
-          
-          // Show popup on click - update to target the bubble inside the wrapper
-          const bubbleElement = customMarkerElement.querySelector('.marker-bubble');
-          if (bubbleElement) {
-            bubbleElement.addEventListener('click', () => {
-              marker.togglePopup();
-              
-              // Add event listener to the "View Details" button after popup is shown
-              setTimeout(() => {
-                const viewDetailsBtn = document.querySelector('.view-details-btn');
-                if (viewDetailsBtn) {
-                  viewDetailsBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showFacilityDetailsPanel(facility);
-                  });
-                }
-              }, 100);
-            });
-          } else {
-            console.warn(`⚠️ Could not find bubble element for "${facility.name || 'Unnamed'}"`);
-            // Fallback to the wrapper if bubble not found
-            customMarkerElement.addEventListener('click', () => {
-              marker.togglePopup();
-              
-              // Add event listener to the "View Details" button after popup is shown
-              setTimeout(() => {
-                const viewDetailsBtn = document.querySelector('.view-details-btn');
-                if (viewDetailsBtn) {
-                  viewDetailsBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showFacilityDetailsPanel(facility);
-                  });
-                }
-              }, 100);
-            });
-          }
-
-          // Highlight marker if it's the selected facility
-          if (selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id)) {
-            const el = marker.getElement();
-            const bubble = el.querySelector('.marker-bubble');
-            if (bubble) {
-              bubble.style.zIndex = '3';
-              bubble.style.transform = 'translate(-50%, -50%) scale(1.1)';
-              bubble.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.15), 0px 2px 8px rgba(0, 0, 0, 0.25)';
+            const valid = !isNaN(lat) && !isNaN(lon);
+            
+            if (valid) {
+              // Extend bounds with valid coordinates
+              bounds.extend([lon, lat]);
             }
-          }
+            
+            return valid;
+          })
+          .map(facility => {
+            // Get assessment value based on display mode
+            const assessmentValue = displayMode === 'demand' 
+              ? (facility.demand_assessment || 'Medium')
+              : (facility.cost_assessment_2 || 'Affordable');
+              
+            return {
+              type: 'Feature',
+              properties: {
+                id: facility.facility_id || facility.id,
+                name: facility.name || 'Unnamed Facility',
+                city: facility.city || '',
+                state: facility.state || '',
+                type: facility.type || 'Campground',
+                demand: facility.demand_assessment || 'Medium',
+                cost: facility.cost_assessment_2 || 'Affordable',
+                description: facility.description || '',
+                color: getMarkerColor(displayMode, assessmentValue),
+                isSelected: selectedFacility && 
+                  (selectedFacility.facility_id === facility.facility_id || 
+                   selectedFacility.id === facility.id),
+                // Store facility data as string to retrieve later
+                facilityData: JSON.stringify(facility)
+              },
+              geometry: {
+                type: 'Point',
+                coordinates: [facility.normalizedLon, facility.normalizedLat]
+              }
+            };
+          })
+      };
 
-          markers.current[facility.facility_id || facility.id] = marker;
-          addedCount++;
-          console.log(`✅ Marker ${addedCount} added successfully for "${facility.name || 'Unnamed'}"`);
-        } catch (error) {
-          console.error(`❌ Error adding marker for facility "${facility.name || 'Unnamed'}":`, error);
+      // Add clustered GeoJSON source to map
+      map.current.addSource('facilities', {
+        type: 'geojson',
+        data: points,
+        cluster: true,
+        clusterMaxZoom: 14, // Max zoom to cluster points
+        clusterRadius: 50 // Radius of each cluster when clustering points
+      });
+
+      // Add cluster layer
+      map.current.addLayer({
+        id: 'clusters',
+        type: 'circle',
+        source: 'facilities',
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': [
+            'step',
+            ['get', 'point_count'],
+            '#10B981', // Green for small clusters
+            20,
+            '#F59E0B', // Amber for medium clusters
+            50,
+            '#EF4444' // Red for large clusters
+          ],
+          'circle-radius': [
+            'step',
+            ['get', 'point_count'],
+            20, // Size for small clusters
+            20, // Threshold for next step
+            30, // Size for medium clusters
+            50, // Threshold for next step
+            40 // Size for large clusters
+          ],
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#FFFFFF'
         }
       });
 
-      console.log(`✅ Successfully added ${addedCount} markers to map`);
+      // Add cluster count text layer
+      map.current.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'facilities',
+        filter: ['has', 'point_count'],
+        layout: {
+          'text-field': '{point_count_abbreviated}',
+          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+          'text-size': 12
+        },
+        paint: {
+          'text-color': '#FFFFFF'
+        }
+      });
+
+      // Add layer for individual points (not clustered)
+      map.current.addLayer({
+        id: 'unclustered-point',
+        type: 'circle',
+        source: 'facilities',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['get', 'color'],
+          'circle-radius': 8,
+          'circle-stroke-width': [
+            'case',
+            ['get', 'isSelected'],
+            3,
+            1
+          ],
+          'circle-stroke-color': [
+            'case',
+            ['get', 'isSelected'],
+            '#000000',
+            '#FFFFFF'
+          ]
+        }
+      });
+
+      // Handle cluster clicks - zoom in to expand cluster
+      map.current.on('click', 'clusters', (e) => {
+        const features = map.current.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+        const clusterId = features[0].properties.cluster_id;
+        
+        map.current.getSource('facilities').getClusterExpansionZoom(
+          clusterId,
+          (err, zoom) => {
+            if (err) return;
+            
+            map.current.easeTo({
+              center: features[0].geometry.coordinates,
+              zoom: zoom
+            });
+          }
+        );
+      });
       
-      // If we have markers, fit the map to show all of them
-      if (addedCount > 0) {
+      // Handle clicks on individual points
+      map.current.on('click', 'unclustered-point', (e) => {
+        // Close any existing popup first
+        closeActivePopup();
+        
+        // Parse the stored facility data
+        const facilityJson = e.features[0].properties.facilityData;
+        const facility = JSON.parse(facilityJson);
+        
+        // Create a DOM element for the popup content
+        const popupEl = document.createElement('div');
+        popupEl.className = 'p-3';
+        
+        // Set the HTML content
+        popupEl.innerHTML = `
+          <div class="flex justify-between items-center mb-2">
+              <h3 class="font-semibold text-base">${facility.name || 'Unnamed Facility'}</h3>
+          </div>
+              <p class="text-sm text-gray-600">${facility.type || 'Campground'}</p>
+              <div class="text-xs mt-2 text-gray-500">
+                <p>${facility.city}${facility.city && facility.state ? ', ' : ''}${facility.state || ''}</p>
+                <div class="mt-1 grid grid-cols-2 gap-2">
+                  <div>
+                    <span class="font-medium">Demand:</span> ${facility.demand_assessment || 'N/A'}
+                  </div>
+                  <div>
+                    <span class="font-medium">Cost:</span> ${facility.cost_assessment_2 || 'N/A'}
+                  </div>
+                </div>
+            </div>
+          `;
+          
+        // Create the view details button
+        const viewDetailsBtn = document.createElement('button');
+        viewDetailsBtn.className = 'mt-3 px-3 py-1 bg-[#10B981] text-white text-xs rounded-md hover:bg-[#0E9F6E] transition-colors w-full';
+        viewDetailsBtn.textContent = 'View Details';
+        popupEl.appendChild(viewDetailsBtn);
+        
+        // Add click handler to the view details button
+        viewDetailsBtn.addEventListener('click', () => {
+          closeActivePopup();
+          showFacilityDetailsPanel(facility);
+        });
+        
+        // Show popup at the clicked point
+          const popup = new mapboxgl.Popup({
+          closeButton: true, // Use Mapbox's built-in close button
+            closeOnClick: false,
+          offset: 15,
+            className: 'facility-popup',
+            maxWidth: '300px'
+        })
+        .setLngLat(e.features[0].geometry.coordinates)
+        .setDOMContent(popupEl)
+          .addTo(map.current);
+          
+        // Store the active popup
+        setActivePopup(popup);
+        
+        // Clean up when popup closes
+        popup.on('close', () => {
+          setActivePopup(null);
+        });
+      });
+      
+      // Change cursor when hovering over clusters or points
+      map.current.on('mouseenter', 'clusters', () => {
+        map.current.getCanvas().style.cursor = 'pointer';
+      });
+      
+      map.current.on('mouseleave', 'clusters', () => {
+        map.current.getCanvas().style.cursor = '';
+      });
+      
+      map.current.on('mouseenter', 'unclustered-point', () => {
+        map.current.getCanvas().style.cursor = 'pointer';
+      });
+      
+      map.current.on('mouseleave', 'unclustered-point', () => {
+        map.current.getCanvas().style.cursor = '';
+      });
+
+      // Fit map to show all markers if we have any valid coordinates
+      if (!bounds.isEmpty()) {
         try {
-          console.log(`🔍 Fitting map bounds to show all ${addedCount} markers`);
+          console.log('🔍 Fitting map bounds to show all facilities');
           map.current.fitBounds(bounds, {
             padding: 100,
             maxZoom: 10
           });
-          console.log(`✅ Map bounds adjusted successfully`);
+          console.log('✅ Map bounds adjusted successfully');
         } catch (error) {
-          console.error(`❌ Error fitting bounds:`, error);
+          console.error('❌ Error fitting bounds:', error);
           
           try {
-            // Fallback to center on first marker
-            console.log(`🔍 Fallback: centering on first facility`);
+            // Fallback to center on first facility
             const firstFacility = filteredFacilities[0];
             map.current.flyTo({
               center: [firstFacility.normalizedLon, firstFacility.normalizedLat],
               zoom: 8
             });
-            console.log(`✅ Fallback centering successful`);
+            console.log('✅ Fallback centering successful');
           } catch (flyError) {
-            console.error(`❌ Even fallback centering failed:`, flyError);
+            console.error('❌ Even fallback centering failed:', flyError);
           }
         }
-      } else {
-        console.warn(`⚠️ No markers were added to the map`);
       }
-    } catch (error) {
-      console.error(`❌ Critical error in updateMarkers:`, error);
-    }
-  };
-
-  // Fetch facilities or locations based on selected type
-  useEffect(() => {
-    const fetchData = async () => {
-      console.log(`Fetching ${locationType} data...`);
-      setIsLoading(true);
       
-      try {
-        if (locationType === 'campgrounds') {
-          // Fetch campground facilities
-          console.log('Calling get_all_facilities() function...');
-          const { data: facilityData, error: facilityError } = await supabase.rpc('get_all_facilities');
-          
-          if (facilityError) {
-            console.error('Error fetching facilities using RPC function:', facilityError);
-            // Fallback to direct query if function fails
-            console.log('Trying direct query as fallback...');
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('facilities')
-              .select('*')
-              .not('lat', 'is', null)
-              .not('lon', 'is', null)
-              .limit(100);
-              
-            if (fallbackError) {
-              console.error('Fallback query also failed:', fallbackError);
-              setIsLoading(false);
-              return;
-            }
-            
-            console.log('Fallback query succeeded with', fallbackData?.length || 0, 'records');
-            processData(fallbackData || []);
-          } else {
-            console.log('RPC function succeeded with', facilityData?.length || 0, 'records');
-            processData(facilityData || []);
-          }
-        } else {
-          // Fetch ClimbCover locations
-          console.log('Calling get_all_climbcover_locations() function...');
-          const { data: locationData, error: locationError } = await supabase.rpc('get_all_climbcover_locations');
-          
-          if (locationError) {
-            console.error('Error fetching locations using RPC function:', locationError);
-            // Fallback to direct query if function fails
-            console.log('Trying direct query as fallback for locations...');
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('locations')
-              .select('*')
-              .not('latitude', 'is', null)
-              .not('longitude', 'is', null)
-              .limit(100);
-              
-            if (fallbackError) {
-              console.error('Fallback query for locations also failed:', fallbackError);
-              setIsLoading(false);
-              return;
-            }
-            
-            console.log('Fallback query for locations succeeded with', fallbackData?.length || 0, 'records');
-            processLocationData(fallbackData || []);
-          } else {
-            console.log('RPC function for locations succeeded with', locationData?.length || 0, 'records');
-            processLocationData(locationData || []);
-          }
-        }
+      console.log('✅ Successfully added', points.features.length, 'facilities to clustered map');
       } catch (error) {
-        console.error(`Unexpected error in fetchData for ${locationType}:`, error);
-        setIsLoading(false);
+      console.error('❌ Critical error in updateMarkers:', error);
       }
     };
-    
-    fetchData();
-  }, [supabase, locationType]);
 
   // Function to load test data
   const loadTestData = async (e) => {
@@ -850,8 +848,7 @@ export default function Explore() {
 
       // Track explore page viewed event
       posthog.capture('explore_page_viewed', {
-        display_mode: displayMode,
-        location_type: locationType
+        display_mode: displayMode
       });
 
       // Wait for map to load before setting mapLoaded to true
@@ -948,17 +945,41 @@ export default function Explore() {
 
   // Show detailed information for a facility
   const showFacilityDetails = (facility) => {
+    console.log('showFacilityDetails called for:', facility.name);
     setSelectedFacility(facility);
     
-    // Fly to the facility location immediately on first click
+    // Fly to the facility location with a smooth animation
     if (map.current) {
+      console.log('Flying to coordinates:', facility.normalizedLon, facility.normalizedLat);
+      
+      // Make sure we have valid coordinates
+      if (isNaN(facility.normalizedLon) || isNaN(facility.normalizedLat)) {
+        console.error('Invalid coordinates for facility:', facility);
+        return;
+      }
+      
+      try {
       map.current.flyTo({
         center: [facility.normalizedLon, facility.normalizedLat],
-        zoom: 12
-      });
+          zoom: 13,
+          duration: 1500, // 1.5 seconds animation
+          essential: true // This animation is considered essential for the user experience
+        });
+        console.log('Map flyTo initiated');
+      } catch (error) {
+        console.error('Error in map.flyTo:', error);
+      }
+      
+      // Update the map to highlight this facility
+      if (map.current.getSource('facilities')) {
+        // For clustered map, we need to update markers to highlight the selected facility
+        updateMarkers();
+      }
+    } else {
+      console.warn('Map not initialized yet');
     }
     
-    // Highlight the marker
+    // Highlight the marker if using individual markers
     if (markers.current[facility.facility_id || facility.id]) {
       // Reset all markers first
       Object.values(markers.current).forEach(marker => {
@@ -981,6 +1002,13 @@ export default function Explore() {
         bubble.style.boxShadow = '0px 8px 24px rgba(0, 0, 0, 0.15), 0px 2px 8px rgba(0, 0, 0, 0.25)';
       }
     }
+    
+    // Track facility selected event
+    posthog.capture('facility_selected_from_list', {
+      facility_id: facility.facility_id || facility.id,
+      facility_name: facility.name,
+      display_mode: displayMode
+    });
   };
 
   // Show facility details in the panel
@@ -988,15 +1016,31 @@ export default function Explore() {
     setSelectedFacility(facility);
     setShowDetailPanel(true);
     
+    // Fly to the facility location with a smooth animation
+    if (map.current) {
+      map.current.flyTo({
+        center: [facility.normalizedLon, facility.normalizedLat],
+        zoom: 13,
+        duration: 1500, // 1.5 seconds animation
+        essential: true
+      });
+    }
+    
     // Track facility viewed event
     posthog.capture('facility_viewed', {
       facility_id: facility.facility_id || facility.id,
       facility_name: facility.name,
-      facility_type: facility.type || 'unknown',
+      facility_type: facility.type || 'Campground',
       display_mode: displayMode
     });
     
-    // Highlight the marker
+    // Update the map to highlight this facility
+    if (map.current.getSource('facilities')) {
+      // For clustered map, we need to update markers to highlight the selected facility
+      updateMarkers();
+    }
+    
+    // Highlight the marker if using individual markers
     if (markers.current[facility.facility_id || facility.id]) {
       // Reset all markers first
       Object.values(markers.current).forEach(marker => {
@@ -1028,11 +1072,38 @@ export default function Explore() {
     // setSelectedFacility(null);
   };
 
+  // Add state to track active popup
+  const [activePopup, setActivePopup] = useState(null);
+
+  // Function to close any active popup
+  const closeActivePopup = () => {
+    if (activePopup) {
+      activePopup.remove();
+      setActivePopup(null);
+    }
+  };
+
+  // Clean up function to remove any active popups when component unmounts
+  useEffect(() => {
+    return () => {
+      closeActivePopup();
+    };
+  }, []);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
-        <div className="text-[#10B981] text-xl font-semibold">Loading Explore Page...</div>
+      <SidebarLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9FAFB] p-6">
+          <div className="text-[#10B981] text-xl font-semibold mb-4">Loading Campgrounds...</div>
+          <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+            <div className="h-full bg-[#10B981] rounded-full animate-pulse"></div>
       </div>
+          <p className="text-gray-600 text-sm">Initializing map and loading facility data</p>
+          <p className="text-gray-500 text-xs mt-6 max-w-md text-center">
+            The first load may take a few moments. Subsequent visits will be faster thanks to caching.
+          </p>
+        </div>
+      </SidebarLayout>
     );
   }
 
@@ -1043,7 +1114,7 @@ export default function Explore() {
   return (
     <SidebarLayout>
       <Head>
-        <title>Explore Locations - BaseLodge</title>
+        <title>Explore Campgrounds - BaseLodge</title>
         <style jsx global>{`
           .mapboxgl-popup {
             z-index: 1000;
@@ -1058,184 +1129,182 @@ export default function Explore() {
             max-width: 250px;
           }
           .selected-facility {
-            border-color: #10B981;
-            background-color: #ECFDF5;
-            box-shadow: 0 0 0 2px #10B981;
+            border-color: #10B981 !important;
+            background-color: #ECFDF5 !important;
+            box-shadow: 0 0 0 2px #10B981 !important;
           }
         `}</style>
       </Head>
       
-      {/* New shared top header */}
-      <div className="w-full bg-[#F9FAFB] p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className={`text-[36px] font-bold text-gray-800 ${inter.className}`}>Explore</h1>
-            <p className={`text-[18px] text-gray-600 ${inter.className}`}>Find your next adventure</p>
+      <div className="flex flex-col h-screen">
+        {/* Page Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
+              <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you've found one you like, go back to the trip to update your selection.</p>
+              <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>{filteredFacilities.length} campgrounds found</p>
+            </div>
           </div>
-          <div className="flex flex-col items-end">
-            <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 mb-2">
+        </div>
+
+        {/* Filter Bar */}
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          {/* Search Input - Full Width Row */}
+          <div className="mb-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search campgrounds..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+          </div>
+          
+          {/* Filter Dropdowns Row */}
+          <div className="flex items-center gap-4">
+            {/* State Filter */}
+            <div className="w-40">
+              <select
+                value={filters.state}
+                onChange={(e) => setFilterValue('state', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">All States</option>
+                {[...new Set(facilities.map(f => f.state).filter(Boolean))].sort().map(state => (
+                  <option key={`state-${state}`} value={state}>
+                    {state}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Demand Filter */}
+            <div className="w-40">
+              <select
+                value={filters.demand}
+                onChange={(e) => setFilterValue('demand', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">All Demand</option>
+                {uniqueDemandValues.map(value => (
+                  <option key={`demand-${value}`} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Cost Filter */}
+            <div className="w-40">
+              <select
+                value={filters.cost}
+                onChange={(e) => setFilterValue('cost', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">All Costs</option>
+                {uniqueCostValues.map(value => (
+                  <option key={`cost-${value}`} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Display Mode Toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
               <button
-                className={`px-3 py-1 text-sm font-medium rounded-md transition ${
+                className={`px-3 py-1 text-sm rounded-md transition ${
                   displayMode === 'demand' 
-                    ? 'bg-[#10B981] text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white shadow-sm text-gray-900' 
+                    : 'text-gray-600'
                 }`}
                 onClick={() => setDisplayMode('demand')}
               >
-                Demand
+                By Demand
               </button>
               <button
-                className={`px-3 py-1 text-sm font-medium rounded-md transition ${
+                className={`px-3 py-1 text-sm rounded-md transition ${
                   displayMode === 'cost' 
-                    ? 'bg-[#10B981] text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-white shadow-sm text-gray-900' 
+                    : 'text-gray-600'
                 }`}
                 onClick={() => setDisplayMode('cost')}
               >
-                Cost
+                By Cost
               </button>
             </div>
-            
-            {/* Color scale legend */}
-            <div className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm">
-              <div className="text-xs font-medium mb-1">
-                {displayMode === 'demand' ? 'Demand Scale' : 'Cost Scale'}
-              </div>
+
+            {/* Clear Filters */}
+            {(filters.demand || filters.cost || filters.state || searchQuery) && (
+              <button
+                onClick={clearFilters}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
+              >
+                Clear All
+              </button>
+            )}
+
+            {/* Color Legend */}
+            <div className="flex items-center gap-2 ml-4">
+              <span className="text-xs text-gray-500">Legend:</span>
               {displayMode === 'demand' ? (
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
+                <>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#EF4444]"></div>
                     <span className="text-xs">High</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
-                    <span className="text-xs">Medium</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#F59E0B]"></div>
+                    <span className="text-xs">Med</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#10B981]"></div>
                     <span className="text-xs">Low</span>
                   </div>
-                </div>
+                </>
               ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#EF4444] mr-1"></div>
-                    <span className="text-xs">Very expensive</span>
+                <>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#EF4444]"></div>
+                    <span className="text-xs">$$$$</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#F59E0B] mr-1"></div>
-                    <span className="text-xs">Expensive</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#F59E0B]"></div>
+                    <span className="text-xs">$$$</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#10B981] mr-1"></div>
-                    <span className="text-xs">Affordable</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#10B981]"></div>
+                    <span className="text-xs">$$</span>
                   </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#3B82F6] mr-1"></div>
-                    <span className="text-xs">Bargain</span>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-[#3B82F6]"></div>
+                    <span className="text-xs">$</span>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
         </div>
-      </div>
-      
-      <div className="flex w-full bg-[#F9FAFB] gap-0" style={{ height: 'calc(100vh - 114px)' }}>
-        {/* Sidebar - removed border-r */}
-        <div className="w-[320px] flex flex-col">
-          {/* Sidebar Header - Styled to match map header */}
-          <div className="p-4 bg-[#F9FAFB]">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Locations</h1>
-              <p className="text-sm text-gray-600">{filteredFacilities.length} locations found</p>
-            </div>
-            
-            {/* Location Type Toggle */}
-            <div className="flex items-center bg-white rounded-lg border border-gray-200 p-1 mt-3">
-              <button
-                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                  locationType === 'campgrounds' 
-                    ? 'bg-[#10B981] text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                onClick={() => setLocationType('campgrounds')}
-              >
-                Campgrounds
-              </button>
-              <button
-                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
-                  locationType === 'climbcovers' 
-                    ? 'bg-[#10B981] text-white' 
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                onClick={() => setLocationType('climbcovers')}
-              >
-                ClimbCovers
-              </button>
-            </div>
-          </div>
-          
-          {/* Combined Filters and Locations List Container */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Filters */}
-            <div className="px-4 pt-4 pb-2">
-              <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Demand</h3>
-                <div className="relative">
-                  <select
-                    value={filters.demand[0] || ''}
-                    onChange={(e) => setFilterValue('demand', e.target.value)}
-                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
-                  >
-                    <option value="">All Demand Levels</option>
-                    {uniqueDemandValues.map(value => (
-                      <option key={`demand-${value}`} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium mb-2">Cost</h3>
-                <div className="relative">
-                  <select
-                    value={filters.cost[0] || ''}
-                    onChange={(e) => setFilterValue('cost', e.target.value)}
-                    className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
-                  >
-                    <option value="">All Cost Levels</option>
-                    {uniqueCostValues.map(value => (
-                      <option key={`cost-${value}`} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
+
+        {/* Main Content: Sidebar + Map */}
+        <div className="flex-1 flex relative">
+          {/* Sidebar - simplified */}
+          <div className="w-[320px] bg-white border-r border-gray-200 absolute top-0 bottom-0 left-0 z-10">
             {/* Locations List */}
-            <div className="flex-1 overflow-y-auto px-4 pt-2">
+            <div className="p-4 h-full overflow-y-auto">
               {filteredFacilities.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  <p>No locations found</p>
+                  <p>No campgrounds found</p>
                   <p className="text-sm mt-2">Try adjusting your filters</p>
                 </div>
               ) : (
@@ -1244,22 +1313,25 @@ export default function Explore() {
                     <div 
                       key={facility.facility_id || facility.id || Math.random().toString()}
                       ref={selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id) ? selectedFacilityRef : null}
-                      className={`p-3 border rounded-lg hover:bg-gray-50 cursor-pointer bg-white transition-colors ${
+                      className={`p-3 border rounded-lg hover:bg-gray-50 hover:border-emerald-300 hover:shadow-md cursor-pointer bg-white transition-all ${
                         selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id) 
                           ? 'selected-facility' 
                           : ''
                       }`}
-                      onClick={() => showFacilityDetails(facility)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        console.log('Card clicked for facility:', facility.name);
+                        showFacilityDetails(facility);
+                      }}
                     >
                       <div className="font-medium text-[#10B981]">
-                        {locationType === 'climbcovers' 
-                          ? (facility.location || 'Unnamed Location') 
-                          : (facility.name || 'Unnamed Location')}
+                        {facility.name || 'Unnamed Facility'}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {facility.type || (locationType === 'climbcovers' ? 'ClimbCover' : 'Campground')} 
-                        {facility.city && facility.state && (
-                          <span> • {facility.city}, {facility.state}</span>
+                        {facility.city && facility.state ? (
+                          <span>{facility.city}, {facility.state}</span>
+                        ) : (
+                          facility.city || facility.state || ''
                         )}
                       </div>
                       <div className="text-xs mt-2">
@@ -1276,11 +1348,9 @@ export default function Explore() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Map Container - removed header, direct map rendering */}
-        <div className="flex-1 flex flex-col relative">
-          <div className="flex-1 relative">
+          {/* Map */}
+          <div className="flex-1 relative pl-[320px]">
             <div 
               ref={mapContainer} 
               className="absolute inset-0 w-full h-full"
@@ -1292,9 +1362,7 @@ export default function Explore() {
                 <div className="p-4">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl font-bold text-gray-800">
-                      {locationType === 'climbcovers' 
-                        ? (selectedFacility.location || 'Unnamed Location')
-                        : (selectedFacility.name || 'Unnamed Location')}
+                      {selectedFacility.name || 'Unnamed Facility'}
                     </h2>
                     <button 
                       onClick={closeDetailPanel}
@@ -1310,15 +1378,7 @@ export default function Explore() {
                     {selectedFacility.type && (
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Type</h3>
-                        <p>{selectedFacility.type || (locationType === 'climbcovers' ? 'ClimbCover' : 'Campground')}</p>
-                      </div>
-                    )}
-                    
-                    {/* Show name for ClimbCover locations */}
-                    {locationType === 'climbcovers' && selectedFacility.name && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Name</h3>
-                        <p className="text-gray-700">{selectedFacility.name}</p>
+                        <p>{selectedFacility.type || 'Campground'}</p>
                       </div>
                     )}
                     
@@ -1326,14 +1386,6 @@ export default function Explore() {
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Description</h3>
                         <p className="text-gray-700">{selectedFacility.description}</p>
-                      </div>
-                    )}
-                    
-                    {/* Show note for ClimbCover locations */}
-                    {locationType === 'climbcovers' && selectedFacility.note && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Notes</h3>
-                        <p className="text-gray-700">{selectedFacility.note}</p>
                       </div>
                     )}
                     
@@ -1359,14 +1411,6 @@ export default function Explore() {
                       </div>
                     )}
                     
-                    {/* Show address for ClimbCover locations */}
-                    {locationType === 'climbcovers' && selectedFacility.address && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Address</h3>
-                        <p className="text-gray-700">{selectedFacility.address}</p>
-                      </div>
-                    )}
-                    
                     {selectedFacility.email && (
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Email</h3>
@@ -1378,16 +1422,6 @@ export default function Explore() {
                       <div>
                         <h3 className="text-sm font-medium text-gray-500">Phone</h3>
                         <p className="text-gray-700">{selectedFacility.phone}</p>
-                      </div>
-                    )}
-                    
-                    {/* Show website for ClimbCover locations */}
-                    {locationType === 'climbcovers' && selectedFacility.website && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500">Website</h3>
-                        <a href={selectedFacility.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                          Visit website
-                        </a>
                       </div>
                     )}
                     

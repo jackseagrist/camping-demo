@@ -30,8 +30,8 @@ export default function Plan() {
   const MAX_PROMPT_LENGTH = 1000;
 
   // Dropdown selections
-  const [experience, setExperience] = useState('');
-  const [campingPreference, setCampingPreference] = useState('');
+  const [budget, setBudget] = useState('');
+  const [state, setState] = useState('');
   const [crowdTolerance, setCrowdTolerance] = useState('');
 
   // Track which card is being selected for animation
@@ -131,13 +131,35 @@ export default function Plan() {
     try {
       console.log("Sending prompt to API:", prompt);
       
+      // Prepare request body with prompt and preferences
+      const requestBody = { 
+        user_input: prompt 
+      };
+      
+      // Add budget preference if selected
+      if (budget) {
+        requestBody.budget = budget;
+      }
+      
+      // Add state preference if selected
+      if (state) {
+        requestBody.state = state;
+      }
+      
+      // Add crowd tolerance if selected
+      if (crowdTolerance) {
+        requestBody.crowd_tolerance = crowdTolerance;
+      }
+      
+      console.log("Request body:", requestBody);
+      
       // Make sure the API URL includes the full path
       const response = await fetch('/api/proxy-recommend', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ user_input: prompt }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -160,7 +182,7 @@ export default function Plan() {
       const facilityDetails = await fetchFacilityDetails(facilityIds);
       
       // Map the API response to our trip options format, enriched with the complete facility details
-      const formattedTripOptions = responseData.recommendations.map(facility => {
+      let formattedTripOptions = responseData.recommendations.map(facility => {
         // Find the complete facility details
         const details = facilityDetails.find(detail => detail.id === facility.id) || {};
         
@@ -176,13 +198,107 @@ export default function Plan() {
           duration: 3,
           lat: details.lat || null,
           lon: details.lon || null,
+          city: details.city || '',
+          state: details.state || '',
           demand_assessment: details.demand_assessment || 'Medium',
           cost_assessment: details.cost_assessment_2 || 'Affordable',
           cost_value: details.cost_assessment_1 || 45,
+          // Store original ranking for re-sorting after filtering
+          original_rank: facility.score || 0
         };
       });
       
-      console.log("Formatted trip options:", formattedTripOptions);
+      // Apply additional filters based on user selections
+      // 1. State Filter - if selected
+      if (state) {
+        console.log(`Filtering by state: ${state}`);
+        formattedTripOptions = formattedTripOptions.filter(option => 
+          option.state && option.state.toUpperCase() === state
+        );
+      }
+      
+      // 2. Budget Filter - if selected
+      let budgetFiltered = [];
+      if (budget) {
+        console.log(`Filtering by budget: ${budget}`);
+        budgetFiltered = formattedTripOptions.filter(option => 
+          option.cost_assessment === budget
+        );
+        
+        // 3. Fallback - if fewer than 3 results, include next closest budget options
+        if (budgetFiltered.length < 3) {
+          console.log(`Budget filter resulted in ${budgetFiltered.length} results, expanding filter`);
+          
+          // Budget ranking from lowest to highest
+          const budgetRanking = ['Bargain', 'Affordable', 'Moderate', 'Expensive'];
+          const currentBudgetIndex = budgetRanking.indexOf(budget);
+          
+          // Include options with next closest budget (both cheaper and more expensive)
+          const expandedOptions = formattedTripOptions.filter(option => {
+            if (budgetFiltered.some(filtered => filtered.facility_id === option.facility_id)) {
+              return true; // Keep already filtered options
+            }
+            
+            const optionBudgetIndex = budgetRanking.indexOf(option.cost_assessment);
+            // Include if it's the next level up or down in budget
+            return Math.abs(optionBudgetIndex - currentBudgetIndex) === 1;
+          });
+          
+          budgetFiltered = expandedOptions;
+        }
+        
+        // Update the filtered options
+        formattedTripOptions = budgetFiltered;
+      }
+      
+      // 4. Crowd Tolerance Filter - if selected
+      let crowdFiltered = [];
+      if (crowdTolerance) {
+        console.log(`Filtering by crowd tolerance: ${crowdTolerance}`);
+        
+        // Map crowd tolerance selection to demand assessment values
+        let demandFilter;
+        if (crowdTolerance === 'No crowds please') {
+          demandFilter = 'Low';
+        } else if (crowdTolerance === 'Fine with crowds') {
+          // No specific filter for "Fine with crowds" - keep all options
+          crowdFiltered = formattedTripOptions;
+        }
+        
+        if (demandFilter) {
+          crowdFiltered = formattedTripOptions.filter(option => 
+            option.demand_assessment === demandFilter
+          );
+          
+          // 5. Fallback - if fewer than 3 results, include next closest crowd levels
+          if (crowdFiltered.length < 3) {
+            console.log(`Crowd filter resulted in ${crowdFiltered.length} results, expanding filter`);
+            
+            // For "No crowds please", include Medium demand if Low gives too few results
+            if (demandFilter === 'Low') {
+              const expandedOptions = formattedTripOptions.filter(option => 
+                option.demand_assessment === 'Low' || option.demand_assessment === 'Medium'
+              );
+              crowdFiltered = expandedOptions;
+            }
+          }
+          
+          // Update the filtered options
+          formattedTripOptions = crowdFiltered;
+        }
+      }
+      
+      // 6. Re-sort by original ranking to maintain relevance order
+      formattedTripOptions.sort((a, b) => b.original_rank - a.original_rank);
+      
+      console.log(`After filtering: ${formattedTripOptions.length} trip options`);
+      
+      // If we have no results after filtering, show an appropriate error
+      if (formattedTripOptions.length === 0) {
+        throw new Error('No facilities match your filter criteria. Please try different filters or a broader search.');
+      }
+      
+      console.log("Final formatted trip options:", formattedTripOptions);
       setTripOptions(formattedTripOptions);
     } catch (err) {
       console.error("Error getting facility recommendations:", err);
@@ -355,20 +471,21 @@ export default function Plan() {
 
             {/* Dropdown Selectors */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Experience Dropdown */}
+              {/* Budget Dropdown (formerly Experience) */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-[#374151]">Experience</label>
+                <label className="block text-sm font-medium text-[#374151]">Budget</label>
                 <div className="relative">
                   <select
-                    value={experience}
-                    onChange={(e) => setExperience(e.target.value)}
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
                     className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
                     disabled={isGenerating}
                   >
-                    <option value="">Select experience</option>
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Expert">Expert</option>
+                    <option value="">Select budget</option>
+                    <option value="Bargain">Bargain</option>
+                    <option value="Affordable">Affordable</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Expensive">Expensive</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -378,20 +495,67 @@ export default function Plan() {
                 </div>
               </div>
 
-              {/* Camping Preference Dropdown */}
+              {/* State Dropdown (formerly Camping preference) */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-[#374151]">Camping preference</label>
+                <label className="block text-sm font-medium text-[#374151]">State</label>
                 <div className="relative">
                   <select
-                    value={campingPreference}
-                    onChange={(e) => setCampingPreference(e.target.value)}
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
                     className="w-full bg-white border border-[#D1D5DB] rounded-full px-4 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-[#10B981] focus:border-transparent hover:border-[#10B981] transition-colors cursor-pointer appearance-none"
                     disabled={isGenerating}
                   >
-                    <option value="">Select preference</option>
-                    <option value="Backpacking">Backpacking</option>
-                    <option value="RV">RV</option>
-                    <option value="Car camping">Car camping</option>
+                    <option value="">Select state</option>
+                    <option value="AL">Alabama</option>
+                    <option value="AK">Alaska</option>
+                    <option value="AZ">Arizona</option>
+                    <option value="AR">Arkansas</option>
+                    <option value="CA">California</option>
+                    <option value="CO">Colorado</option>
+                    <option value="CT">Connecticut</option>
+                    <option value="DE">Delaware</option>
+                    <option value="FL">Florida</option>
+                    <option value="GA">Georgia</option>
+                    <option value="HI">Hawaii</option>
+                    <option value="ID">Idaho</option>
+                    <option value="IL">Illinois</option>
+                    <option value="IN">Indiana</option>
+                    <option value="IA">Iowa</option>
+                    <option value="KS">Kansas</option>
+                    <option value="KY">Kentucky</option>
+                    <option value="LA">Louisiana</option>
+                    <option value="ME">Maine</option>
+                    <option value="MD">Maryland</option>
+                    <option value="MA">Massachusetts</option>
+                    <option value="MI">Michigan</option>
+                    <option value="MN">Minnesota</option>
+                    <option value="MS">Mississippi</option>
+                    <option value="MO">Missouri</option>
+                    <option value="MT">Montana</option>
+                    <option value="NE">Nebraska</option>
+                    <option value="NV">Nevada</option>
+                    <option value="NH">New Hampshire</option>
+                    <option value="NJ">New Jersey</option>
+                    <option value="NM">New Mexico</option>
+                    <option value="NY">New York</option>
+                    <option value="NC">North Carolina</option>
+                    <option value="ND">North Dakota</option>
+                    <option value="OH">Ohio</option>
+                    <option value="OK">Oklahoma</option>
+                    <option value="OR">Oregon</option>
+                    <option value="PA">Pennsylvania</option>
+                    <option value="RI">Rhode Island</option>
+                    <option value="SC">South Carolina</option>
+                    <option value="SD">South Dakota</option>
+                    <option value="TN">Tennessee</option>
+                    <option value="TX">Texas</option>
+                    <option value="UT">Utah</option>
+                    <option value="VT">Vermont</option>
+                    <option value="VA">Virginia</option>
+                    <option value="WA">Washington</option>
+                    <option value="WV">West Virginia</option>
+                    <option value="WI">Wisconsin</option>
+                    <option value="WY">Wyoming</option>
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -503,7 +667,7 @@ export default function Plan() {
                     )}
                     
                     {/* Demand and Cost badges below map */}
-                    <div className="flex justify-between mb-4">
+                    <div className="flex justify-between mb-2">
                       {/* Demand badge */}
                       <div className="flex items-center">
                         <span className="text-xs mr-1 text-gray-500">Demand:</span>
@@ -531,6 +695,16 @@ export default function Plan() {
                           {trip.cost_assessment}
                         </span>
                       </div>
+                    </div>
+                    
+                    {/* Location (City, State) */}
+                    <div className="flex items-center mb-4">
+                      <svg className="w-3 h-3 text-gray-500 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"></path>
+                      </svg>
+                      <span className="text-xs text-gray-600">
+                        {trip.city ? `${trip.city}, ${trip.state}` : trip.state || 'Location not available'}
+                      </span>
                     </div>
                     
                     {/* Button */}
