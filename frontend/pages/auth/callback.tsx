@@ -21,6 +21,17 @@ export default function AuthCallback() {
           throw new Error('No session')
         }
 
+        // Check if this is a new user or returning user
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('created_at')
+          .eq('id', session.user.id)
+          .single()
+
+        // Calculate time difference to determine if this is a new user (account created in the last minute)
+        const isNewUser = userData && 
+          (new Date().getTime() - new Date(userData.created_at).getTime() < 60000)
+
         // Identify user with PostHog after successful OAuth login
         posthog.identify(session.user.id, {
           email: session.user.email,
@@ -28,9 +39,17 @@ export default function AuthCallback() {
           invitation: session.user.user_metadata?.invitation ?? false,
         })
         
-        posthog.capture('user_login', {
-          login_method: session.user.user_metadata?.provider || 'oauth'
-        })
+        // Track appropriate event based on whether this is a signup or login
+        if (isNewUser) {
+          posthog.capture('user_signup', {
+            method: session.user.user_metadata?.provider || 'oauth',
+            provider: session.user.user_metadata?.provider
+          })
+        } else {
+          posthog.capture('user_login', {
+            login_method: session.user.user_metadata?.provider || 'oauth'
+          })
+        }
 
         // Always redirect to dashboard after successful authentication
         router.replace('/dashboard')

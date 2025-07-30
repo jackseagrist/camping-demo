@@ -83,7 +83,6 @@ export default function Login() {
         redirectTo: getRedirectURL('/auth/callback'),
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
         },
       }
     });

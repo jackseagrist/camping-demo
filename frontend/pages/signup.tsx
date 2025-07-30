@@ -87,7 +87,7 @@ export default function Signup() {
         redirectTo: getRedirectURL('/auth/callback'),
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
+          prompt: 'consent', // Keep 'consent' for signup to ensure user agrees to terms and provides necessary permissions
         },
       }
     });
