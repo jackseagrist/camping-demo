@@ -8,10 +8,13 @@ import { BetaLimitsProvider } from '../lib/BetaLimitsContext';
 import CookieConsent from "react-cookie-consent";
 import { cookieUtils } from '../lib/utils';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 export default function MyApp({ Component, pageProps }) {
   const [supabaseClient] = useState(() => createPagesBrowserClient());
   const [cookiesAccepted, setCookiesAccepted] = useState(false);
+  const router = useRouter();
+  const isMainPage = router.pathname === '/';
 
   useEffect(() => {
     // Check if cookies were previously accepted
@@ -51,52 +54,54 @@ export default function MyApp({ Component, pageProps }) {
       <BetaLimitsProvider>
         <Component {...pageProps} />
         <Analytics />
-        <CookieConsent
-          location="bottom"
-          buttonText="Accept"
-          declineButtonText="Reject"
-          enableDeclineButton
-          onDecline={handleCookieRejection}
-          cookieName="baselodge-cookie-consent"
-          style={{ 
-            background: "#10B981", 
-            fontFamily: "var(--font-inter), sans-serif",
-            padding: "16px 24px"
-          }}
-          buttonStyle={{ 
-            background: "#FFFFFF", 
-            color: "#10B981", 
-            fontSize: "14px", 
-            fontWeight: "600",
-            padding: "8px 16px",
-            borderRadius: "9999px"
-          }}
-          declineButtonStyle={{
-            background: "transparent", 
-            color: "#FFFFFF", 
-            fontSize: "14px", 
-            fontWeight: "600",
-            padding: "8px 16px",
-            borderRadius: "9999px",
-            border: "1px solid #FFFFFF"
-          }}
-          contentStyle={{
-            flex: "1",
-            margin: "0",
-            fontSize: "14px"
-          }}
-          expires={150}
-          onAccept={() => {
-            setCookiesAccepted(true);
-          }}
-        >
-          This website uses cookies to enhance the user experience and analyze site traffic.{" "}
-          <span style={{ fontSize: "13px" }}>
-            <Link href="/privacy#cookies-tracking" style={{ color: "#fff", textDecoration: "underline" }}>
-              Learn more in our Privacy Policy
-            </Link>
-          </span>
-        </CookieConsent>
+        {isMainPage && (
+          <CookieConsent
+            location="bottom"
+            buttonText="Accept"
+            declineButtonText="Reject"
+            enableDeclineButton
+            onDecline={handleCookieRejection}
+            cookieName="baselodge-cookie-consent"
+            style={{ 
+              background: "#10B981", 
+              fontFamily: "var(--font-inter), sans-serif",
+              padding: "16px 24px"
+            }}
+            buttonStyle={{ 
+              background: "#FFFFFF", 
+              color: "#10B981", 
+              fontSize: "14px", 
+              fontWeight: "600",
+              padding: "8px 16px",
+              borderRadius: "9999px"
+            }}
+            declineButtonStyle={{
+              background: "transparent", 
+              color: "#FFFFFF", 
+              fontSize: "14px", 
+              fontWeight: "600",
+              padding: "8px 16px",
+              borderRadius: "9999px",
+              border: "1px solid #FFFFFF"
+            }}
+            contentStyle={{
+              flex: "1",
+              margin: "0",
+              fontSize: "14px"
+            }}
+            expires={150}
+            onAccept={() => {
+              setCookiesAccepted(true);
+            }}
+          >
+            This website uses cookies to enhance the user experience and analyze site traffic.{" "}
+            <span style={{ fontSize: "13px" }}>
+              <Link href="/privacy#cookies-tracking" style={{ color: "#fff", textDecoration: "underline" }}>
+                Learn more in our Privacy Policy
+              </Link>
+            </span>
+          </CookieConsent>
+        )}
       </BetaLimitsProvider>
     </SessionContextProvider>
   );
