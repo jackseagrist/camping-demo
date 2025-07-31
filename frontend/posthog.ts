@@ -16,10 +16,20 @@ if (typeof window !== 'undefined' && !posthog.__loaded && cookieUtils.isAnalytic
 
 // Create a mock posthog object that does nothing
 const mockPosthog = {
-  capture: () => {},
-  identify: () => {},
+  capture: (eventName: string, properties?: Record<string, any>) => {},
+  identify: (id?: string, properties?: Record<string, any>) => {},
   reset: () => {},
+  people: {
+    set: (properties: Record<string, any>) => {}
+  },
+  register: (properties: Record<string, any>) => {},
+  registerOnce: (properties: Record<string, any>) => {},
+  unregister: (key: string) => {},
+  opt_in_capturing: () => {},
+  opt_out_capturing: () => {},
+  isFeatureEnabled: (key: string) => false,
+  getFeatureFlag: (key: string) => null,
   __loaded: true
 };
 
-export default typeof posthog !== 'undefined' ? mockPosthog : posthog
+export default mockPosthog

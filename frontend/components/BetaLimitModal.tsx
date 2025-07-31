@@ -11,9 +11,12 @@ export default function BetaLimitModal({ isOpen, onClose, limitType }: BetaLimit
   useEffect(() => {
     if (isOpen) {
       // Track when the limit modal is shown
+      // Commented out PostHog analytics
+      /*
       posthog.capture('limit_modal_shown', {
         type: limitType
       });
+      */
     }
   }, [isOpen, limitType]);
 
@@ -24,9 +27,12 @@ export default function BetaLimitModal({ isOpen, onClose, limitType }: BetaLimit
     : "You've reached the limit of 5 trips for your beta account.";
 
   const handleFeedbackClick = () => {
+    // Commented out PostHog analytics
+    /*
     posthog.capture('limit_modal_feedback_clicked', {
       type: limitType
     });
+    */
   };
 
   return (
