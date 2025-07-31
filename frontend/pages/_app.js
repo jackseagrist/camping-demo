@@ -22,6 +22,7 @@ export default function MyApp({ Component, pageProps }) {
     setCookiesAccepted(hasConsent);
 
     // Only load PostHog if cookies are accepted
+    /* Commented out PostHog analytics loading
     if (hasConsent) {
       const loadPosthog = async () => {
         const posthog = (await import('../posthog')).default;
@@ -37,6 +38,7 @@ export default function MyApp({ Component, pageProps }) {
       
       loadPosthog();
     }
+    */
   }, [cookiesAccepted]);
 
   // Function to handle cookie rejection
@@ -54,6 +56,7 @@ export default function MyApp({ Component, pageProps }) {
       <BetaLimitsProvider>
         <Component {...pageProps} />
         <Analytics />
+        {/* Commented out Cookie Consent Banner
         {isMainPage && (
           <CookieConsent
             location="bottom"
@@ -102,6 +105,7 @@ export default function MyApp({ Component, pageProps }) {
             </span>
           </CookieConsent>
         )}
+        */}
       </BetaLimitsProvider>
     </SessionContextProvider>
   );
