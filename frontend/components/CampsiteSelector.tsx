@@ -73,6 +73,9 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
         
         // If we have a selected facility, fetch it first
         if (trip.facility_id) {
+          console.log('Trip has facility_id:', trip.facility_id);
+          
+          // Fetch the facility using the trip's facility_id
           const { data: selectedFacility, error: selectedError } = await supabase
             .from('facilities')
             .select('*')
@@ -82,9 +85,13 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
           if (selectedError) {
             console.error('Error fetching selected facility:', selectedError);
           } else if (selectedFacility) {
-            // Add the selected facility to the list
+            console.log('Found selected facility:', selectedFacility);
+            // Add the selected facility to the list and set the selected ID
             setFacilities([selectedFacility]);
+            setSelectedFacilityId(selectedFacility.id);
           }
+        } else {
+          console.log('Trip has no facility_id');
         }
         
         // Then fetch the first page of facilities
@@ -197,6 +204,7 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
       return;
     }
     
+    console.log('Selecting facility with ID:', facilityId);
     setSelectedFacilityId(facilityId);
     setIsAddingCustom(false);
     onCustomMarkerMode(false);
@@ -204,31 +212,49 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
     setSearchQuery('');
     
     try {
+      // Find the selected facility by checking both id and facility_id fields
+      const selectedFacility = [...facilities, ...customFacilities].find(
+        f => f.id === facilityId || f.facility_id === facilityId
+      );
+      
+      console.log('Selected facility:', selectedFacility);
+      
+      if (!selectedFacility) {
+        console.error('Could not find facility with ID:', facilityId);
+        return;
+      }
+      
+      // Use the facility's id (from the database) as the trip's facility_id
+      const facilityIdForTrip = selectedFacility.id;
+      
       // Update the trip's facility_id in the database
       const { error } = await supabase
         .from('trips')
-        .update({ facility_id: facilityId })
+        .update({ facility_id: facilityIdForTrip })
         .eq('id', trip.id);
       
       if (error) throw error;
       
-      // Find the selected facility
-      const selectedFacility = [...facilities, ...customFacilities].find(f => f.facility_id === facilityId);
-      
       // Track facility selected event
       posthog.capture('facility_selected', {
         trip_id: trip.id,
-        facility_id: facilityId,
-        facility_name: selectedFacility?.name || 'Unknown',
-        facility_type: selectedFacility?.type || 'Unknown',
-        is_custom: !!selectedFacility?.is_custom
+        facility_id: facilityIdForTrip,
+        facility_name: selectedFacility.name || 'Unknown',
+        facility_type: selectedFacility.type || 'Unknown',
+        is_custom: !!selectedFacility.is_custom
       });
       
       // Update the trip object with the new facility
+      console.log('Updating trip with facility:', {
+        ...trip,
+        facility_id: facilityIdForTrip,
+        facility: selectedFacility
+      });
+      
       onUpdate({
         ...trip,
-        facility_id: facilityId,
-        facility: selectedFacility || null
+        facility_id: facilityIdForTrip,
+        facility: selectedFacility
       });
       
     } catch (error) {
@@ -363,9 +389,26 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
   const selectedFacilityName = () => {
     if (!selectedFacilityId) return 'Select a campsite...';
     
+    console.log('Looking for facility with ID:', selectedFacilityId);
+    
     const allFacilities = [...facilities, ...customFacilities];
-    const facility = allFacilities.find(f => (f.facility_id === selectedFacilityId || f.id === selectedFacilityId));
-    return facility ? facility.name + (facility.is_custom ? ' (Custom)' : '') : 'Select a campsite...';
+    console.log('Available facilities:', allFacilities.map(f => ({ id: f.id, facility_id: f.facility_id, name: f.name })));
+    
+    // First try to find by exact id match
+    let facility = allFacilities.find(f => f.id === selectedFacilityId);
+    
+    // If not found, try facility_id match
+    if (!facility) {
+      facility = allFacilities.find(f => f.facility_id === selectedFacilityId);
+    }
+    
+    if (facility) {
+      console.log('Found selected facility:', facility);
+      return facility.name + (facility.is_custom ? ' (Custom)' : '');
+    } else {
+      console.log('Could not find facility with ID:', selectedFacilityId);
+      return 'Select a campsite...';
+    }
   };
   
   // Handle search input keydown events
@@ -459,7 +502,9 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
                   {facilities.map(facility => (
                     <div
                       key={facility.facility_id || facility.id}
-                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${selectedFacilityId === (facility.facility_id || facility.id) ? 'bg-emerald-50 text-emerald-700' : ''}`}
+                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${
+                        selectedFacilityId === facility.id || selectedFacilityId === facility.facility_id ? 'bg-emerald-50 text-emerald-700' : ''
+                      }`}
                       onClick={() => handleFacilitySelect(facility.facility_id || facility.id || '')}
                     >
                       {facility.name}
@@ -485,7 +530,9 @@ const CampsiteSelector: React.FC<CampsiteSelectorProps> = ({
                   {filteredCustomFacilities.map(facility => (
                     <div
                       key={facility.facility_id || facility.id}
-                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${selectedFacilityId === (facility.facility_id || facility.id) ? 'bg-emerald-50 text-emerald-700' : ''}`}
+                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${
+                        selectedFacilityId === facility.id || selectedFacilityId === facility.facility_id ? 'bg-emerald-50 text-emerald-700' : ''
+                      }`}
                       onClick={() => handleFacilitySelect(facility.facility_id || facility.id || '')}
                     >
                       {facility.name} (Custom)

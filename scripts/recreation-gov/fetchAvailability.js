@@ -90,7 +90,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 // Configuration
-const BATCH_SIZE = 10;  // Process 10 facilities at a time
+const BATCH_SIZE = 50;  // Process 50 facilities at a time (increased from 10)
 const INTERVAL_MS = 60000;  // 1 minute interval between batches
 const REQUEST_DELAY_MS = 3000;  // 3 seconds between individual requests
 let totalFacilities = 0;
@@ -117,18 +117,22 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Get formatted dates for the next two months
+// Get formatted dates for the next three months
 function getDateRanges() {
   const today = new Date();
   
-  // August 2025
-  const augustDate = new Date(2025, 7, 1); // Month is 0-indexed, so 7 is August
+  // Current month and next two months
+  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const thirdMonth = new Date(today.getFullYear(), today.getMonth() + 2, 1);
   
-  console.log(`Getting availability for August 2025: ${formatDateWithTime(augustDate)}`);
+  console.log(`Getting availability for the next 3 months starting from ${currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}`);
   
   // Format dates as required by the API: YYYY-MM-DDT00:00:00.000Z
   return [
-    formatDateWithTime(augustDate)
+    formatDateWithTime(currentMonth),
+    formatDateWithTime(nextMonth),
+    formatDateWithTime(thirdMonth)
   ];
 }
 
@@ -395,7 +399,7 @@ async function processBatch(offset) {
   try {
     console.log(`\nFetching batch of ${BATCH_SIZE} facilities at offset ${offset}...`);
     
-    // Get facilities from Supabase
+    // Get facilities from Supabase - no limit on the query
     const { data: facilities, error, count } = await supabase
       .from('facilities')
       .select('*', { count: offset === 0 }) // Only count on first request
@@ -416,17 +420,21 @@ async function processBatch(offset) {
       totalFacilities = count;
       console.log(`Total facilities to process: ${totalFacilities}`);
       
-      // Check if we already have data for the current month
+      // Check if we already have data for the current months
+      const today = new Date();
       if (!FORCE_UPDATE) {
-        const currentMonth = formatDateWithTime(new Date(2025, 7, 1)).split('T')[0]; // August 2025
+        const currentMonthStr = formatDateWithTime(new Date(today.getFullYear(), today.getMonth(), 1)).split('T')[0];
+        const nextMonthStr = formatDateWithTime(new Date(today.getFullYear(), today.getMonth() + 1, 1)).split('T')[0];
+        const thirdMonthStr = formatDateWithTime(new Date(today.getFullYear(), today.getMonth() + 2, 1)).split('T')[0];
+        
         const { data: existingData, error: existingError } = await supabase
           .from('availability_results')
-          .select('id')
-          .eq('month_date', currentMonth)
+          .select('month_date')
+          .in('month_date', [currentMonthStr, nextMonthStr, thirdMonthStr])
           .limit(1);
           
         if (!existingError && existingData && existingData.length > 0) {
-          console.log(`\nWARNING: Data for ${currentMonth} already exists in the database.`);
+          console.log(`\nWARNING: Data for the next 3 months already exists in the database.`);
           console.log('Run with --force or -f flag to update existing data.');
           console.log('Example: node fetchAvailability.js --force');
           return { done: true, aborted: true };

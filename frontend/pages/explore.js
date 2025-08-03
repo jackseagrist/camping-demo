@@ -1,5 +1,5 @@
 // pages/explore.js
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
@@ -7,12 +7,15 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Inter } from 'next/font/google';
 import posthog from '../posthog';
+import { useRouter } from 'next/router';
+import { format, addDays, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 
 const inter = Inter({ subsets: ['latin'] });
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export default function Explore() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [facilities, setFacilities] = useState([]);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -27,6 +30,33 @@ export default function Explore() {
   const [selectedFacility, setSelectedFacility] = useState(null); // Track selected facility
   const [showDetailPanel, setShowDetailPanel] = useState(false); // Control the detail panel visibility
   const supabase = createClientComponentClient();
+  const [initialCenter, setInitialCenter] = useState([-122.4194, 37.7749]); // SF fallback
+  const [tripFacility, setTripFacility] = useState(null);
+  const [initialZoom, setInitialZoom] = useState(9);
+  // Add state to track active popup
+  const [activePopup, setActivePopup] = useState(null);
+  
+  // Calendar availability states
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [calendarDays, setCalendarDays] = useState([]);
+  const [facilityAvailability, setFacilityAvailability] = useState({});
+  const [isCalendarLoading, setIsCalendarLoading] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [campsiteAvailability, setCampsiteAvailability] = useState({});
+
+  // Initialize calendar days for the selected month
+  useEffect(() => {
+    const start = startOfMonth(selectedMonth);
+    const end = endOfMonth(selectedMonth);
+    const days = eachDayOfInterval({ start, end });
+    setCalendarDays(days);
+    
+    // Reload availability data when month changes if we have a facility
+    if (tripFacility?.id) {
+      console.log('🔄 Month changed, reloading availability data');
+      loadFacilityAvailability(tripFacility.id);
+    }
+  }, [selectedMonth, tripFacility, loadFacilityAvailability]); // Include all dependencies
 
   // Map state
   const mapContainer = useRef(null);
@@ -35,6 +65,202 @@ export default function Explore() {
   
   // Reference to the selected facility list item
   const selectedFacilityRef = useRef(null);
+
+  // Handle back button click
+  const handleBackClick = () => {
+    router.back();
+  };
+
+  // Fetch trip's selected facility
+  useEffect(() => {
+    if (!router.isReady) return; // 🛑 wait until router.query is populated
+    
+    const fetchTripFacility = async () => {
+      const tripId = router.query.trip_id;
+      console.log('Trip ID from router:', tripId, typeof tripId);
+      if (!tripId) return;
+
+      try {
+        const { data: trip, error } = await supabase
+          .from('trips')
+          .select('facility_id')
+          .eq('id', tripId)
+          .single();
+
+        if (error) {
+          console.error('❌ Error fetching trip:', error);
+          console.log('Trip ID used:', tripId);
+          return;
+        }
+        
+        console.log('🚩 Found trip:', trip);
+        
+        // Get the facility_id from the trip
+        const facilityId = trip?.facility_id;
+        
+        if (!facilityId) {
+          console.log('No facility_id found for trip');
+          return;
+        }
+
+        console.log('🔍 Trying to fetch facility with id:', facilityId, typeof facilityId);
+        
+        // Match the facility_id from trips with the id field in facilities table
+        const { data: facility, error: facilityError } = await supabase
+          .from('facilities')
+          .select('*')
+          .eq('id', facilityId)
+          .single();
+
+        if (facilityError) {
+          console.error("❌ Error fetching facility:", facilityError);
+          console.log('Facility ID used:', facilityId);
+          return;
+        } else if (!facility) {
+          console.warn("⚠️ No facility found with this ID");
+          return;
+        } else {
+          console.log("✅ Trip facility loaded:", facility);
+        }
+
+        if (facility?.lat && facility?.lon) {
+          console.log('Setting facility with coordinates:', facility.lat, facility.lon);
+          setTripFacility(facility);
+          setSelectedFacility(facility);
+          setInitialCenter([facility.lon, facility.lat]);
+          setShowCalendar(true); // Show calendar when we have a facility
+          
+          // Now fetch nearby facilities
+          fetchNearbyFacilities(facility);
+          
+          // Initial availability data will be loaded by the useEffect that watches tripFacility
+          console.log('🔍 Initial facility set, availability will load via useEffect');
+        } else {
+          console.log('Facility has no valid coordinates');
+        }
+      } catch (e) {
+        console.error('❌ Unexpected error in fetchTripFacility:', e);
+      }
+    };
+
+    fetchTripFacility();
+  }, [router.isReady, router.query.trip_id, supabase]);
+  
+  // Fetch nearby facilities based on the selected facility
+  const fetchNearbyFacilities = async (facility) => {
+    console.log('=== FETCHING NEARBY FACILITIES ===');
+    setIsLoading(true);
+    
+    try {
+      if (facility && facility.lat && facility.lon) {
+        console.log(`🌍 Fetching facilities near ${facility.name} at coordinates: [${facility.lon}, ${facility.lat}]`);
+        const radiusDegrees = 1.5; // Approximately 100 miles at mid-latitudes
+        
+        const { data: nearbyFacilities, error } = await supabase
+          .from('facilities')
+          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+          .gte('lat', facility.lat - radiusDegrees)
+          .lte('lat', facility.lat + radiusDegrees)
+          .gte('lon', facility.lon - radiusDegrees)
+          .lte('lon', facility.lon + radiusDegrees)
+          .not('lat', 'is', null)
+          .not('lon', 'is', null)
+          .limit(100);
+          
+        if (error) {
+          console.error('❌ Error fetching nearby facilities:', error);
+        } else if (nearbyFacilities?.length > 0) {
+          console.log(`✅ Fetched ${nearbyFacilities.length} nearby facilities around ${facility.name}`);
+          processData(nearbyFacilities);
+        } else {
+          console.warn('⚠️ No nearby facilities found, falling back to default data');
+          // If no nearby facilities found, fetch from a wider area
+          const { data: wideFacilities, error: wideError } = await supabase
+            .from('facilities')
+            .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+            .not('lat', 'is', null)
+            .not('lon', 'is', null)
+            .limit(100);
+            
+          if (wideError) {
+            console.error('❌ Error fetching wider area facilities:', wideError);
+          } else if (wideFacilities?.length > 0) {
+            console.log(`✅ Fetched ${wideFacilities.length} facilities from wider area`);
+            processData(wideFacilities);
+          }
+        }
+      } else {
+        console.error('❌ Cannot fetch nearby facilities - facility has invalid coordinates');
+      }
+    } catch (error) {
+      console.error('❌ Unexpected error in fetchNearbyFacilities:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch facilities - optimized for performance and focused on nearby facilities
+  useEffect(() => {
+    if (!router.isReady) return; // 🛑 wait until router.query is populated
+    
+    // Only fetch default data if we don't have a trip facility
+    if (tripFacility) return;
+    
+    const fetchData = async () => {
+      console.log('=== STARTING FACILITY FETCH ===');
+      setIsLoading(true);
+      
+      try {
+        // No trip facility, fetch facilities around San Francisco
+        console.log('No trip facility found, fetching facilities around San Francisco');
+        const sfLat = 37.7749;
+        const sfLon = -122.4194;
+        const radiusDegrees = 1.5;
+        
+        const { data: sfAreaFacilities, error } = await supabase
+          .from('facilities')
+          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+          .gte('lat', sfLat - radiusDegrees)
+          .lte('lat', sfLat + radiusDegrees)
+          .gte('lon', sfLon - radiusDegrees)
+          .lte('lon', sfLon + radiusDegrees)
+          .not('lat', 'is', null)
+          .not('lon', 'is', null)
+          .limit(100);
+          
+        if (error) {
+          console.error('Error fetching SF area facilities:', error);
+        } else if (sfAreaFacilities?.length > 0) {
+          console.log(`✅ Fetched ${sfAreaFacilities.length} facilities around San Francisco`);
+          processData(sfAreaFacilities);
+        } else {
+          // Fallback to initial batch if no facilities found in SF area
+          console.log('No facilities found in SF area, fetching initial batch');
+          const initialBatchSize = 100;
+          
+          const { data: initialFacilities, error: initialError } = await supabase
+            .from('facilities')
+            .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+            .not('lat', 'is', null)
+            .not('lon', 'is', null)
+            .limit(initialBatchSize);
+            
+          if (initialError) {
+            console.error('Error fetching initial facilities:', initialError);
+          } else if (initialFacilities?.length > 0) {
+            console.log(`✅ Fetched initial ${initialFacilities.length} facilities`);
+            processData(initialFacilities);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Unexpected error in fetchData:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [tripFacility, router.isReady, supabase]);
 
   // Scroll selected facility into view when changed
   useEffect(() => {
@@ -162,95 +388,6 @@ export default function Explore() {
     // Update state to trigger map update
     setFacilities(validFacilities);
   };
-
-  // Fetch facilities - optimized for performance
-  useEffect(() => {
-    const fetchData = async () => {
-      console.log('=== STARTING FACILITY FETCH ===');
-      setIsLoading(true);
-      
-      try {
-        // Get initial batch of facilities quickly to show something on screen fast
-        // Fetch first batch with essential fields only
-        console.log('Fetching initial batch of facilities...');
-        const initialBatchSize = 200;
-        
-        const { data: initialFacilities, error: initialError } = await supabase
-            .from('facilities')
-          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
-            .not('lat', 'is', null)
-            .not('lon', 'is', null)
-          .limit(initialBatchSize);
-          
-        if (initialError) {
-          console.error('Error fetching initial facilities:', initialError);
-        } else if (initialFacilities?.length > 0) {
-          console.log(`✅ Fetched initial ${initialFacilities.length} facilities`);
-          // Process this initial data to show something on screen quickly
-          processData(initialFacilities);
-          // This will exit the loading state and show the map with initial data
-            setIsLoading(false);
-        }
-        
-        // Now fetch the rest of the data in the background - this won't block the UI
-        console.log('Fetching remaining facilities in background...');
-        let allFacilities = [...(initialFacilities || [])];
-        let page = 1; // Start from page 1 since we already have page 0
-        const pageSize = 1000;
-        let hasMore = true;
-        
-        // Use a timeout to give the UI a moment to render before continuing
-        setTimeout(async () => {
-          while (hasMore) {
-            const startIndex = page * pageSize;
-            console.log(`Fetching batch ${page} (starting from ${startIndex})...`);
-            
-            const { data: pagedData, error: pagedError } = await supabase
-              .from('facilities')
-              .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
-              .not('lat', 'is', null)
-              .not('lon', 'is', null)
-              .range(startIndex, startIndex + pageSize - 1);
-              
-            if (pagedError) {
-              console.error(`Error fetching page ${page}:`, pagedError);
-              break;
-            }
-            
-            if (pagedData && pagedData.length > 0) {
-              console.log(`✅ Fetched additional ${pagedData.length} facilities`);
-              allFacilities = [...allFacilities, ...pagedData];
-              // Update facilities incrementally so UI stays responsive
-              processData(allFacilities);
-              page++;
-              
-              // If we got fewer than pageSize, we're at the end
-              if (pagedData.length < pageSize) {
-                console.log('Reached end of data');
-                hasMore = false;
-              }
-              
-              // Add a small delay between batches to keep UI responsive
-              if (hasMore) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-              }
-        } else {
-              console.log('No more facilities to fetch');
-              hasMore = false;
-        }
-          }
-          
-          console.log(`✅ FETCH COMPLETE: Loaded ${allFacilities.length} total facilities`);
-        }, 500);
-        
-      } catch (error) {
-        console.error('❌ Unexpected error in fetchData:', error);
-        setIsLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [supabase]);
 
   // Create a custom marker element
   const createCustomMarker = (facility, assessmentValue) => {
@@ -833,12 +970,12 @@ export default function Explore() {
 
     console.log('🔍 Initializing map...');
     try {
-      // Initialize map
+      // Initialize map with dynamic center
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/outdoors-v12',
-        center: [-120.5542, 37.2345],
-        zoom: 6
+        center: initialCenter,
+        zoom: initialZoom
       });
 
       console.log('✅ Map object created successfully');
@@ -883,7 +1020,7 @@ export default function Explore() {
         setMapLoaded(false);
       }
     };
-  }, [isLoading, facilities.length]);
+  }, [isLoading, facilities.length, initialCenter, initialZoom, displayMode]);
 
   // Update markers when filtered facilities or display mode changes
   useEffect(() => {
@@ -1072,9 +1209,6 @@ export default function Explore() {
     // setSelectedFacility(null);
   };
 
-  // Add state to track active popup
-  const [activePopup, setActivePopup] = useState(null);
-
   // Function to close any active popup
   const closeActivePopup = () => {
     if (activePopup) {
@@ -1089,6 +1223,356 @@ export default function Explore() {
       closeActivePopup();
     };
   }, []);
+
+  // Load availability data for a facility
+  const loadFacilityAvailability = useCallback(async (facilityId) => {
+    if (!facilityId) return;
+
+    setIsCalendarLoading(true);
+    console.log('🔍 Loading availability for facility ID:', facilityId);
+
+    try {
+      const monthDate = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
+      console.log('🔍 Querying availability for month:', monthDate);
+
+      const { data: availabilityData, error } = await supabase
+        .from('availability_results')
+        .select('*')
+        .eq('facility_id', facilityId)
+        .eq('month_date', monthDate);
+
+      if (error) {
+        console.error('❌ Error fetching availability:', error);
+        setFacilityAvailability({});
+        setCampsiteAvailability({});
+        return;
+      }
+
+      console.log(`✅ Found ${availabilityData.length} availability records`);
+
+      const availabilityByDate = {};
+      const availabilityByCampsite = {};
+
+      for (const record of availabilityData) {
+        const { campsite_id, availabilities } = record;
+        if (!campsite_id || !availabilities) continue;
+
+        availabilityByCampsite[campsite_id] = {};
+
+        Object.entries(availabilities).forEach(([dateStr, status]) => {
+          const isAvailable = status === 'Available';
+          availabilityByCampsite[campsite_id][dateStr] = isAvailable;
+
+          if (!availabilityByDate[dateStr]) {
+            availabilityByDate[dateStr] = { available: 0, total: 0 };
+          }
+
+          availabilityByDate[dateStr].total++;
+          if (isAvailable) {
+            availabilityByDate[dateStr].available++;
+          }
+        });
+      }
+
+      setFacilityAvailability(availabilityByDate);
+      setCampsiteAvailability(availabilityByCampsite);
+    } catch (err) {
+      console.error('❌ Error processing availability:', err);
+    } finally {
+      setIsCalendarLoading(false);
+    }
+  }, [selectedMonth, supabase]);
+  
+  // Change the month
+  const changeMonth = (increment) => {
+    const currentMonth = format(selectedMonth, 'yyyy-MM');
+    const newMonth = new Date(selectedMonth);
+    newMonth.setMonth(newMonth.getMonth() + increment);
+    const newMonthStr = format(newMonth, 'yyyy-MM');
+    
+    console.log(`🔄 Changing month from ${currentMonth} to ${newMonthStr}`);
+    setSelectedMonth(newMonth);
+    
+    // Explicitly load availability data for the new month
+    if (tripFacility?.id) {
+      console.log(`🔄 Explicitly loading availability for ${newMonthStr} after month change`);
+      // Small timeout to ensure state updates first
+      setTimeout(() => {
+        loadFacilityAvailability(tripFacility.id);
+      }, 10);
+    }
+  };
+  
+  // Calculate availability percentage for a specific date
+  const getAvailabilityForDate = (date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const dateData = facilityAvailability[dateStr];
+    
+    if (!dateData || dateData.total === 0) return null;
+    
+    return (dateData.available / dateData.total) * 100;
+  };
+
+  // Debug function to check database schema
+  const checkDatabaseSchema = async () => {
+    console.log('🔍 Checking database schema...');
+    
+    try {
+      // Check facilities table structure
+      const { data: facilitiesInfo, error: facilitiesError } = await supabase
+        .from('facilities')
+        .select('*')
+        .limit(1);
+        
+      if (facilitiesError) {
+        console.error('❌ Error fetching facilities:', facilitiesError);
+      } else {
+        console.log('✅ Facilities table sample:', facilitiesInfo);
+        if (facilitiesInfo && facilitiesInfo.length > 0) {
+          console.log('✅ Facilities table columns:', Object.keys(facilitiesInfo[0]));
+        }
+      }
+      
+      // Check availability_results table structure
+      const { data: availabilityInfo, error: availabilityError } = await supabase
+        .from('availability_results')
+        .select('*')
+        .limit(1);
+        
+      if (availabilityError) {
+        console.error('❌ Error fetching availability_results:', availabilityError);
+      } else {
+        console.log('✅ Availability_results table sample:', availabilityInfo);
+        if (availabilityInfo && availabilityInfo.length > 0) {
+          console.log('✅ Availability_results table columns:', Object.keys(availabilityInfo[0]));
+          console.log('✅ Availability structure example:', availabilityInfo[0].availabilities);
+        }
+      }
+      
+      // Try to find recent availability_results
+      const { data: recentAvailability, error: recentError } = await supabase
+        .from('availability_results')
+        .select('id, facility_id, campsite_id, month_date')
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      if (recentError) {
+        console.error('❌ Error fetching recent availability:', recentError);
+      } else if (recentAvailability && recentAvailability.length > 0) {
+        console.log('✅ Recent availability records:', recentAvailability);
+        
+        // Check for a facility with availability
+        const facilityIds = [...new Set(recentAvailability.map(record => record.facility_id))];
+        console.log('✅ Facility IDs with availability:', facilityIds);
+        
+        if (facilityIds.length > 0) {
+          // Get facility details for the first facility with availability
+          const { data: facilityDetails, error: facilityError } = await supabase
+            .from('facilities')
+            .select('*')
+            .eq('id', facilityIds[0])
+            .single();
+            
+          if (facilityError) {
+            console.error(`❌ Error fetching facility details for ${facilityIds[0]}:`, facilityError);
+          } else {
+            console.log(`✅ Facility details for ID ${facilityIds[0]}:`, facilityDetails);
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error checking database schema:', error);
+    }
+  };
+
+  // Add the debug button to the calendar component
+  const addDebugButton = (
+    <button
+      onClick={checkDatabaseSchema}
+      className="ml-2 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded"
+    >
+      Check Schema
+    </button>
+  );
+
+  // Debug function to check campsites for a specific facility
+  const checkFacilityCampsites = async () => {
+    if (!tripFacility) {
+      console.log('❌ No facility selected');
+      return;
+    }
+    
+    console.log('🔍 Checking campsites for selected facility:', tripFacility);
+    
+    try {
+      // Try with facility.id (primary key)
+      if (tripFacility.id) {
+        console.log(`🔍 Querying campsites with facility.id: ${tripFacility.id}`);
+        const { data: campsitesById, error: errorById } = await supabase
+          .from('campsites')
+          .select('*')
+          .eq('facility_id', tripFacility.id)
+          .limit(20);
+          
+        if (errorById) {
+          console.error('❌ Error fetching campsites by id:', errorById);
+        } else {
+          console.log(`✅ Found ${campsitesById?.length || 0} campsites by id:`, campsitesById);
+        }
+      }
+      
+      // Try with facility.facility_id
+      if (tripFacility.facility_id) {
+        console.log(`🔍 Querying campsites with facility.facility_id: ${tripFacility.facility_id}`);
+        const { data: campsitesByFacilityId, error: errorByFacilityId } = await supabase
+          .from('campsites')
+          .select('*')
+          .eq('facility_id', tripFacility.facility_id)
+          .limit(20);
+          
+        if (errorByFacilityId) {
+          console.error('❌ Error fetching campsites by facility_id:', errorByFacilityId);
+        } else {
+          console.log(`✅ Found ${campsitesByFacilityId?.length || 0} campsites by facility_id:`, campsitesByFacilityId);
+        }
+      }
+      
+      // Try with string version of IDs (in case of type mismatch)
+      if (tripFacility.id) {
+        console.log(`🔍 Querying campsites with string facility.id: "${tripFacility.id}"`);
+        const { data: campsitesByIdStr, error: errorByIdStr } = await supabase
+          .from('campsites')
+          .select('*')
+          .eq('facility_id', String(tripFacility.id))
+          .limit(20);
+          
+        if (errorByIdStr) {
+          console.error('❌ Error fetching campsites by string id:', errorByIdStr);
+        } else {
+          console.log(`✅ Found ${campsitesByIdStr?.length || 0} campsites by string id:`, campsitesByIdStr);
+        }
+      }
+      
+      // Check if the campsites table has any entries at all
+      console.log('🔍 Checking if campsites table has any entries');
+      const { data: anyCampsites, error: anyError, count } = await supabase
+        .from('campsites')
+        .select('*', { count: 'exact' })
+        .limit(5);
+        
+      if (anyError) {
+        console.error('❌ Error checking campsites table:', anyError);
+      } else {
+        console.log(`✅ Campsites table has ${count} entries, sample:`, anyCampsites);
+      }
+      
+      // Check availability_results for this facility
+      if (tripFacility.id) {
+        console.log(`🔍 Checking availability_results for facility.id: ${tripFacility.id}`);
+        const { data: availResults, error: availError } = await supabase
+          .from('availability_results')
+          .select('*')
+          .eq('facility_id', tripFacility.id)
+          .limit(5);
+          
+        if (availError) {
+          console.error('❌ Error fetching availability results:', availError);
+        } else {
+          console.log(`✅ Found ${availResults?.length || 0} availability results:`, availResults);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in checkFacilityCampsites:', error);
+    }
+  };
+  
+  // Add another debug button
+  const addCheckCampsitesButton = (
+    <button
+      onClick={checkFacilityCampsites}
+      className="ml-2 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded"
+    >
+      Check Campsites
+    </button>
+  );
+
+  // Debug function to check availability data for a specific facility
+  const checkFacilityAvailability = async () => {
+    if (!tripFacility) {
+      console.log('❌ No facility selected');
+      return;
+    }
+    
+    console.log('🔍 Checking availability for selected facility:', tripFacility);
+    
+    try {
+      // Get the current month date
+      const monthDate = format(startOfMonth(selectedMonth), 'yyyy-MM-dd');
+      
+      // Try with facility.id (primary key)
+      if (tripFacility.id) {
+        console.log(`🔍 Querying availability_results with facility.id: ${tripFacility.id} for month: ${monthDate}`);
+        const { data: availabilityById, error: errorById } = await supabase
+          .from('availability_results')
+          .select('*')
+          .eq('facility_id', tripFacility.id)
+          .eq('month_date', monthDate)
+          .limit(20);
+          
+        if (errorById) {
+          console.error('❌ Error fetching availability by id:', errorById);
+        } else {
+          console.log(`✅ Found ${availabilityById?.length || 0} availability records by id:`, availabilityById);
+          
+          // Check the structure of the first record
+          if (availabilityById && availabilityById.length > 0) {
+            console.log('🔍 First availability record structure:', availabilityById[0]);
+            console.log('🔍 Availability keys:', Object.keys(availabilityById[0].availabilities || {}));
+            
+            // Check a sample of campsite_ids
+            const campsiteIds = availabilityById.map(record => record.campsite_id);
+            console.log('🔍 Campsite IDs in availability records:', campsiteIds);
+          }
+        }
+      }
+      
+      // Check if the availability_results table has any entries at all
+      console.log('🔍 Checking if availability_results table has any entries');
+      const { data: anyAvailability, error: anyError, count } = await supabase
+        .from('availability_results')
+        .select('*', { count: 'exact' })
+        .limit(5);
+        
+      if (anyError) {
+        console.error('❌ Error checking availability_results table:', anyError);
+      } else {
+        console.log(`✅ Availability_results table has ${count} entries, sample:`, anyAvailability);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error in checkFacilityAvailability:', error);
+    }
+  };
+  
+  // Add another debug button
+  const addCheckAvailabilityButton = (
+    <button
+      onClick={checkFacilityAvailability}
+      className="ml-2 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded"
+    >
+      Check Availability
+    </button>
+  );
+
+  // Load availability data when tripFacility changes
+  useEffect(() => {
+    if (tripFacility?.id) {
+      console.log('🔄 Trip facility changed, loading availability data');
+      loadFacilityAvailability(tripFacility.id);
+    }
+  }, [tripFacility, loadFacilityAvailability]);
 
   if (isLoading) {
     return (
@@ -1139,14 +1623,205 @@ export default function Explore() {
       <div className="flex flex-col h-screen">
         {/* Page Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center mb-2">
+            <button 
+              onClick={handleBackClick}
+              className="mr-2 p-1 rounded-full hover:bg-gray-100"
+              aria-label="Go back"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+            <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
+          </div>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
-              <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you&apos;ve found one you like, go back to the trip to update your selection.</p>
+              <p className={`text-sm text-gray-600 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you&apos;ve found one you like, go back to the trip to update your selection.</p>
               <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>{filteredFacilities.length} campgrounds found</p>
             </div>
           </div>
         </div>
+
+        {/* Calendar Availability Section - Only show if we have a selected facility */}
+        {showCalendar && tripFacility && (
+          <div className="bg-white border-b border-gray-200 px-6 py-3" key={`calendar-${format(selectedMonth, 'yyyy-MM')}`}>
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  {tripFacility.name} Availability
+                </h2>
+                <button
+                  onClick={() => {
+                    console.log('🔍 Debug - Selected Facility:', tripFacility);
+                    console.log('🔍 Debug - Facility ID:', tripFacility.facility_id);
+                    console.log('🔍 Debug - Facility ID (id field):', tripFacility.id);
+                    console.log('🔍 Debug - Campsite Availability:', campsiteAvailability);
+                    console.log('🔍 Debug - Campsite IDs:', Object.keys(campsiteAvailability));
+                    
+                    // Try to reload availability data with facility ID
+                    if (tripFacility.id) {
+                      console.log('🔄 Loading availability data with id:', tripFacility.id);
+                      loadFacilityAvailability(tripFacility.id);
+                    }
+                  }}
+                  className="ml-2 text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded"
+                >
+                  Debug
+                </button>
+                {addDebugButton}
+                {addCheckCampsitesButton}
+                {addCheckAvailabilityButton}
+              </div>
+              <div className="flex items-center">
+                <button
+                  onClick={() => changeMonth(-1)}
+                  className="p-1 rounded-full hover:bg-gray-200 mr-2"
+                  disabled={isCalendarLoading}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <span className="text-md font-medium">
+                  {format(selectedMonth, 'MMMM yyyy')}
+                </span>
+                <button
+                  onClick={() => changeMonth(1)}
+                  className="p-1 rounded-full hover:bg-gray-200 ml-2"
+                  disabled={isCalendarLoading}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            {isCalendarLoading ? (
+              <div className="flex justify-center items-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+                <span className="ml-2 text-gray-600">Loading availability...</span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto pb-2">
+                {/* Summary row showing overall availability */}
+                <div className="mb-3 border-b pb-2">
+                  <div className="font-medium text-sm mb-1">Overall Availability:</div>
+                  <div className="flex space-x-1 min-w-max">
+                    {calendarDays.map(day => {
+                      const availability = getAvailabilityForDate(day);
+                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                      
+                      return (
+                        <div 
+                          key={`overall-${day.toString()}`} 
+                          className={`flex flex-col items-center p-1 rounded ${isWeekend ? 'bg-gray-50' : ''}`}
+                          style={{ minWidth: '40px' }}
+                        >
+                          <div className="text-xs text-gray-500">{format(day, 'EEE')}</div>
+                          <div className="text-xs font-bold">{format(day, 'd')}</div>
+                          <div className="mt-1">
+                            {availability === null ? (
+                              <div className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center">
+                                <span className="text-gray-400 text-xs">-</span>
+                              </div>
+                            ) : (
+                              <div 
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                  availability > 50 ? 'bg-green-500 text-white' :
+                                  availability > 20 ? 'bg-yellow-500 text-white' :
+                                  availability > 0 ? 'bg-orange-500 text-white' : 'bg-red-500 text-white'
+                                }`}
+                                style={{ opacity: Math.max(0.7, Math.min(0.9, availability / 100)) }}
+                              >
+                                {availability > 0 ? `${Math.round(availability)}%` : '0'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                
+                {/* Individual campsite rows */}
+                {campsiteAvailability && Object.keys(campsiteAvailability).length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="font-medium text-sm mb-1">Individual Campsites:</div>
+                    {Object.entries(campsiteAvailability).slice(0, 10).map(([campsiteId, dates]) => (
+                      <div key={campsiteId} className="border-b pb-2">
+                        <div className="flex items-center mb-1">
+                          <span className="text-xs font-medium">Site {campsiteId}</span>
+                        </div>
+                        <div className="flex space-x-1 min-w-max">
+                          {calendarDays.map(day => {
+                            const dateStr = format(day, 'yyyy-MM-dd');
+                            const isAvailable = dates[dateStr];
+                            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+
+                            return (
+                              <div 
+                                key={`${campsiteId}-${dateStr}`} 
+                                className={`flex flex-col items-center p-1 rounded ${isWeekend ? 'bg-gray-50' : ''}`}
+                                style={{ minWidth: '40px' }}
+                              >
+                                <div 
+                                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                                    isAvailable === undefined ? 'border border-gray-300' :
+                                    isAvailable ? 'bg-green-500' : 'bg-red-500'
+                                  }`}
+                                >
+                                  {isAvailable === undefined ? (
+                                    <span className="text-gray-400 text-xs">-</span>
+                                  ) : isAvailable ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {Object.keys(campsiteAvailability).length > 10 && (
+                      <div className="text-xs text-gray-500 mt-2">
+                        Showing 10 of {Object.keys(campsiteAvailability).length} campsites. Visit the campground page to see all.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 py-2">
+                    No availability data found.
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Legend */}
+            <div className="flex items-center space-x-3 mt-2 text-xs text-gray-600">
+              <span>Availability:</span>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                <span>Available</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
+                <span>Not Available</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full border border-gray-300 mr-1"></div>
+                <span>No data</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filter Bar */}
         <div className="bg-white border-b border-gray-200 px-6 py-3">

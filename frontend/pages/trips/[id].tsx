@@ -445,6 +445,17 @@ export default function TripDetail() {
 
   // Handle facility selection via CampsiteSelector
   const handleTripUpdate = (updatedTrip: Trip) => {
+    console.log('Trip update received:', {
+      id: updatedTrip.id,
+      title: updatedTrip.title,
+      facility_id: updatedTrip.facility_id,
+      facility: updatedTrip.facility ? {
+        id: updatedTrip.facility.id,
+        facility_id: updatedTrip.facility.facility_id,
+        name: updatedTrip.facility.name
+      } : null
+    });
+    
     setTrip(updatedTrip);
   };
 
@@ -684,9 +695,9 @@ export default function TripDetail() {
                 </div>
                 
                 {/* Explore button */}
-                <div className="mb-3">
+                <div className="mb-3 hidden">
                   <button
-                    onClick={() => router.push('/explore')}
+                    onClick={() => router.push(`/explore?trip_id=${trip.id}`)}
                     className="w-full max-w-md bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -745,17 +756,28 @@ export default function TripDetail() {
               <div className="mt-6 pt-4 border-t border-gray-100">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Reservations</h4>
                 {trip.facility?.facility_id ? (
-                  <a 
-                    href={`https://www.recreation.gov/camping/campgrounds/${trip.facility.facility_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${inter.className} inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Make Reservation
-                  </a>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <a 
+                      href={`https://www.recreation.gov/camping/campgrounds/${trip.facility.facility_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${inter.className} inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Make Reservation
+                    </a>
+                    <button
+                      onClick={() => router.push(`/compare-availability?facilityId=${trip.facility.facility_id}`)}
+                      className={`${inter.className} inline-flex items-center px-4 py-2 border border-emerald-600 text-sm font-medium rounded-md shadow-sm text-emerald-600 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600 hidden`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Compare Availability
+                    </button>
+                  </div>
                 ) : (
                   <div className="relative inline-block group">
                     <button 

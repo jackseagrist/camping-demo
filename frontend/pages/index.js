@@ -13,6 +13,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     AOS.init({
@@ -38,14 +39,19 @@ export default function Home() {
           <link rel="icon" href="/favicon.ico" />
         </Head>
   
-        {/* Floating Pill Navigation */}
-        <nav className="fixed w-full top-4 z-50 px-6">
-          <div className="flex items-center justify-between px-8 py-4 bg-gradient-to-r from-[#D1D5DB]/60 to-[#E6FFF4]/60 backdrop-blur-lg shadow-xl rounded-full border border-white/20">
+        {/* Mobile-Optimized Navigation */}
+        <nav className="fixed w-full top-4 z-50 px-4 sm:px-6">
+          <div className="flex items-center justify-between px-4 sm:px-8 py-4 bg-gradient-to-r from-[#D1D5DB]/60 to-[#E6FFF4]/60 backdrop-blur-lg shadow-xl rounded-full border border-white/20">
             <Link href="/" className="flex items-center space-x-2">
               <Image src="/new-logo.png" alt="BaseLodge logo" width={28} height={28} />
-              <span className="text-[#10B981] font-bold text-xl">BaseLodge</span>
+              <span className="text-[#10B981] font-bold text-lg sm:text-xl">BaseLodge</span>
             </Link>
-            <div className="flex items-center space-x-3">
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-3">
+              <Link href="/how-it-works" className="text-[#4B5563] hover:text-[#10B981] transition font-medium">
+                How it works
+              </Link>
               <Link href="/login">
                 <button className="bg-gray-100 text-black font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-gray-200 transition-all hover:shadow-lg border border-gray-200">
                   Login
@@ -57,7 +63,46 @@ export default function Home() {
                 </button>
               </Link>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button 
+              className="md:hidden p-2 rounded-full bg-white/20 hover:bg-white/30 transition-all"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              <svg className="w-6 h-6 text-[#10B981]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
+
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden mt-2 mx-4 bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 py-4">
+              <div className="flex flex-col space-y-3 px-6">
+                <Link 
+                  href="/how-it-works" 
+                  className="text-[#4B5563] hover:text-[#10B981] transition font-medium py-2 text-center"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  How it works
+                </Link>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <button className="w-full bg-gray-100 text-black font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-gray-200 transition-all border border-gray-200">
+                    Login
+                  </button>
+                </Link>
+                <Link href="/signup" onClick={() => setMobileMenuOpen(false)}>
+                  <button className="w-full bg-[#10B981] text-white font-semibold px-6 py-2.5 rounded-full shadow-md hover:bg-[#14B8A6] transition-all">
+                    Try for Free
+                  </button>
+                </Link>
+              </div>
+            </div>
+          )}
         </nav>
   
         {/* Hero Section */}
@@ -166,12 +211,12 @@ export default function Home() {
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex flex-col md:flex-row justify-between items-center mb-10">
               {/* Logo and company info */}
-              <div className="mb-8 md:mb-0">
-                <div className="flex items-center mb-4">
+              <div className="mb-8 md:mb-0 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start mb-4">
                   <Image src="/new-logo.png" alt="BaseLodge logo" width={32} height={32} />
                   <span className="text-[#10B981] font-bold text-lg">BaseLodge</span>
                 </div>
-                <p className="text-sm max-w-xs">Your AI-powered camping companion for perfect outdoor adventures.</p>
+                <p className="text-sm max-w-xs mx-auto md:mx-0">Your AI-powered camping companion for perfect outdoor adventures.</p>
               </div>
               
               {/* Links section */}
