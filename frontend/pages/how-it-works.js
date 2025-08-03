@@ -273,7 +273,7 @@ export default function HowItWorks() {
                 Instantly compare date availability across your top campgrounds. See it on a map, check the calendar, and book with confidence.
               </p>
               <p data-aos="fade-up" data-aos-delay="200" className="text-sm text-[#111827] font-semibold">
-                Built for campers tired of "sold out" surprises.
+                Built for campers tired of &quot;sold out&quot; surprises.
               </p>
             </div>
 
@@ -341,7 +341,7 @@ export default function HowItWorks() {
               Your next adventure starts here
             </h2>
             <p data-aos="fade-up" data-aos-delay="100" className="text-lg text-[#4B5563] mb-8 max-w-2xl mx-auto">
-              Join thousands of campers who've made trip planning fun again.
+              Join thousands of campers who&apos;ve made trip planning fun again.
             </p>
             <div data-aos="fade-up" data-aos-delay="200">
               <Link href="/signup">
