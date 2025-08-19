@@ -17,9 +17,9 @@ export default function HowItWorks() {
     AOS.init({
       duration: 800,
       once: true,
-      offset: 100,
-      delay: 100,
-      disable: 'mobile'
+      offset: 50, // Reduced from 100 to trigger animations sooner
+      delay: 0, // Removed initial delay
+      disable: false // Ensure animations work on all devices
     });
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
@@ -437,6 +437,35 @@ export default function HowItWorks() {
         .glow-button:hover {
           box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
           transform: translateY(-2px);
+        }
+
+        /* Safer default: show content before AOS animates */
+        [data-aos]:not(.aos-animate) {
+          opacity: 1 !important;
+        }
+
+        /* Ensure AOS elements are visible on mobile and have reduced animation thresholds */
+        @media (max-width: 768px) {
+          [data-aos] {
+            opacity: 1 !important;
+            transform: none !important;
+          }
+          
+          [data-aos].aos-animate {
+            opacity: 1 !important;
+            transform: none !important;
+          }
+        }
+
+        /* For larger screens, reduce the animation distance */
+        @media (min-width: 769px) {
+          [data-aos="fade-up"] {
+            transform: translateY(20px) !important;
+          }
+          
+          [data-aos="fade-up"].aos-animate {
+            transform: translateY(0) !important;
+          }
         }
       `}</style>
     </>

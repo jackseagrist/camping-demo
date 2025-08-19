@@ -57,6 +57,7 @@ export default function TripDetail() {
   const [collaborators, setCollaborators] = useState<{id: string; email: string; status: string}[]>([]);
   const [tripOwner, setTripOwner] = useState<{id: string; email: string} | null>(null);
   const [isCustomMarkerMode, setIsCustomMarkerMode] = useState(false);
+  const [activeEditField, setActiveEditField] = useState<'title' | 'description' | null>(null);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -214,10 +215,12 @@ export default function TripDetail() {
 
   const handleTitleFocus = () => {
     setIsEditing(true);
+    setActiveEditField('title');
   };
 
   const handleDescriptionFocus = () => {
     setIsEditing(true);
+    setActiveEditField('description');
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,60 +231,87 @@ export default function TripDetail() {
     setEditedDescription(e.target.value);
   };
 
-  const saveChanges = async () => {
+  // Save only fields that have changed
+  const saveTripFields = async (fields: Partial<{ title: string; description: string }>) => {
     if (!trip) return;
-    
+    if (Object.keys(fields).length === 0) return;
+
     setIsSaving(true);
-    
     try {
-      // Get values from state
-      console.log('Saving title:', editedTitle);
-      console.log('Saving description:', editedDescription);
-      
-      // Update both title and description in the database
       const { data, error } = await supabase
         .from('trips')
-        .update({ 
-          title: editedTitle,
-          description: editedDescription // Now using the database column
-        })
+        .update(fields)
         .eq('id', trip.id)
         .select();
 
       if (error) throw error;
-      
-      // Update local state with the returned data
+
       if (data && data.length > 0) {
-        const updatedTrip = data[0];
-        setTitle(updatedTrip.title);
-        setDescription(updatedTrip.description || '');
-        setTrip({ ...trip, title: updatedTrip.title, description: updatedTrip.description });
+        const updated = data[0];
+        if (typeof updated.title === 'string') {
+          setTitle(updated.title);
+        }
+        if (typeof updated.description === 'string' || updated.description === null) {
+          setDescription(updated.description || '');
+        }
+        setTrip({ ...trip, ...updated });
       } else {
-        // Fallback to using the local values if no data is returned
-        setTitle(editedTitle);
-        setDescription(editedDescription);
-        setTrip({ ...trip, title: editedTitle, description: editedDescription });
+        // Fallback to local values
+        if (fields.title !== undefined) setTitle(fields.title);
+        if (fields.description !== undefined) setDescription(fields.description || '');
+        setTrip({ ...trip, ...fields });
       }
-      
-      setIsEditing(false);
     } catch (error) {
-      console.error('Error updating trip:', error);
-      alert('Failed to save changes. Please try again.');
+      console.error('Error autosaving trip fields:', error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const cancelEdit = () => {
-    // Reset to original values
-    setEditedTitle(title);
-    setEditedDescription(description);
+  // Debounced autosave on edit
+  useEffect(() => {
+    if (!trip) return;
+
+    const fieldsToSave: Partial<{ title: string; description: string }> = {};
+    if (editedTitle !== title) fieldsToSave.title = editedTitle;
+    if (editedDescription !== description) fieldsToSave.description = editedDescription;
+
+    if (Object.keys(fieldsToSave).length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      saveTripFields(fieldsToSave);
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [editedTitle, editedDescription, title, description, trip?.id]);
+
+  // Save on blur only when leaving the title/description area
+  const handleFieldBlur = (e: React.FocusEvent<any>) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && (next === titleRef.current || next === descriptionRef.current)) {
+      return;
+    }
+    if (!trip) {
+      setIsEditing(false);
+      setActiveEditField(null);
+      return;
+    }
+    const fieldsToSave: Partial<{ title: string; description: string }> = {};
+    if (editedTitle !== title) fieldsToSave.title = editedTitle;
+    if (editedDescription !== description) fieldsToSave.description = editedDescription;
+    if (Object.keys(fieldsToSave).length > 0) {
+      saveTripFields(fieldsToSave);
+    }
     setIsEditing(false);
+    setActiveEditField(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      cancelEdit();
+      // Revert to last saved values and exit editing
+      setEditedTitle(title);
+      setEditedDescription(description);
+      setIsEditing(false);
     }
   };
 
@@ -539,12 +569,13 @@ export default function TripDetail() {
                     onChange={handleTitleChange}
                     onKeyDown={handleKeyDown}
                     onFocus={handleTitleFocus}
+                    onBlur={handleFieldBlur}
                     className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-[#10B981] w-full p-1 mb-2"
-                    autoFocus
+                    autoFocus={activeEditField === 'title'}
                   />
                 ) : (
                   <h1 
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => { setIsEditing(true); setActiveEditField('title'); }}
                     className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-transparent hover:border-gray-200 cursor-pointer transition-colors mb-2"
                   >
                     {title}
@@ -559,49 +590,24 @@ export default function TripDetail() {
                   onChange={handleDescriptionChange}
                   onKeyDown={handleKeyDown}
                   onFocus={handleDescriptionFocus}
+                  onBlur={handleFieldBlur}
                   className="text-gray-500 outline-none bg-gray-50 p-2 rounded w-full resize-none"
                   placeholder="Describe what your trip is all about..."
                   rows={2}
+                  autoFocus={activeEditField === 'description'}
                 />
               ) : (
                 <div
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => { setIsEditing(true); setActiveEditField('description'); }}
                   className="text-gray-500 p-1 rounded hover:bg-gray-50 cursor-pointer"
                 >
                   {description ? description : <span className="text-gray-400 italic">Describe what your trip is all about...</span>}
                 </div>
               )}
               
-              {/* Save/Cancel buttons that appear when editing */}
-              {isEditing && (
-                <div className="mt-3 flex gap-2">
-                  <button 
-                    onClick={saveChanges}
-                    disabled={isSaving}
-                    className="bg-[#10B981] text-white px-3 py-1 rounded-md text-sm hover:bg-[#0E9F6E] transition-colors flex items-center"
-                  >
-                    {isSaving ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      <>Save</>
-                    )}
-                  </button>
-                  <button 
-                    onClick={cancelEdit}
-                    className="border border-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <div className="text-xs text-gray-500 flex items-center ml-2">
-                    <span className="hidden sm:inline">Press Esc to cancel</span>
-                  </div>
-                </div>
+              {/* Lightweight saving indicator */}
+              {isSaving && (
+                <div className="mt-3 text-xs text-gray-500">Saving…</div>
               )}
             </div>
             
@@ -695,7 +701,7 @@ export default function TripDetail() {
                 </div>
                 
                 {/* Explore button */}
-                <div className="mb-3 hidden">
+                <div className="mb-3">
                   <button
                     onClick={() => router.push(`/explore?trip_id=${trip.id}`)}
                     className="w-full max-w-md bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
@@ -770,7 +776,7 @@ export default function TripDetail() {
                     </a>
                     <button
                       onClick={() => router.push(`/compare-availability?facilityId=${trip.facility.facility_id}`)}
-                      className={`${inter.className} inline-flex items-center px-4 py-2 border border-emerald-600 text-sm font-medium rounded-md shadow-sm text-emerald-600 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600 hidden`}
+                      className={`${inter.className} inline-flex items-center px-4 py-2 border border-emerald-600 text-sm font-medium rounded-md shadow-sm text-emerald-600 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600`}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
