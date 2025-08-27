@@ -127,3 +127,7 @@ mcp.json
 
 # Removed features
 frontend/components/InviteModal.tsx
+
+# Serverless stuff (ended up going with Lambda instead)
+.serverless/
+serverless.yml
