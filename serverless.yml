@@ -1,0 +1,92 @@
+service: camping-demo-cron
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-west-2
+  timeout: 900
+  memorySize: 1024
+  logRetentionInDays: 14
+  environment:
+    CRON_TOKEN: ${env:CRON_TOKEN}
+    RUN_MAX_MINUTES: 55
+    SUPABASE_URL: ${env:SUPABASE_URL}
+    SUPABASE_KEY: ${env:SUPABASE_KEY}
+    NODE_ENV: production
+  iamRoleStatements:
+    - Effect: Allow
+      Action: lambda:InvokeFunction
+      Resource:
+        - arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${sls:stage}-worker
+    - Effect: Allow
+      Action:
+        - logs:CreateLogGroup
+        - logs:CreateLogStream
+        - logs:PutLogEvents
+      Resource: arn:aws:logs:${aws:region}:${aws:accountId}:*
+
+functions:
+  health:
+    handler: lambda/health.handler
+    description: Health check endpoint for the camping demo cron service
+    events:
+      - httpApi:
+          method: GET
+          path: /healthz
+    package:
+      patterns:
+        - lambda/health.mjs
+
+  trigger:
+    handler: lambda/trigger.handler
+    description: HTTP trigger to start the fetchAvailability worker function asynchronously
+    environment:
+      WORKER_FUNCTION_NAME: ${self:service}-${sls:stage}-worker
+    events:
+      - httpApi:
+          method: GET
+          path: /cron/fetch-availability
+      - httpApi:
+          method: POST
+          path: /cron/fetch-availability
+    package:
+      patterns:
+        - lambda/trigger.mjs
+        - lambda/package.json
+
+  worker:
+    handler: lambda/worker.handler
+    description: Worker function that executes the fetchAvailability.js script
+    timeout: 900
+    memorySize: 2048
+    reservedConcurrency: 1
+    deadLetterQueue:
+      targetArn:
+        Fn::GetAtt:
+          - WorkerDLQ
+          - Arn
+    environment:
+      NODE_OPTIONS: '--max-old-space-size=1792'
+    package:
+      patterns:
+        - scripts/recreation-gov/**
+        - lambda/worker.mjs
+        - lambda/package.json
+        - '!scripts/recreation-gov/node_modules/**'
+        - '!**/*.test.*'
+        - '!**/*.md'
+
+resources:
+  Resources:
+    WorkerDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-worker-dlq
+        MessageRetentionPeriod: 1209600 # 14 days
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3001 

@@ -42,3 +42,6 @@ temp/
 
 # Cursor files
 .cursor/
+
+# Serverless files to run scripts with cron jobs (didn't use, using lambda instead)
+.serverless/

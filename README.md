@@ -248,6 +248,144 @@ The application can be deployed to Vercel:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## 🕷️ Recreation.gov Availability Crawler
+
+### Baselodge Rec.gov Crawler — Overview
+
+A minimal, Lambda-friendly crawler that fetches campsite availability from Recreation.gov and stores it in Supabase. Designed for continuous, low-rate sweeps that play nicely with Rec.gov's rate limits.
+
+### How it works
+
+**Lambda Worker (worker.mjs)** spawns fetchAvailability.js and forwards env/CLI flags.
+
+**fetchAvailability.js:**
+- Reads Supabase creds from Lambda env (or CLI flags)
+- Paginates the facilities table by offset/batchSize
+- Fetches current + next N months per facility
+- **404**: marks facilities.recgov_supported = false and skips remaining months
+- **429**: respects Retry-After (if present), retries with jittered backoff, otherwise skips the month this run
+- Upserts per (facility_id, campsite_id, month_date) into availability_results
+- Maintains a rolling cursor in Supabase (crawler_state.last_offset) so scheduled runs continue where the last run stopped
+
+Scheduled via EventBridge (no Trigger needed). Reserved concurrency 1 prevents overlap.
+
+### Repo layout (Lambda zip root)
+```
+lambda/
+  package.json          # includes "type": "module"
+  worker.mjs            # Lambda handler = worker.handler
+  fetchAvailability.js  # main crawler (same folder as worker.mjs)
+  health.mjs            # optional
+  node_modules/...
+```
+
+**Keep worker.mjs and fetchAvailability.js side-by-side in the zip root.**
+
+### Required Supabase tables
+
+```sql
+-- Facilities you want to crawl
+create table if not exists facilities (
+  facility_id       text primary key,
+  facility_name     text,
+  recgov_supported  boolean,                 -- null/true processed; false = skip
+  updated_at        timestamptz default now()
+);
+
+-- Rolling cursor (single row)
+create table if not exists crawler_state (
+  id           text primary key,
+  last_offset  integer not null default 0,
+  batch_size   integer not null default 3,
+  updated_at   timestamptz not null default now()
+);
+
+-- Results: one row per campsite per month
+create table if not exists availability_results (
+  facility_id     text not null,
+  campsite_id     text not null,
+  month_date      timestamptz not null,      -- normalized month start
+  availability    jsonb,                     -- day->status map from Rec.gov
+  last_fetched_at timestamptz not null default now(),
+  primary key (facility_id, campsite_id, month_date)
+);
+```
+
+### AWS Lambda setup
+
+#### Worker function
+- **Runtime**: Node.js 20.x
+- **Handler**: worker.handler
+- **Timeout**: 15 minutes
+- **Memory**: 1024 MB (tune later)
+- **Reserved concurrency**: 1
+- **(Optional) Architecture**: arm64 (cheaper)
+
+#### Environment variables (Worker)
+```
+SUPABASE_URL= https://<project>.supabase.co
+SUPABASE_KEY= <service_role_key>        # not the anon key
+BATCH_SIZE=3                            # facilities per run
+MONTHS_AHEAD=2                          # months to fetch per facility
+REQUEST_DELAY_MS=2200                   # ~50 req/min pacing
+MAX_RETRIES=4
+BASE_BACKOFF_MS=1500
+# Optional:
+# HOT_FACILITY_IDS=100123,100456        # CSV hotlist
+# CURSOR_EVERY=1                        # write cursor every N facilities
+```
+
+### Scheduling (EventBridge)
+
+Expression to run every 15 minutes:
+- **Simple**: `rate(15 minutes)`
+- **Aligned to :00/:15/:30/:45 (UTC)**: `cron(0/15 * * * ? *)`
+
+**Target**: baselodge-worker
+
+**Constant JSON input** (no offset — the script manages a DB cursor):
+```json
+{
+  "batchSize": 3,
+  "requestDelayMs": 2200
+}
+```
+
+To run manually, invoke the Worker with a test event like above.
+Passing an explicit offset puts it in manual mode for that run (cursor won't advance).
+
+### Zip & deploy (Windows PowerShell)
+
+From inside your `lambda/` folder:
+
+```powershell
+npm install @supabase/supabase-js node-fetch dotenv aws-sdk
+Remove-Item -Force -ErrorAction Ignore baselodge-lambdas.zip
+Compress-Archive -Path * -DestinationPath baselodge-lambdas.zip
+```
+
+Lambda → Worker → Code → Upload from .zip → set handler to `worker.handler`.
+
+### Tuning & behavior
+
+- **Throughput** ≈ MONTHS_AHEAD × REQUEST_DELAY_MS per facility (+ overhead)
+- Start conservative (BATCH_SIZE=3, MONTHS_AHEAD=2, REQUEST_DELAY_MS=2200) and adjust
+- **404s**: mark recgov_supported=false once; future runs skip that facility
+- **429s**: retry with jitter / respect Retry-After; if still limited, skip that month this run
+
+#### Cursor:
+- Saved in `crawler_state.last_offset` (facilities, not campsites)
+- Advances during the run (every CURSOR_EVERY facilities) and at the end
+- Wraps around with modulo when reaching the end
+- **No overlaps**: Reserved concurrency = 1 ensures each run starts where the last ended
+
+### Troubleshooting
+
+- **"Cannot find module 'worker'"** → Handler not set to `worker.handler` or zip has an extra folder level
+- **SUPABASE_* required** → Set env vars on the Worker; Worker passes them to the child
+- **Many 429s** → Raise REQUEST_DELAY_MS (e.g., 2500–3000), increase BASE_BACKOFF_MS, or reduce BATCH_SIZE / MONTHS_AHEAD
+- **Cursor not moving** → Ensure your schedule/test event does not include offset; remove any START_OFFSET env var. Check logs for "Cursor advanced to ..."
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

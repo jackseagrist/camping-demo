@@ -1,0 +1,27 @@
+{
+  "name": "camping-demo-lambda",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lambda functions for camping demo cron jobs",
+  "main": "worker.mjs",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.56.0",
+    "aws-sdk": "^2.1692.0",
+    "dotenv": "^17.2.1",
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "lambda",
+    "aws",
+    "camping",
+    "recreation.gov"
+  ],
+  "author": "",
+  "license": "ISC"
+}

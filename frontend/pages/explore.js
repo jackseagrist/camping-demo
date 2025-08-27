@@ -56,7 +56,7 @@ export default function Explore() {
       console.log('🔄 Month changed, reloading availability data');
       loadFacilityAvailability(tripFacility.id);
     }
-  }, [selectedMonth, tripFacility, loadFacilityAvailability]); // Include all dependencies
+  }, [selectedMonth, tripFacility]);
 
   // Map state
   const mapContainer = useRef(null);

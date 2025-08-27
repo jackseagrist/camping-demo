@@ -1,0 +1,192 @@
+{
+  "C:\\Users\\jacks\\OneDrive\\Desktop\\Dev4\\camping-demo\\serverless.yml": {
+    "versionFramework": "4.18.1",
+    "servicePath": "C:\\Users\\jacks\\OneDrive\\Desktop\\Dev4\\camping-demo\\serverless.yml",
+    "serviceConfigFileName": "serverless.yml",
+    "service": {
+      "service": "camping-demo-cron",
+      "provider": {
+        "name": "aws",
+        "runtime": "nodejs18.x",
+        "region": "us-west-2",
+        "timeout": 900,
+        "memorySize": 1024,
+        "logRetentionInDays": 14,
+        "environment": {
+          "CRON_TOKEN": "<REDACTED>",
+          "RUN_MAX_MINUTES": 55,
+          "SUPABASE_URL": "${env:SUPABASE_URL}",
+          "SUPABASE_KEY": "${env:SUPABASE_KEY}",
+          "NODE_ENV": "production"
+        },
+        "iamRoleStatements": [
+          {
+            "Effect": "Allow",
+            "Action": "lambda:InvokeFunction",
+            "Resource": [
+              "arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${sls:stage}-worker"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:${aws:region}:${aws:accountId}:*"
+          }
+        ]
+      },
+      "functions": {
+        "health": {
+          "handler": "lambda/health.handler",
+          "description": "Health check endpoint for the camping demo cron service",
+          "events": [
+            {
+              "httpApi": {
+                "method": "GET",
+                "path": "/healthz"
+              }
+            }
+          ],
+          "package": {
+            "patterns": [
+              "lambda/health.mjs"
+            ]
+          }
+        },
+        "trigger": {
+          "handler": "lambda/trigger.handler",
+          "description": "HTTP trigger to start the fetchAvailability worker function asynchronously",
+          "environment": {
+            "WORKER_FUNCTION_NAME": "${self:service}-${sls:stage}-worker"
+          },
+          "events": [
+            {
+              "httpApi": {
+                "method": "GET",
+                "path": "/cron/fetch-availability"
+              }
+            },
+            {
+              "httpApi": {
+                "method": "POST",
+                "path": "/cron/fetch-availability"
+              }
+            }
+          ],
+          "package": {
+            "patterns": [
+              "lambda/trigger.mjs",
+              "lambda/package.json"
+            ]
+          }
+        },
+        "worker": {
+          "handler": "lambda/worker.handler",
+          "description": "Worker function that executes the fetchAvailability.js script",
+          "timeout": 900,
+          "memorySize": 2048,
+          "reservedConcurrency": 1,
+          "deadLetterQueue": {
+            "targetArn": {
+              "Fn::GetAtt": [
+                "WorkerDLQ",
+                "Arn"
+              ]
+            }
+          },
+          "environment": {
+            "NODE_OPTIONS": "--max-old-space-size=1792"
+          },
+          "package": {
+            "patterns": [
+              "scripts/recreation-gov/**",
+              "lambda/worker.mjs",
+              "lambda/package.json",
+              "!scripts/recreation-gov/node_modules/**",
+              "!**/*.test.*",
+              "!**/*.md"
+            ]
+          }
+        }
+      },
+      "resources": {
+        "Resources": {
+          "WorkerDLQ": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+              "QueueName": "${self:service}-${sls:stage}-worker-dlq",
+              "MessageRetentionPeriod": 1209600
+            }
+          }
+        }
+      },
+      "plugins": [
+        "serverless-offline"
+      ],
+      "custom": {
+        "serverless-offline": {
+          "httpPort": 3001
+        }
+      }
+    },
+    "provider": {
+      "name": "aws",
+      "runtime": "nodejs18.x",
+      "region": "us-west-2",
+      "timeout": 900,
+      "memorySize": 1024,
+      "logRetentionInDays": 14,
+      "environment": {
+        "CRON_TOKEN": "<REDACTED>",
+        "RUN_MAX_MINUTES": 55,
+        "SUPABASE_URL": "${env:SUPABASE_URL}",
+        "SUPABASE_KEY": "${env:SUPABASE_KEY}",
+        "NODE_ENV": "production"
+      },
+      "iamRoleStatements": [
+        {
+          "Effect": "Allow",
+          "Action": "lambda:InvokeFunction",
+          "Resource": [
+            "arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${sls:stage}-worker"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ],
+          "Resource": "arn:aws:logs:${aws:region}:${aws:accountId}:*"
+        }
+      ]
+    },
+    "dashboard": {
+      "isEnabledForService": false,
+      "requiredAuthentication": false,
+      "orgFeaturesInUse": null,
+      "orgObservabilityIntegrations": null,
+      "serviceAppId": null,
+      "serviceProvider": null,
+      "instanceParameters": null
+    },
+    "serviceRawFile": "service: camping-demo-cron\r\n\r\nprovider:\r\n  name: aws\r\n  runtime: nodejs18.x\r\n  region: us-west-2\r\n  timeout: 900\r\n  memorySize: 1024\r\n  logRetentionInDays: 14\r\n  environment:\r\n    CRON_TOKEN: ${env:CRON_TOKEN}\r\n    RUN_MAX_MINUTES: 55\r\n    SUPABASE_URL: ${env:SUPABASE_URL}\r\n    SUPABASE_KEY: ${env:SUPABASE_KEY}\r\n    NODE_ENV: production\r\n  iamRoleStatements:\r\n    - Effect: Allow\r\n      Action: lambda:InvokeFunction\r\n      Resource:\r\n        - arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${sls:stage}-worker\r\n    - Effect: Allow\r\n      Action:\r\n        - logs:CreateLogGroup\r\n        - logs:CreateLogStream\r\n        - logs:PutLogEvents\r\n      Resource: arn:aws:logs:${aws:region}:${aws:accountId}:*\r\n\r\nfunctions:\r\n  health:\r\n    handler: lambda/health.handler\r\n    description: Health check endpoint for the camping demo cron service\r\n    events:\r\n      - httpApi:\r\n          method: GET\r\n          path: /healthz\r\n    package:\r\n      patterns:\r\n        - lambda/health.mjs\r\n\r\n  trigger:\r\n    handler: lambda/trigger.handler\r\n    description: HTTP trigger to start the fetchAvailability worker function asynchronously\r\n    environment:\r\n      WORKER_FUNCTION_NAME: ${self:service}-${sls:stage}-worker\r\n    events:\r\n      - httpApi:\r\n          method: GET\r\n          path: /cron/fetch-availability\r\n      - httpApi:\r\n          method: POST\r\n          path: /cron/fetch-availability\r\n    package:\r\n      patterns:\r\n        - lambda/trigger.mjs\r\n        - lambda/package.json\r\n\r\n  worker:\r\n    handler: lambda/worker.handler\r\n    description: Worker function that executes the fetchAvailability.js script\r\n    timeout: 900\r\n    memorySize: 2048\r\n    reservedConcurrency: 1\r\n    deadLetterQueue:\r\n      targetArn:\r\n        Fn::GetAtt:\r\n          - WorkerDLQ\r\n          - Arn\r\n    environment:\r\n      NODE_OPTIONS: '--max-old-space-size=1792'\r\n    package:\r\n      patterns:\r\n        - scripts/recreation-gov/**\r\n        - lambda/worker.mjs\r\n        - lambda/package.json\r\n        - '!scripts/recreation-gov/node_modules/**'\r\n        - '!**/*.test.*'\r\n        - '!**/*.md'\r\n\r\nresources:\r\n  Resources:\r\n    WorkerDLQ:\r\n      Type: AWS::SQS::Queue\r\n      Properties:\r\n        QueueName: ${self:service}-${sls:stage}-worker-dlq\r\n        MessageRetentionPeriod: 1209600 # 14 days\r\n\r\nplugins:\r\n  - serverless-offline\r\n\r\ncustom:\r\n  serverless-offline:\r\n    httpPort: 3001 ",
+    "command": [
+      "login"
+    ],
+    "options": {},
+    "orgId": "d090e24d-410a-4c8f-9fbf-a7b87b1a69be",
+    "orgName": "climbcovers",
+    "userId": "ybL182KfysKGYTLV6t",
+    "userName": "climbcovers",
+    "serviceProviderAwsCfStackId": null,
+    "serviceProviderAwsCfStackCreated": null,
+    "serviceProviderAwsCfStackUpdated": null,
+    "serviceProviderAwsCfStackStatus": null,
+    "serviceProviderAwsCfStackOutputs": null
+  }
+}
