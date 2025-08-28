@@ -7,6 +7,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { format, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { Inter } from 'next/font/google';
+import FacilityCompareGrid from '../components/compare/FacilityCompareGrid';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -645,62 +646,21 @@ export default function ComparePage() {
               </div>
             </div>
 
-            {/* Calendar grid */}
-            <div className="flex-1 overflow-x-auto">
-              {selectedFacilities.length === 0 ? (
-                <div className="p-6 text-gray-500">No facilities selected.</div>
-              ) : (
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-600 sticky left-0 bg-gray-50 z-20 min-w-[220px]">Facility</th>
-                      {dateList.map((d) => (
-                        <th key={d.toISOString()} className="px-2 py-2 text-center text-xs text-gray-600 min-w-[48px]">
-                          <div>{format(d, 'EEE')}</div>
-                          <div className="font-semibold">{format(d, 'd')}</div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedFacilities.map((f) => (
-                      <tr key={f.facility_id} className="border-t">
-                        <td className="px-4 py-2 text-sm font-medium text-gray-900 sticky left-0 bg-white z-10">
-                          <div className="flex items-center gap-3">
-                            <span>{f.name}</span>
-                            <button
-                              onClick={() => removeFacilityFromCompare(f.facility_id)}
-                              className="text-xs text-gray-500 hover:text-red-600"
-                            >Remove</button>
-                          </div>
-                        </td>
-                        {dateList.map((d) => {
-                          const dateStr = format(d, 'yyyy-MM-dd');
-                          const count = f.availabilityCounts[dateStr] || 0;
-                          return (
-                            <td key={dateStr} className="px-1 py-2 text-center">
-                              <div
-                                title={`${count} site${count === 1 ? '' : 's'} available at ${f.name} on ${format(d, 'MMM d')}`}
-                                className={`mx-auto w-10 h-10 rounded ${availabilityCellColor(count)} flex items-center justify-center text-sm font-semibold`}
-                                onClick={() => {
-                                  if (count > 0 && typeof window !== 'undefined') {
-                                    if ((window as any).open) {
-                                      // Future: deep link to rec.gov reservation page if available
-                                      (window as any).open(f.reservation_url || 'https://www.recreation.gov', '_blank');
-                                    }
-                                  }
-                                }}
-                              >
-                                {count > 0 ? count : ''}
-                              </div>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+            {/* Facility-first compare grid */}
+            <div className="flex-1 overflow-x-auto p-4">
+              <FacilityCompareGrid
+                facilities={selectedFacilities.map(f => ({
+                  id: f.id,
+                  facility_id: f.facility_id,
+                  name: f.name,
+                  lon: f.lon,
+                  lat: f.lat,
+                  availabilityCounts: f.availabilityCounts
+                }))}
+                dateStart={windowStart}
+                daysCount={daysCount}
+                onRemove={(fid) => removeFacilityFromCompare(fid)}
+              />
             </div>
 
             {/* Legend */}

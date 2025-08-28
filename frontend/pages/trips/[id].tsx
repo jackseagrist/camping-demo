@@ -683,6 +683,15 @@ export default function TripDetail() {
             )}
           </div>
         </div>
+        {/* Explore other sites button (full width, matches map width) */}
+        <div className="mb-6">
+          <button
+            onClick={() => router.push(`/explore?trip_id=${trip.id}`)}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg transition-colors"
+          >
+            Explore other sites
+          </button>
+        </div>
         
         {/* Main content - 2 column layout on wide screens */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -700,18 +709,8 @@ export default function TripDetail() {
                   </label>
                 </div>
                 
-                {/* Explore button */}
-                <div className="mb-3">
-                  <button
-                    onClick={() => router.push(`/explore?trip_id=${trip.id}`)}
-                    className="w-full max-w-md bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                    Explore Map
-                  </button>
-                </div>
+                {/* Removed Explore Map button per new design */}
+                <div className="mb-3" />
                 
                 {/* CampsiteSelector Component */}
                 <CampsiteSelector 
@@ -774,15 +773,6 @@ export default function TripDetail() {
                       </svg>
                       Make Reservation
                     </a>
-                    <button
-                      onClick={() => router.push(`/compare-availability?facilityId=${trip.facility.facility_id}`)}
-                      className={`${inter.className} inline-flex items-center px-4 py-2 border border-emerald-600 text-sm font-medium rounded-md shadow-sm text-emerald-600 bg-white hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-600`}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      Compare Availability
-                    </button>
                   </div>
                 ) : (
                   <div className="relative inline-block group">
