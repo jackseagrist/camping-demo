@@ -33,6 +33,13 @@ export type AvailabilityCalendarProps = {
   density?: 'compact' | 'cozy';
   // NEW: optional future streak highlight length (not yet visualized)
   highlightStreak?: number;
+  // NEW: List of facilities to show availability for
+  selectedFacilities?: any[];
+  // NEW: Trip date picker props
+  tripId?: string;
+  startDate?: string;
+  endDate?: string;
+  onDateChange?: (field: 'start_date' | 'end_date', value: string) => void;
 };
 
 function ymd(d: Date) { 
@@ -52,19 +59,34 @@ export default function AvailabilityCalendar({
   density = 'compact',
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   highlightStreak,
+  selectedFacilities = [],
+  tripId: tripIdProp,
+  startDate,
+  endDate,
+  onDateChange,
 }: AvailabilityCalendarProps) {
   const router = useRouter();
   const tripId = router.query.trip_id as string | undefined;
   const supabase = createClientComponentClient();
 
-  // Month window: two months (A and A+1)
-  const [monthA, setMonthA] = useState<Date>(() => 
+  // Debug logging
+  console.log('🔍 AvailabilityCalendar props:', { 
+    facilityIdOverride, 
+    selectedFacilities: selectedFacilities?.length || 0,
+    tripIdProp,
+    startDate,
+    endDate,
+    hasOnDateChange: !!onDateChange,
+    selectedFacilitiesData: selectedFacilities 
+  });
+
+  // Month window: single month
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => 
     initialMonth ? new Date(initialMonth) : startOfMonth(new Date())
   );
-  const monthB = useMemo(() => addMonths(monthA, 1), [monthA]);
 
-  const start = useMemo(() => startOfMonth(monthA), [monthA]);
-  const end = useMemo(() => endOfMonth(monthB), [monthB]);
+  const start = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+  const end = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
 
   const days = useMemo(() => eachDayOfInterval({ start, end }), [start, end]);
 
@@ -74,6 +96,7 @@ export default function AvailabilityCalendar({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<AvailRow[]>([]);
+  const [facilityAvailabilityData, setFacilityAvailabilityData] = useState<Record<string, Record<string, number | null>>>({});
 
   // Resolve facility UUID from trip
   useEffect(() => {
@@ -164,9 +187,9 @@ export default function AvailabilityCalendar({
     return () => { isCancelled = true; };
   }, [facilityUuid, supabase]);
 
-  // Fetch availability for window
+  // Fetch availability for window (only when not using selectedFacilities)
   useEffect(() => {
-    if (!facilityId) return;
+    if (!facilityId || (selectedFacilities && selectedFacilities.length > 0)) return;
     
     let isCancelled = false;
     (async () => {
@@ -229,7 +252,130 @@ export default function AvailabilityCalendar({
     })();
     
     return () => { isCancelled = true; };
-  }, [facilityId, start, end, supabase]);
+  }, [facilityId, start, end, supabase, selectedFacilities]);
+
+  // Fetch availability data for selected facilities
+  useEffect(() => {
+    console.log('🔍 AvailabilityCalendar selectedFacilities useEffect triggered:', selectedFacilities?.length || 0);
+    console.log('🔍 selectedFacilities array:', selectedFacilities);
+    console.log('🔍 start date:', start);
+    console.log('🔍 end date:', end);
+    
+    if (!selectedFacilities || selectedFacilities.length === 0) {
+      console.log('⚠️ No selectedFacilities provided, skipping facility availability fetch');
+      setLoading(false);
+      return;
+    }
+    
+    let isCancelled = false;
+    (async () => {
+      setLoading(true);
+      
+      const startMonth = ymd(startOfMonth(start));
+      const endMonth = ymd(startOfMonth(end));
+      
+                console.log('🔍 Fetching availability for selected facilities:', selectedFacilities.length);
+          console.log('🔍 Current month for fetching:', ymd(startOfMonth(start)));
+      
+      const facilityAvailability: Record<string, Record<string, number>> = {};
+      
+      // Process each selected facility
+      for (const facility of selectedFacilities) {
+        const facilityKey = facility.facility_id || facility.id;
+        if (!facilityKey) continue;
+        
+        try {
+          // First get the numeric facility_id from the facilities table
+          const { data: facilityData, error: facilityError } = await supabase
+            .from('facilities')
+            .select('facility_id')
+            .eq('id', facility.id || facility.facility_id)
+            .single();
+            
+          if (facilityError || !facilityData?.facility_id) {
+            console.warn(`Could not find numeric facility_id for facility:`, facility.name);
+            facilityAvailability[facilityKey] = {};
+            continue;
+          }
+          
+          const numericFacilityId = String(facilityData.facility_id);
+          
+          // Query availability data for the current month
+          // Handle both date formats in month_date column: "2025-09-01" and "2025-09-01T00:00:00.000Z"
+          const currentMonthStart = ymd(startOfMonth(start));
+          
+          const { data: availData, error: availError } = await supabase
+            .from('availability_results')
+            .select('campsite_id, month_date, availabilities')
+            .eq('facility_id', numericFacilityId)
+            .or(`month_date.eq.${currentMonthStart},month_date.eq.${currentMonthStart}T00:00:00.000Z`);
+
+          if (availError) {
+            console.warn(`Error fetching availability for facility ${facility.name}:`, availError);
+            facilityAvailability[facilityKey] = {};
+            continue;
+          }
+
+          console.log(`🔍 Raw availability data for ${facility.name}:`, availData?.length || 0, 'rows');
+          if (availData && availData.length > 0) {
+            console.log(`   Sample month_date values:`, availData.map(row => row.month_date).slice(0, 3));
+          }
+
+          // Process availability data to count available sites per day
+          const dailyCounts: Record<string, number | null> = {};
+          const datesWithData = new Set<string>();
+          
+          if (availData && availData.length > 0) {
+            // First pass: collect all dates that have ANY data
+            for (const row of availData) {
+              const availabilities = row.availabilities || {};
+              for (const dateKey of Object.keys(availabilities)) {
+                datesWithData.add(dateKey);
+              }
+            }
+            
+            // Second pass: count available sites for each date with data
+            for (const dateKey of datesWithData) {
+              let availableCount = 0;
+              let hasDataForThisDate = false;
+              
+              for (const row of availData) {
+                const availabilities = row.availabilities || {};
+                if (availabilities.hasOwnProperty(dateKey)) {
+                  hasDataForThisDate = true;
+                  if (availabilities[dateKey] === 'Available') {
+                    availableCount++;
+                  }
+                }
+              }
+              
+              // Only set count if we actually have data for this date
+              if (hasDataForThisDate) {
+                // Convert ISO date format to simple YYYY-MM-DD format to match calendar
+                const normalizedDateKey = dateKey.split('T')[0];
+                dailyCounts[normalizedDateKey] = availableCount;
+              }
+            }
+          }
+          
+          facilityAvailability[facilityKey] = dailyCounts;
+          console.log(`✅ Processed ${facility.name}: ${Object.keys(dailyCounts).length} days of data`);
+          console.log(`   Sample data for ${facility.name}:`, Object.entries(dailyCounts).slice(0, 5));
+          
+        } catch (error) {
+          console.error(`Error processing facility ${facility.name}:`, error);
+          facilityAvailability[facilityKey] = {};
+        }
+      }
+      
+      if (isCancelled) return;
+      
+      setFacilityAvailabilityData(facilityAvailability);
+      setLoading(false);
+    })();
+    
+    return () => { isCancelled = true; };
+  }, [selectedFacilities, start, end, supabase]);
 
   const allCampsiteIds = useMemo(() => {
     const s = new Set<string>();
@@ -342,16 +488,15 @@ export default function AvailabilityCalendar({
   }
 
   // Month navigation functions
-  const goToPrevMonth = () => setMonthA(addMonths(monthA, -1));
-  const goToNextMonth = () => setMonthA(addMonths(monthA, 1));
-  const goToToday = () => setMonthA(startOfMonth(new Date()));
+  const goToPrevMonth = () => setCurrentMonth(addMonths(currentMonth, -1));
+  const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const goToToday = () => setCurrentMonth(startOfMonth(new Date()));
 
-  // Group days by month for better header display
-  const monthADays = days.filter(day => day >= start && day <= endOfMonth(monthA));
-  const monthBDays = days.filter(day => day >= startOfMonth(monthB) && day <= end);
+  // All days for the single month
+  const monthDays = days;
 
-  // Density classes
-  const cellSizeClass = density === 'compact' ? 'h-7 w-7' : 'h-8 w-8';
+  // Density classes - uniform width cells
+  const cellSizeClass = density === 'compact' ? 'h-7' : 'h-8';
   const headerTextSize = 'text-xs';
 
   // Simple guard for extreme row counts (future-proof before full virtualization)
@@ -361,49 +506,81 @@ export default function AvailabilityCalendar({
 
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Helper function to check if a date is within the trip date range
+  const isDateInTripRange = (date: Date): boolean => {
+    if (!startDate || !endDate) return false;
+    
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const start = startDate;
+    const end = endDate;
+    
+    return dateStr >= start && dateStr < end;
+  };
+
   return (
     <div className={`bg-white border-b border-gray-200 px-6 py-4 ${className}`}>
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Availability</h2>
-          {facilityName ? (
-            <p className="text-sm text-gray-600">{facilityName}</p>
-          ) : facilityId ? (
-            <p className="text-sm text-gray-600">Facility: {facilityId}</p>
-          ) : null}
+      <div className="mb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Availability</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={goToPrevMonth} 
+              className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+              disabled={loading}
+              aria-label="Previous month"
+            >
+              ← Prev
+            </button>
+            <button 
+              onClick={goToToday} 
+              className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+              disabled={loading}
+              aria-label="Go to current month"
+            >
+              Today
+            </button>
+            <button 
+              onClick={goToNextMonth} 
+              className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+              disabled={loading}
+              aria-label="Next month"
+            >
+              Next →
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={goToPrevMonth} 
-            className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
-            disabled={loading}
-            aria-label="Previous month"
-          >
-            ← Prev
-          </button>
-          <button 
-            onClick={goToToday} 
-            className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
-            disabled={loading}
-            aria-label="Go to current month"
-          >
-            Today
-          </button>
-          <button 
-            onClick={goToNextMonth} 
-            className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
-            disabled={loading}
-            aria-label="Next month"
-          >
-            Next →
-          </button>
-        </div>
+        
+        {/* Trip Date Pickers */}
+        {(tripIdProp || tripId) && onDateChange && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
+              <input 
+                type="date" 
+                value={startDate || ''}
+                onChange={(e) => onDateChange('start_date', e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
+              <input 
+                type="date" 
+                value={endDate || ''}
+                onChange={(e) => onDateChange('end_date', e.target.value)}
+                className="w-full text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Date range display */}
       <div className="mb-3 text-sm text-gray-700 font-medium">
-        {format(monthA, 'MMMM yyyy')} – {format(monthB, 'MMMM yyyy')}
+        {format(currentMonth, 'MMMM yyyy')}
       </div>
 
       {/* Error display */}
@@ -413,20 +590,39 @@ export default function AvailabilityCalendar({
         </div>
       )}
 
-      {/* Legend (minimal) */}
+      {/* Legend */}
       <div className="mb-3 flex items-center gap-5 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 inline-block bg-emerald-500/70 rounded border" />
-          <span>Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 inline-block bg-red-400/60 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,255,255,0.25)_6px,rgba(255,255,255,0.25)_12px)] rounded border" />
-          <span>Reserved</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3.5 h-3.5 inline-block border border-dashed border-gray-300 rounded bg-white" />
-          <span>No Data</span>
-        </div>
+        {selectedFacilities && selectedFacilities.length > 0 ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 inline-block bg-green-500 rounded border text-white text-center text-[8px] leading-[14px] font-bold">3</span>
+              <span>Sites Available</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 inline-block bg-red-500 rounded border text-white text-center text-[8px] leading-[14px] font-bold">0</span>
+              <span>No Availability</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 inline-block bg-gray-200 rounded border text-gray-500 text-center text-[8px] leading-[14px]">—</span>
+              <span>No Data</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 inline-block bg-emerald-500/70 rounded border" />
+              <span>Available</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 inline-block bg-red-400/60 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,rgba(255,255,255,0.25)_6px,rgba(255,255,255,0.25)_12px)] rounded border" />
+              <span>Reserved</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 inline-block border border-dashed border-gray-300 rounded bg-white" />
+              <span>No Data</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Calendar Grid */}
@@ -435,34 +631,43 @@ export default function AvailabilityCalendar({
           <thead className="sticky top-0 bg-gray-50 z-10">
             <tr>
               <th className="sticky left-0 bg-gray-50 z-20 text-left p-2.5 border-b border-gray-200 font-medium text-gray-900 min-w-[120px]">
-                Campsite
+                {selectedFacilities && selectedFacilities.length > 0 ? 'Facility' : 'Campsite'}
               </th>
-              {/* Month A header */}
+              {/* Month header */}
               <th 
                 className={`text-center p-2 border-b border-gray-200 font-medium text-gray-700 ${headerTextSize}`}
-                colSpan={monthADays.length}
+                colSpan={monthDays.length}
               >
-                {format(monthA, 'MMMM')}
-              </th>
-              {/* Month B header */}
-              <th 
-                className={`text-center p-2 border-b border-gray-200 font-medium text-gray-700 ${headerTextSize}`}
-                colSpan={monthBDays.length}
-              >
-                {format(monthB, 'MMMM')}
+                {format(currentMonth, 'MMMM yyyy')}
               </th>
             </tr>
             <tr>
               <th className="sticky left-0 bg-gray-50 z-20 border-b border-gray-200"></th>
-              {days.map(d => (
-                <th key={ymd(d)} className={`text-center p-1 border-b border-gray-200 w-8 ${headerTextSize} text-gray-600`}>
-                  {format(d, 'd')}
-                </th>
-              ))}
+              {days.map(d => {
+                const isInTripRange = isDateInTripRange(d);
+                return (
+                  <th 
+                    key={ymd(d)} 
+                    className={`text-center p-1 border-b border-gray-200 ${headerTextSize} ${
+                      isInTripRange 
+                        ? 'bg-gray-700 text-white' 
+                        : 'text-gray-600'
+                    }`} 
+                    style={{width: '48px', minWidth: '48px', maxWidth: '48px'}}
+                  >
+                    <div className="flex flex-col items-center">
+                      <div className="font-medium">{format(d, 'd')}</div>
+                      <div className={`text-xs mt-0.5 ${
+                        isInTripRange ? 'text-gray-300' : 'text-gray-500'
+                      }`}>{format(d, 'EE')}</div>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {loading && rowsToRender.length === 0 && (
+            {loading && (
               <tr>
                 <td className="p-6 text-gray-500 text-center" colSpan={days.length + 1}>
                   <div className="flex items-center justify-center gap-2">
@@ -472,7 +677,79 @@ export default function AvailabilityCalendar({
                 </td>
               </tr>
             )}
-            {!loading && rowsToRender.length === 0 && (
+            {!loading && selectedFacilities && selectedFacilities.length === 0 && (
+              <tr>
+                <td className="p-6 text-gray-500 text-center" colSpan={days.length + 1}>
+                  Add campgrounds to your comparison to see availability
+                </td>
+              </tr>
+            )}
+            {!loading && selectedFacilities && selectedFacilities.length > 0 && (
+              selectedFacilities.map(facility => {
+                const facilityKey = facility.facility_id || facility.id;
+                const facilityData = facilityAvailabilityData[facilityKey] || {};
+                
+                console.log('🔍 Rendering facility row:', facility.name, 'facilityKey:', facilityKey, 'facilityData keys:', Object.keys(facilityData));
+                
+                return (
+                  <tr key={facilityKey} className="hover:bg-gray-50/50" style={{height: '60px'}}>
+                    <td className="sticky left-0 bg-white z-10 border-r border-gray-200 p-2.5 text-sm font-medium text-gray-900 align-middle" style={{height: '60px', minHeight: '60px'}}>
+                      <div className="flex items-center h-full">
+                        {facility.name || 'Unnamed Facility'}
+                      </div>
+                    </td>
+                    {days.map(d => {
+                      const key = ymd(d);
+                      const availableCount = facilityData[key];
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                      
+                      // Debug: log first few date lookups
+                      if (d.getDate() <= 3) {
+                        console.log(`🔍 Looking up date ${key} for ${facility.name}: availableCount=${availableCount}, facilityDataKeys=${Object.keys(facilityData).slice(0, 5)}`);
+                      }
+                      
+                      // Determine cell styling based on availability count
+                      let cellClass = '';
+                      let displayValue = '';
+                      let tooltipText = '';
+                      
+                      if (availableCount === undefined || availableCount === null) {
+                        // No data available for this date
+                        cellClass = 'bg-gray-200 text-gray-500';
+                        displayValue = '—';
+                        tooltipText = 'No data';
+                      } else if (availableCount === 0) {
+                        // Data exists but no sites available - uniform red color
+                        cellClass = 'bg-red-500 text-white';
+                        displayValue = '0';
+                        tooltipText = 'No sites available';
+                      } else {
+                        // Data exists and sites are available
+                        cellClass = 'bg-green-500 text-white';
+                        displayValue = availableCount.toString();
+                        tooltipText = `${availableCount} site${availableCount > 1 ? 's' : ''} available`;
+                      }
+                      
+                      return (
+                        <td
+                          key={key}
+                          className={`border-r border-gray-100 text-center align-middle p-1 ${
+                            isWeekend ? 'opacity-80' : ''
+                          }`}
+                          style={{width: '48px', minWidth: '48px', maxWidth: '48px', height: '60px', minHeight: '60px'}}
+                          title={`${facility.name} • ${format(d, 'MMM d, yyyy')} • ${tooltipText}`}
+                        >
+                          <div className={`w-full h-full flex items-center justify-center rounded font-medium text-sm ${cellClass}`}>
+                            {displayValue}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            )}
+            {!loading && (!selectedFacilities || selectedFacilities.length === 0) && rowsToRender.length === 0 && (
               <tr>
                 <td className="p-6 text-gray-500 text-center" colSpan={days.length + 1}>
                   {selectedCampsiteIds && selectedCampsiteIds.length === 0
@@ -481,10 +758,12 @@ export default function AvailabilityCalendar({
                 </td>
               </tr>
             )}
-            {rowsToRender.map(cid => (
-              <tr key={cid} className="hover:bg-gray-50/50">
-                <td className="sticky left-0 bg-white z-10 border-r border-gray-200 p-2.5 text-sm font-medium text-gray-900">
-                  Site {cid}
+            {!loading && (!selectedFacilities || selectedFacilities.length === 0) && rowsToRender.map(cid => (
+              <tr key={cid} className="hover:bg-gray-50/50" style={{height: '60px'}}>
+                <td className="sticky left-0 bg-white z-10 border-r border-gray-200 p-2.5 text-sm font-medium text-gray-900 align-middle" style={{height: '60px', minHeight: '60px'}}>
+                  <div className="flex items-center h-full">
+                    Site {cid}
+                  </div>
                 </td>
                 {days.map(d => {
                   const key = ymd(d);
@@ -494,22 +773,23 @@ export default function AvailabilityCalendar({
                   return (
                     <td
                       key={key}
-                      className={`${cellSizeClass} border-r border-gray-100 text-center align-middle relative ${getCellClass(status)} ${
-                        isWeekend ? 'bg-gray-50/40' : ''
+                      className={`border-r border-gray-100 text-center align-middle p-1 ${
+                        isWeekend ? 'opacity-80' : ''
                       }`}
+                      style={{width: '48px', minWidth: '48px', maxWidth: '48px', height: '60px', minHeight: '60px'}}
                       title={`Site ${cid} • ${format(d, 'MMM d, yyyy')} • ${getStatusLabel(status)}`}
                       aria-label={`Site ${cid} ${format(d, 'MMMM d, yyyy')} ${getStatusLabel(status)}`}
                     >
-                      {status === 'available' && (
-                        <div className="absolute inset-1 rounded-full bg-emerald-600"></div>
-                      )}
-                      {status === 'reserved' && (
-                        <div className="absolute inset-1 flex items-center justify-center">
+                      <div className={`w-full h-full flex items-center justify-center rounded relative ${getCellClass(status)}`}>
+                        {status === 'available' && (
+                          <div className="w-3 h-3 rounded-full bg-emerald-600"></div>
+                        )}
+                        {status === 'reserved' && (
                           <svg className="w-3 h-3 text-red-700" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
                   );
                 })}
@@ -520,11 +800,21 @@ export default function AvailabilityCalendar({
       </div>
 
       {/* Summary info */}
-      {!loading && rowsToRender.length > 0 && (
+      {!loading && (
         <div className="mt-3 text-xs text-gray-500">
-          Showing {rowsToRender.length} campsite{rowsToRender.length !== 1 ? 's' : ''} across {days.length} days
-          {tooManyRows && (
-            <span className="ml-2 text-gray-400">(showing first {MAX_ROWS_NON_VIRTUAL}; refine selection to compare)</span>
+          {selectedFacilities && selectedFacilities.length > 0 ? (
+            <span>
+              Showing {selectedFacilities.length} facilit{selectedFacilities.length !== 1 ? 'ies' : 'y'} across {days.length} days
+            </span>
+          ) : (
+            rowsToRender.length > 0 && (
+              <span>
+                Showing {rowsToRender.length} campsite{rowsToRender.length !== 1 ? 's' : ''} across {days.length} days
+                {tooManyRows && (
+                  <span className="ml-2 text-gray-400">(showing first {MAX_ROWS_NON_VIRTUAL}; refine selection to compare)</span>
+                )}
+              </span>
+            )
           )}
         </div>
       )}

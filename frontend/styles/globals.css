@@ -77,4 +77,17 @@ html, body {
   animation: pulse 2s infinite ease-in-out;
 }
 
+/* Leaf swing animation for BaseLodge loading icon */
+@keyframes leafSwing {
+  0%, 100% { 
+    transform: rotate(0deg); 
+  }
+  25% { 
+    transform: rotate(-8deg); 
+  }
+  75% { 
+    transform: rotate(8deg); 
+  }
+}
+
 /* Add any other global styles here */

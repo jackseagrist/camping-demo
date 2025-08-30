@@ -14,14 +14,13 @@ const inter = Inter({ subsets: ['latin'] });
 export default function Explore() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [facilities, setFacilities] = useState([]);
   const [displayMode, setDisplayMode] = useState('demand'); // 'demand' or 'cost'
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredFacilities, setFilteredFacilities] = useState([]);
+  const [allViewportFacilities, setAllViewportFacilities] = useState([]); // For sidebar filtering
   const [filters, setFilters] = useState({
     state: '',
-    demand: '',
-    cost: ''
+    demand: [],
+    cost: []
   });
   const [selectedFacility, setSelectedFacility] = useState(null); // Track selected facility
   const [showDetailPanel, setShowDetailPanel] = useState(false); // Control the detail panel visibility
@@ -30,6 +29,12 @@ export default function Explore() {
   const [tripFacility, setTripFacility] = useState(null);
   const [initialZoom, setInitialZoom] = useState(9);
   const [showCalendar, setShowCalendar] = useState(false);
+  const [comparisonCampgrounds, setComparisonCampgrounds] = useState([]); // Array to store selected campgrounds for comparison (max 5 including trip facility)
+  const [showSwitchConfirmModal, setShowSwitchConfirmModal] = useState(false);
+  const [facilityToSwitch, setFacilityToSwitch] = useState(null);
+  const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   // Reference to the selected facility list item
   const selectedFacilityRef = useRef(null);
@@ -39,38 +44,41 @@ export default function Explore() {
     router.back();
   };
 
-  // Fetch trip's selected facility
+  // Fetch trip's selected facility (simplified - no longer loads all nearby facilities)
   useEffect(() => {
     if (!router.isReady) return; // 🛑 wait until router.query is populated
     
     const fetchTripFacility = async () => {
       const tripId = router.query.trip_id;
       console.log('Trip ID from router:', tripId, typeof tripId);
-      if (!tripId) return;
+      
+      if (!tripId) {
+        setIsLoading(false); // No trip ID, so we're done loading
+        return;
+      }
 
       try {
         const { data: trip, error } = await supabase
           .from('trips')
-          .select('facility_id')
+          .select('facility_id, start_date, end_date')
           .eq('id', tripId)
           .single();
 
-        if (error) {
-          console.error('❌ Error fetching trip:', error);
-          console.log('Trip ID used:', tripId);
+        if (error || !trip?.facility_id) {
+          console.error('❌ Error fetching trip or no facility_id:', error);
+          setIsLoading(false);
           return;
         }
         
         console.log('🚩 Found trip:', trip);
         
-        // Get the facility_id from the trip
-        const facilityId = trip?.facility_id;
-        
-        if (!facilityId) {
-          console.log('No facility_id found for trip');
-          return;
-        }
+        // Set the trip dates from the database
+        setStartDate(trip.start_date || '');
+        setEndDate(trip.end_date || '');
+        console.log('🔍 Loaded trip dates:', { start: trip.start_date, end: trip.end_date });
 
+        // Get the facility_id from the trip
+        const facilityId = trip.facility_id;
         console.log('🔍 Trying to fetch facility with id:', facilityId, typeof facilityId);
         
         // Match the facility_id from trips with the id field in facilities table
@@ -80,16 +88,13 @@ export default function Explore() {
           .eq('id', facilityId)
           .single();
 
-        if (facilityError) {
+        if (facilityError || !facility) {
           console.error("❌ Error fetching facility:", facilityError);
-          console.log('Facility ID used:', facilityId);
+          setIsLoading(false);
           return;
-        } else if (!facility) {
-          console.warn("⚠️ No facility found with this ID");
-          return;
-        } else {
-          console.log("✅ Trip facility loaded:", facility);
         }
+
+        console.log("✅ Trip facility loaded:", facility);
 
         if (facility?.lat && facility?.lon) {
           console.log('Setting facility with coordinates:', facility.lat, facility.lon);
@@ -97,137 +102,24 @@ export default function Explore() {
           setSelectedFacility(facility);
           setInitialCenter([facility.lon, facility.lat]);
           setShowCalendar(true); // Show calendar when we have a facility
+          setInitialZoom(11); // Zoom in a bit more for trip facility
           
-          // Now fetch nearby facilities
-          fetchNearbyFacilities(facility);
-          
-          console.log('🔍 Initial facility set, availability will load via useEffect');
+          console.log('🔍 Trip facility set, map will load nearby facilities via viewport');
         } else {
           console.log('Facility has no valid coordinates');
         }
       } catch (e) {
         console.error('❌ Unexpected error in fetchTripFacility:', e);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchTripFacility();
   }, [router.isReady, router.query.trip_id, supabase]);
   
-  // Fetch nearby facilities based on the selected facility
-  const fetchNearbyFacilities = async (facility) => {
-    console.log('=== FETCHING NEARBY FACILITIES ===');
-    setIsLoading(true);
-    
-    try {
-      if (facility && facility.lat && facility.lon) {
-        console.log(`🌍 Fetching facilities near ${facility.name} at coordinates: [${facility.lon}, ${facility.lat}]`);
-        const radiusDegrees = 1.5; // Approximately 100 miles at mid-latitudes
-        
-        const { data: nearbyFacilities, error } = await supabase
-          .from('facilities')
-          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
-          .gte('lat', facility.lat - radiusDegrees)
-          .lte('lat', facility.lat + radiusDegrees)
-          .gte('lon', facility.lon - radiusDegrees)
-          .lte('lon', facility.lon + radiusDegrees)
-          .not('lat', 'is', null)
-          .not('lon', 'is', null)
-          .limit(100);
-          
-        if (error) {
-          console.error('❌ Error fetching nearby facilities:', error);
-        } else if (nearbyFacilities?.length > 0) {
-          console.log(`✅ Fetched ${nearbyFacilities.length} nearby facilities around ${facility.name}`);
-          processData(nearbyFacilities);
-        } else {
-          console.warn('⚠️ No nearby facilities found, falling back to default data');
-          // If no nearby facilities found, fetch from a wider area
-          const { data: wideFacilities, error: wideError } = await supabase
-            .from('facilities')
-            .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
-            .not('lat', 'is', null)
-            .not('lon', 'is', null)
-            .limit(100);
-            
-          if (wideError) {
-            console.error('❌ Error fetching wider area facilities:', wideError);
-          } else if (wideFacilities?.length > 0) {
-            console.log(`✅ Fetched ${wideFacilities.length} facilities from wider area`);
-            processData(wideFacilities);
-          }
-        }
-      } else {
-        console.error('❌ Cannot fetch nearby facilities - facility has invalid coordinates');
-      }
-    } catch (error) {
-      console.error('❌ Unexpected error in fetchNearbyFacilities:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  // Fetch facilities - optimized for performance and focused on nearby facilities
-  useEffect(() => {
-    if (!router.isReady) return; // 🛑 wait until router.query is populated
-    
-    // Only fetch default data if we don't have a trip facility
-    if (tripFacility) return;
-    
-    const fetchData = async () => {
-      console.log('=== STARTING FACILITY FETCH ===');
-      setIsLoading(true);
-      
-      try {
-        // No trip facility, fetch facilities around San Francisco
-        console.log('No trip facility found, fetching facilities around San Francisco');
-        const sfLat = 37.7749;
-        const sfLon = -122.4194;
-        const radiusDegrees = 1.5;
-        
-        const { data: sfAreaFacilities, error } = await supabase
-          .from('facilities')
-          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
-          .gte('lat', sfLat - radiusDegrees)
-          .lte('lat', sfLat + radiusDegrees)
-          .gte('lon', sfLon - radiusDegrees)
-          .lte('lon', sfLon + radiusDegrees)
-          .not('lat', 'is', null)
-          .not('lon', 'is', null)
-          .limit(100);
-          
-        if (error) {
-          console.error('Error fetching SF area facilities:', error);
-        } else if (sfAreaFacilities?.length > 0) {
-          console.log(`✅ Fetched ${sfAreaFacilities.length} facilities around San Francisco`);
-          processData(sfAreaFacilities);
-        } else {
-          // Fallback to initial batch if no facilities found in SF area
-          console.log('No facilities found in SF area, fetching initial batch');
-          const initialBatchSize = 100;
-          
-          const { data: initialFacilities, error: initialError } = await supabase
-            .from('facilities')
-            .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
-            .not('lat', 'is', null)
-            .not('lon', 'is', null)
-            .limit(initialBatchSize);
-            
-          if (initialError) {
-            console.error('Error fetching initial facilities:', initialError);
-          } else if (initialFacilities?.length > 0) {
-            console.log(`✅ Fetched initial ${initialFacilities.length} facilities`);
-            processData(initialFacilities);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Unexpected error in fetchData:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, [tripFacility, router.isReady, supabase]);
+  // No longer needed - viewport loading handles facility fetching
 
   // Scroll selected facility into view when changed
   useEffect(() => {
@@ -236,52 +128,14 @@ export default function Explore() {
     }
   }, [selectedFacility]);
 
-  // Filter facilities based on selected criteria
-  useEffect(() => {
-    if (!facilities.length) return;
-
-    let filtered = [...facilities];
-    
-    // Apply search filter if there's a query
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(facility => 
-        facility.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        facility.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        facility.state?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        facility.type?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    // Apply state filter if selected
-    if (filters.state) {
-      filtered = filtered.filter(facility => 
-        facility.state === filters.state
-      );
-    }
-    
-    // Apply demand filter if selected
-    if (filters.demand) {
-      filtered = filtered.filter(facility => 
-        facility.demand_assessment === filters.demand
-      );
-    }
-    
-    // Apply cost filter if selected
-    if (filters.cost) {
-      filtered = filtered.filter(facility => 
-        facility.cost_assessment_2 === filters.cost
-      );
-    }
-    
-    setFilteredFacilities(filtered);
-  }, [facilities, filters, searchQuery]);
+  // Filtering now handled in the map component for viewport facilities
 
   // Clear all filters
   const clearFilters = () => {
     setFilters({
       state: '',
-      demand: '',
-      cost: ''
+      demand: [],
+      cost: []
     });
     setSearchQuery('');
     
@@ -291,7 +145,7 @@ export default function Explore() {
     });
   };
 
-  // Set a single filter value (for dropdowns)
+  // Set a single filter value (for dropdowns) - used for state filter
   const setFilterValue = (filterType, value) => {
     // Track filter applied event
     posthog.capture('filter_applied', {
@@ -306,62 +160,36 @@ export default function Explore() {
     }));
   };
 
-  // Helper function to process and normalize facility data - optimized for performance
-  const processData = (data) => {
-    console.log('🔍 processData called with', data?.length || 0, 'facilities');
+  // Handle multi-select filter changes from FilterModal
+  const handleFiltersChange = (newFilters) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      demand: newFilters.demand,
+      cost: newFilters.cost
+    }));
     
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.warn('⚠️ processData received no data or invalid data');
-      setFacilities([]);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Reduce console logging for performance
-    if (data.length > 0 && data.length <= 10) {
-      console.log('🔍 Sample facility structure:', JSON.stringify(data[0], null, 2));
-    }
-    
-    // Process facilities with less logging for better performance
-    const validFacilities = data.filter(facility => {
-      if (!facility) return false;
-      
-      // Normalize coordinates
-      let latitude = facility.lat || facility.Lat || facility.latitude || facility.Latitude;
-      let longitude = facility.lon || facility.Lon || facility.longitude || facility.Longitude;
-      
-      const hasLat = latitude !== null && latitude !== undefined;
-      const hasLon = longitude !== null && longitude !== undefined;
-      const latValid = hasLat && !isNaN(parseFloat(latitude));
-      const lonValid = hasLon && !isNaN(parseFloat(longitude));
-      
-      if (latValid && lonValid) {
-        // Add normalized lat/lon to make sure we use consistent fields
-        facility.normalizedLat = parseFloat(latitude);
-        facility.normalizedLon = parseFloat(longitude);
-        
-        // Set default values if missing
-        if (!facility.demand_assessment) facility.demand_assessment = 'Medium';
-        if (!facility.cost_assessment_2) facility.cost_assessment_2 = 'Affordable';
-        
-        return true;
-      }
-      
-      return false;
+    // Track filter applied event
+    posthog.capture('filters_changed', {
+      demand_filters: newFilters.demand,
+      cost_filters: newFilters.cost,
+      display_mode: displayMode
     });
-    
-    console.log(`✅ Found ${validFacilities.length} valid facilities out of ${data.length} total`);
-    
-    // Update state to trigger map update
-    setFacilities(validFacilities);
   };
 
-  // Set initial filtered facilities when facilities are loaded
-  useEffect(() => {
-    if (facilities.length > 0) {
-      setFilteredFacilities(facilities);
-    }
-  }, [facilities]);
+  // Handle display mode change from FilterModal
+  const handleDisplayModeChange = (mode) => {
+    setDisplayMode(mode);
+    
+    // Track display mode change event
+    posthog.capture('display_mode_changed', {
+      new_mode: mode,
+      previous_mode: displayMode
+    });
+  };
+
+  // processData function removed - viewport loading handles data processing
+
+  // No longer needed - filtering handled in map component
 
   // Show detailed information for a facility
   const showFacilityDetails = (facility) => {
@@ -397,6 +225,148 @@ export default function Explore() {
     // setSelectedFacility(null);
   };
 
+  // Add campground to comparison list
+  const addToComparison = (facility) => {
+    // Max 5 total (trip facility + 4 additional)
+    if (comparisonCampgrounds.length < 4) {
+      const isDuplicate = comparisonCampgrounds.some(
+        camp => (camp.id === facility.id) || (camp.facility_id === facility.facility_id)
+      );
+      const isTripFacility = tripFacility && (
+        (tripFacility.id === facility.id) || (tripFacility.facility_id === facility.facility_id)
+      );
+      
+      if (!isDuplicate && !isTripFacility) {
+        setComparisonCampgrounds(prev => [...prev, facility]);
+      }
+    }
+  };
+
+  // Remove campground from comparison list
+  const removeFromComparison = (facility) => {
+    setComparisonCampgrounds(prev => prev.filter(
+      camp => (camp.id !== facility.id) && (camp.facility_id !== facility.facility_id)
+    ));
+  };
+
+  // Check if facility is in comparison list
+  const isInComparison = (facility) => {
+    return comparisonCampgrounds.some(
+      camp => (camp.id === facility.id) || (camp.facility_id === facility.facility_id)
+    );
+  };
+
+  // Show confirmation modal for switching trip facility
+  const showSwitchConfirmation = (facility, event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const topY = rect.top;
+    
+    setModalPosition({ x: centerX, y: topY });
+    setFacilityToSwitch(facility);
+    setShowSwitchConfirmModal(true);
+  };
+
+  // Close confirmation modal
+  const closeSwitchConfirmation = () => {
+    setShowSwitchConfirmModal(false);
+    setFacilityToSwitch(null);
+  };
+
+  // Confirm and switch a comparison facility to become the trip facility
+  const confirmSwitchToTripFacility = async () => {
+    if (!facilityToSwitch) return;
+    
+    try {
+      // Get trip ID from router
+      const tripId = router.query.trip_id;
+      
+      if (tripId) {
+        // Create location string from facility data
+        const locationParts = [];
+        if (facilityToSwitch.name) locationParts.push(facilityToSwitch.name);
+        if (facilityToSwitch.city) locationParts.push(facilityToSwitch.city);
+        if (facilityToSwitch.state) locationParts.push(facilityToSwitch.state);
+        const locationString = locationParts.join(', ') || 'Unknown Location';
+
+        // Update the trip's facility_id and location in Supabase
+        const { error } = await supabase
+          .from('trips')
+          .update({ 
+            facility_id: facilityToSwitch.id || facilityToSwitch.facility_id,
+            location: locationString
+          })
+          .eq('id', tripId);
+
+        if (error) {
+          console.error('❌ Error updating trip facility in database:', error);
+          // You could show an error message to the user here
+          return;
+        }
+        
+        console.log('✅ Successfully updated trip facility and location in database');
+      }
+      
+      // If this facility is currently in comparison, remove it from comparison
+      if (isInComparison(facilityToSwitch)) {
+        removeFromComparison(facilityToSwitch);
+      }
+      
+      // If there's already a trip facility, add it to comparison (if there's room)
+      if (tripFacility && comparisonCampgrounds.length < 4) {
+        setComparisonCampgrounds(prev => [...prev, tripFacility]);
+      }
+      
+      // Set the new trip facility in state
+      setTripFacility(facilityToSwitch);
+      
+      // Track the switch event
+      posthog.capture('trip_facility_switched', {
+        new_facility_id: facilityToSwitch.id || facilityToSwitch.facility_id,
+        new_facility_name: facilityToSwitch.name,
+        previous_facility_id: tripFacility?.id || tripFacility?.facility_id,
+        previous_facility_name: tripFacility?.name,
+        trip_id: tripId
+      });
+
+      // Close the modal
+      closeSwitchConfirmation();
+      
+    } catch (error) {
+      console.error('❌ Unexpected error switching trip facility:', error);
+      // You could show an error message to the user here
+    }
+  };
+
+  // Handle date changes and update Supabase
+  const handleDateChange = async (field, value) => {
+    const tripId = router.query.trip_id;
+    if (!tripId) return;
+
+    try {
+      const { error } = await supabase
+        .from('trips')
+        .update({ [field]: value })
+        .eq('id', tripId);
+
+      if (error) throw error;
+      
+      if (field === 'start_date') setStartDate(value);
+      else setEndDate(value);
+      
+      console.log('✅ Successfully updated', field, 'to', value);
+    } catch (error) {
+      console.error(`❌ Error updating ${field}:`, error);
+    }
+  };
+
+  // Navigate to compare page with selected campgrounds
+  const goToCompare = () => {
+    const allCampgrounds = tripFacility ? [tripFacility, ...comparisonCampgrounds] : comparisonCampgrounds;
+    const facilityIds = allCampgrounds.map(camp => camp.id || camp.facility_id).join(',');
+    router.push(`/compare?facilities=${facilityIds}`);
+  };
+
   if (isLoading) {
     return (
       <SidebarLayout>
@@ -414,9 +384,7 @@ export default function Explore() {
     );
   }
 
-  // Get unique values for filters
-  const uniqueDemandValues = [...new Set(facilities.map(f => f.demand_assessment).filter(Boolean))];
-  const uniqueCostValues = [...new Set(facilities.map(f => f.cost_assessment_2).filter(Boolean))];
+
 
   return (
     <SidebarLayout>
@@ -445,252 +413,129 @@ export default function Explore() {
       
       <div className="flex flex-col min-h-screen">
         {/* Page Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center mb-2">
-            <button 
-              onClick={handleBackClick}
-              className="mr-2 p-1 rounded-full hover:bg-gray-100"
-              aria-label="Go back"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`text-sm text-gray-600 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you&apos;ve found one you like, go back to the trip to update your selection.</p>
-              <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>{filteredFacilities.length} campgrounds found</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Search controls (card) */}
         <div className="px-6 mt-4">
           <div className="bg-white rounded-xl shadow-md border p-4">
-            {/* Search Input - Full Width Row */}
-            <div className="mb-3">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search campgrounds..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <div className="flex items-center mb-2">
+              <button 
+                onClick={handleBackClick}
+                className="mr-2 p-1 rounded-full hover:bg-gray-100"
+                aria-label="Go back"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-              </div>
+              </button>
+              <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
             </div>
-            
-            {/* Filter Dropdowns Row */}
-            <div className="flex items-center gap-4">
-              {/* State Filter */}
-              <div className="w-40">
-                <select
-                  value={filters.state}
-                  onChange={(e) => setFilterValue('state', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">All States</option>
-                  {[...new Set(facilities.map(f => f.state).filter(Boolean))].sort().map(state => (
-                    <option key={`state-${state}`} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Demand Filter */}
-              <div className="w-40">
-                <select
-                  value={filters.demand}
-                  onChange={(e) => setFilterValue('demand', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">All Demand</option>
-                  {uniqueDemandValues.map(value => (
-                    <option key={`demand-${value}`} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Cost Filter */}
-              <div className="w-40">
-                <select
-                  value={filters.cost}
-                  onChange={(e) => setFilterValue('cost', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                >
-                  <option value="">All Costs</option>
-                  {uniqueCostValues.map(value => (
-                    <option key={`cost-${value}`} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Display Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  className={`px-3 py-1 text-sm rounded-md transition ${
-                    displayMode === 'demand' 
-                      ? 'bg-white shadow-sm text-gray-900' 
-                      : 'text-gray-600'
-                  }`}
-                  onClick={() => setDisplayMode('demand')}
-                >
-                  By Demand
-                </button>
-                <button
-                  className={`px-3 py-1 text-sm rounded-md transition ${
-                    displayMode === 'cost' 
-                      ? 'bg-white shadow-sm text-gray-900' 
-                      : 'text-gray-600'
-                  }`}
-                  onClick={() => setDisplayMode('cost')}
-                >
-                  By Cost
-                </button>
-              </div>
-
-              {/* Clear Filters */}
-              {(filters.demand || filters.cost || filters.state || searchQuery) && (
-                <button
-                  onClick={clearFilters}
-                  className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
-                >
-                  Clear All
-                </button>
-              )}
-
-              {/* Color Legend */}
-              <div className="flex items-center gap-2 ml-4">
-                <span className="text-xs text-gray-500">Legend:</span>
-                {displayMode === 'demand' ? (
-                  <>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#EF4444]"></div>
-                      <span className="text-xs">High</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#F59E0B]"></div>
-                      <span className="text-xs">Med</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#10B981]"></div>
-                      <span className="text-xs">Low</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#EF4444]"></div>
-                      <span className="text-xs">$$$$</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#F59E0B]"></div>
-                      <span className="text-xs">$$$</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#10B981]"></div>
-                      <span className="text-xs">$$</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className="w-3 h-3 rounded-full bg-[#3B82F6]"></div>
-                      <span className="text-xs">$</span>
-                    </div>
-                  </>
-                )}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={`text-sm text-gray-600 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you&apos;ve found one you like, go back to the trip to update your selection.</p>
+                <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>Campgrounds load dynamically as you explore the map</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Availability Calendar (card) */}
+        {/* Selected Campgrounds Section */}
+        {(tripFacility || comparisonCampgrounds.length > 0) && (
         <div className="px-6 mt-4">
-          <div className="bg-white rounded-xl shadow-md border">
-            <AvailabilityCalendar
-              facilityIdOverride={tripFacility?.id || undefined}
-              className="rounded-xl"
-            />
-          </div>
-        </div>
-
-        {/* Facility list (card) */}
-        <div className="px-6 mt-4">
-          <div className="bg-white rounded-xl shadow-md border">
-            <div className="p-4">
-              {filteredFacilities.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <p>No campgrounds found</p>
-                  <p className="text-sm mt-2">Try adjusting your filters</p>
+          <div className="bg-white rounded-xl shadow-md border p-4">
+            <div className="mb-3">
+                <h2 className="text-lg font-semibold text-gray-900">Facilities</h2>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {filteredFacilities.map(facility => (
-                    <div 
-                      key={facility.facility_id || facility.id || Math.random().toString()}
-                      ref={selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id) ? selectedFacilityRef : null}
-                      className={`p-3 border rounded-lg hover:bg-gray-50 hover:border-emerald-300 hover:shadow-md cursor-pointer bg-white transition-all ${
-                        selectedFacility && (selectedFacility.facility_id === facility.facility_id || selectedFacility.id === facility.id) 
-                          ? 'selected-facility' 
-                          : ''
-                      }`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        console.log('Card clicked for facility:', facility.name);
-                        showFacilityDetails(facility);
-                      }}
-                    >
-                      <div className="font-medium text-[#10B981]">
+                
+                <div className="flex flex-wrap gap-2">
+                  {/* Trip Facility (always first if exists) */}
+                  {tripFacility && (
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-sm">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                      <span className="font-medium text-emerald-800">
+                        {tripFacility.name || 'Trip Campground'}
+                      </span>
+                      <span className="text-emerald-600 text-xs">(Trip)</span>
+                    </div>
+                  )}
+                  
+                  {/* Additional Comparison Campgrounds */}
+                  {comparisonCampgrounds.map((facility, index) => (
+                                      <div
+                    key={facility.id || facility.facility_id || index}
+                    className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm group hover:bg-blue-100 transition-colors cursor-pointer"
+                    onClick={(e) => showSwitchConfirmation(facility, e)}
+                    title="Click to make this your trip facility"
+                  >
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="font-medium text-blue-800 flex-1">
                         {facility.name || 'Unnamed Facility'}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {facility.city && facility.state ? (
-                          <span>{facility.city}, {facility.state}</span>
-                        ) : (
-                          facility.city || facility.state || ''
-                        )}
-                      </div>
-                      <div className="text-xs mt-2">
-                        <span className="inline-block mr-3">
-                          <span className="font-medium">Demand:</span> {facility.demand_assessment || 'N/A'}
-                        </span>
-                        <span className="inline-block">
-                          <span className="font-medium">Cost:</span> {facility.cost_assessment_2 || 'N/A'}
-                        </span>
-                      </div>
+                      </span>
+                    <div className="flex items-center gap-1">
+                      {/* Switch to trip button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showSwitchConfirmation(facility, e);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Make this your trip facility"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </button>
+                      {/* Remove button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFromComparison(facility);
+                        }}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Remove from comparison"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    </div>
+                  ))}
+                  
+                  {/* Add more placeholder slots */}
+                  {Array.from({ length: Math.max(0, 4 - comparisonCampgrounds.length) }, (_, index) => (
+                    <div
+                      key={`placeholder-${index}`}
+                      className="flex items-center gap-2 bg-gray-50 border border-gray-200 border-dashed rounded-lg px-3 py-2 text-sm text-gray-400"
+                    >
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                      <span>Add campground</span>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+                
+              </div>
           </div>
-        </div>
+        )}
 
         {/* Map (full width card) */}
-        <div className="px-6 mt-4 mb-6">
+        <div className="px-6 mt-4">
           <div className="bg-white rounded-xl shadow-md border overflow-hidden">
             <div className="relative h-[560px]">
               <ExploreMap
-                facilities={facilities}
-                filteredFacilities={filteredFacilities}
+              facilities={[]} // No longer needed - viewport loading handles this
+              filteredFacilities={[]} // No longer needed
                 selectedFacility={selectedFacility}
                 displayMode={displayMode}
                 initialCenter={initialCenter}
                 initialZoom={initialZoom}
                 onFacilitySelect={showFacilityDetails}
                 onShowFacilityDetails={showFacilityDetailsPanel}
+              searchQuery={searchQuery}
+              filters={filters}
+              tripFacility={tripFacility}
+              comparisonCampgrounds={comparisonCampgrounds}
+              onAddToComparison={addToComparison}
+              onRemoveFromComparison={removeFromComparison}
+              onFiltersChange={handleFiltersChange}
+              onDisplayModeChange={handleDisplayModeChange}
               />
               
               {/* Facility detail panel */}
@@ -777,6 +622,90 @@ export default function Explore() {
             </div>
           </div>
         </div>
+
+        {/* Availability Calendar (card) */}
+        <div className="px-6 mt-4">
+          <div className="bg-white rounded-xl shadow-md border">
+            <AvailabilityCalendar
+              facilityIdOverride={tripFacility?.id || undefined}
+              className="rounded-xl"
+              selectedFacilities={(() => {
+                const facilities = [tripFacility, ...comparisonCampgrounds].filter(Boolean);
+                console.log('🔍 Passing selectedFacilities to AvailabilityCalendar:', facilities.length, facilities);
+                return facilities.length > 0 ? facilities : undefined;
+              })()}
+              // Pass trip dates and handler for date pickers
+              tripId={router.query.trip_id}
+              startDate={startDate}
+              endDate={endDate}
+              onDateChange={handleDateChange}
+            />
+          </div>
+        </div>
+
+
+
+        {/* Switch Trip Facility Confirmation Callout */}
+        {showSwitchConfirmModal && facilityToSwitch && (
+          <>
+            {/* Invisible backdrop to capture clicks outside */}
+            <div 
+              className="fixed inset-0 z-40"
+              onClick={closeSwitchConfirmation}
+            />
+            {/* Callout Modal */}
+            <div 
+              className="fixed z-50 w-64"
+              style={{
+                left: modalPosition.x - 128, // Center the 256px wide modal (w-64 = 256px)
+                top: modalPosition.y - 10, // Position above the pill with some spacing
+                transform: 'translateY(-100%)'
+              }}
+            >
+              <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4">
+                <div className="mb-3">
+                  <p className="text-sm font-medium text-gray-900 mb-1">
+                    Switch to Trip Facility?
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Make <strong>{facilityToSwitch.name || 'this facility'}</strong> your new trip destination
+                  </p>
+                </div>
+                
+                <button
+                  onClick={confirmSwitchToTripFacility}
+                  className="w-full px-3 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 transition-colors"
+                >
+                  Switch Facility
+                </button>
+                
+                {/* Arrow pointer */}
+                <div 
+                  className="absolute top-full left-1/2 transform -translate-x-1/2"
+                  style={{
+                    width: 0,
+                    height: 0,
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: '8px solid white',
+                    filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))'
+                  }}
+                />
+                <div 
+                  className="absolute top-full left-1/2 transform -translate-x-1/2"
+                  style={{
+                    width: 0,
+                    height: 0,
+                    borderLeft: '9px solid transparent',
+                    borderRight: '9px solid transparent',
+                    borderTop: '9px solid #d1d5db',
+                    marginTop: '-1px'
+                  }}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </SidebarLayout>
   );
