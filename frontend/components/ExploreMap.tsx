@@ -621,9 +621,7 @@ export default function ExploreMap({
     onAddToComparison(facility);
   };
 
-  const handleViewDetails = (facility) => {
-    onShowFacilityDetails(facility);
-  };
+
 
   // Check if facility is in comparison
   const isInComparison = (facility) => {
@@ -1090,7 +1088,6 @@ export default function ExploreMap({
           facility={modalFacility}
           onClose={handleCloseModal}
           onAddToComparison={handleAddToComparison}
-          onViewDetails={handleViewDetails}
           isInComparison={isInComparison(modalFacility)}
           isTripFacility={isTripFacility(modalFacility)}
           comparisonFull={isComparisonFull()}

@@ -187,9 +187,13 @@ export default function AvailabilityCalendar({
     return () => { isCancelled = true; };
   }, [facilityUuid, supabase]);
 
-  // Fetch availability for window (only when not using selectedFacilities)
+  // Fetch availability for window (only when not using selectedFacilities and we have a facility)
   useEffect(() => {
-    if (!facilityId || (selectedFacilities && selectedFacilities.length > 0)) return;
+    // Don't fetch campsite data if:
+    // 1. We don't have a facilityId 
+    // 2. We're using selectedFacilities (facility-level view)
+    // 3. selectedFacilities is undefined (no facilities to show)
+    if (!facilityId || selectedFacilities !== null) return;
     
     let isCancelled = false;
     (async () => {
@@ -465,6 +469,15 @@ export default function AvailabilityCalendar({
     
     return map;
   }, [rows, days, allCampsiteIds]);
+
+  // Clear campsite rows when no facilities are selected
+  useEffect(() => {
+    if (!selectedFacilities && !facilityId) {
+      console.log('🔍 Clearing rows - no facilities to show');
+      setRows([]);
+      setError(null);
+    }
+  }, [selectedFacilities, facilityId]);
 
   function getCellClass(status: AvailabilityStatus) {
     switch (status) {
@@ -749,7 +762,7 @@ export default function AvailabilityCalendar({
                 );
               })
             )}
-            {!loading && (!selectedFacilities || selectedFacilities.length === 0) && rowsToRender.length === 0 && (
+            {!loading && (!selectedFacilities || selectedFacilities.length === 0) && facilityId && rowsToRender.length === 0 && (
               <tr>
                 <td className="p-6 text-gray-500 text-center" colSpan={days.length + 1}>
                   {selectedCampsiteIds && selectedCampsiteIds.length === 0
@@ -758,7 +771,7 @@ export default function AvailabilityCalendar({
                 </td>
               </tr>
             )}
-            {!loading && (!selectedFacilities || selectedFacilities.length === 0) && rowsToRender.map(cid => (
+            {!loading && (!selectedFacilities || selectedFacilities.length === 0) && facilityId && rowsToRender.map(cid => (
               <tr key={cid} className="hover:bg-gray-50/50" style={{height: '60px'}}>
                 <td className="sticky left-0 bg-white z-10 border-r border-gray-200 p-2.5 text-sm font-medium text-gray-900 align-middle" style={{height: '60px', minHeight: '60px'}}>
                   <div className="flex items-center h-full">

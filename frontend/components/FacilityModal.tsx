@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 // Temporary disable analytics to avoid server errors
 const posthog = {
   capture: (event: string, properties?: any) => {
@@ -9,7 +11,6 @@ interface FacilityModalProps {
   facility: any;
   onClose: () => void;
   onAddToComparison: (facility: any) => void;
-  onViewDetails: (facility: any) => void;
   isInComparison?: boolean;
   isTripFacility?: boolean;
   comparisonFull?: boolean;
@@ -19,11 +20,12 @@ export default function FacilityModal({
   facility, 
   onClose, 
   onAddToComparison, 
-  onViewDetails,
   isInComparison = false,
   isTripFacility = false,
   comparisonFull = false 
 }: FacilityModalProps) {
+  const [showDescription, setShowDescription] = useState(false);
+  
   if (!facility) return null;
 
   const handleAddToComparison = (e: any) => {
@@ -38,16 +40,17 @@ export default function FacilityModal({
     });
   };
 
+
+
   const handleViewDetails = () => {
+    setShowDescription(!showDescription);
+    
     // Track event
-    posthog.capture('facility_details_viewed_from_modal', {
+    posthog.capture('facility_details_toggled', {
       facility_id: facility.facility_id || facility.id,
       facility_name: facility.name,
-      source: 'map_modal'
+      showing: !showDescription
     });
-    
-    onViewDetails(facility);
-    onClose();
   };
 
   const handleClose = () => {
@@ -71,7 +74,7 @@ export default function FacilityModal({
       {/* Modal */}
       <div className="flex h-full items-center justify-center p-4 pointer-events-none">
         <div 
-          className="relative transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all w-full max-w-md pointer-events-auto"
+          className="relative transform overflow-hidden rounded-2xl bg-white shadow-xl transition-all w-full max-w-md max-h-[500px] pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header with close and add buttons */}
@@ -122,7 +125,7 @@ export default function FacilityModal({
           </div>
 
           {/* Content */}
-          <div className="p-6 pt-16">
+          <div className="p-6 pt-16 overflow-y-auto" style={{ maxHeight: '440px' }}>
             {/* Title and Type */}
             <div className="mb-4">
               <h2 className="text-xl font-semibold text-gray-900 mb-1">
@@ -188,14 +191,30 @@ export default function FacilityModal({
               </div>
             )}
 
+            {/* Description (conditionally shown) */}
+            {showDescription && facility.description && (
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Description</h3>
+                <div className="text-sm text-gray-700 leading-relaxed">
+                  {facility.description.split('\n').map((paragraph, index) => (
+                    <p key={index} className="mb-2 last:mb-0">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="space-y-3">
-              <button
-                onClick={handleViewDetails}
-                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors"
-              >
-                View Details
-              </button>
+              {facility.description && (
+                <button
+                  onClick={handleViewDetails}
+                  className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                >
+                  {showDescription ? 'Hide Details' : 'View Details'}
+                </button>
+              )}
               
               {facility.reservation_url && (
                 <a

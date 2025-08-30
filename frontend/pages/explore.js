@@ -437,7 +437,7 @@ export default function Explore() {
         </div>
 
         {/* Selected Campgrounds Section */}
-        {(tripFacility || comparisonCampgrounds.length > 0) && (
+        {router.query.trip_id && (
         <div className="px-6 mt-4">
           <div className="bg-white rounded-xl shadow-md border p-4">
             <div className="mb-3">
@@ -500,7 +500,9 @@ export default function Explore() {
                   ))}
                   
                   {/* Add more placeholder slots */}
-                  {Array.from({ length: Math.max(0, 4 - comparisonCampgrounds.length) }, (_, index) => (
+                  {Array.from({ 
+                    length: Math.max(0, 4 - comparisonCampgrounds.length)
+                  }, (_, index) => (
                     <div
                       key={`placeholder-${index}`}
                       className="flex items-center gap-2 bg-gray-50 border border-gray-200 border-dashed rounded-lg px-3 py-2 text-sm text-gray-400"
