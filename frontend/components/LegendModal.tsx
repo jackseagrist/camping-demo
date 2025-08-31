@@ -36,7 +36,7 @@ export default function LegendModal({ displayMode }: LegendModalProps) {
   ];
 
   return (
-    <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-10 min-w-[140px]">
+    <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg border border-gray-200 p-3 z-10 min-w-[140px] hidden sm:block">
       <h3 className="text-sm font-medium text-gray-900 mb-2">
         {displayMode === 'demand' ? 'Demand Level' : 'Cost Level'}
       </h3>

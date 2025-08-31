@@ -557,113 +557,115 @@ export default function TripDetail() {
             </svg>
           </button>
           
-          {/* Trip Title & Subtitle with Collaborators */}
-          <div className="flex items-start justify-between">
-            <div className="flex-1 relative">
-              <div className="flex items-center gap-2">
+          {/* Trip Title & Subtitle with Collaborators Card */}
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 relative">
+                <div className="flex items-center gap-2">
+                  {isEditing ? (
+                    <input
+                      ref={titleRef}
+                      type="text"
+                      value={editedTitle}
+                      onChange={handleTitleChange}
+                      onKeyDown={handleKeyDown}
+                      onFocus={handleTitleFocus}
+                      onBlur={handleFieldBlur}
+                      className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-[#10B981] w-full p-1 mb-2"
+                      autoFocus={activeEditField === 'title'}
+                    />
+                  ) : (
+                    <h1 
+                      onClick={() => { setIsEditing(true); setActiveEditField('title'); }}
+                      className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-transparent hover:border-gray-200 cursor-pointer transition-colors mb-2"
+                    >
+                      {title}
+                    </h1>
+                  )}
+                </div>
+                
                 {isEditing ? (
-                  <input
-                    ref={titleRef}
-                    type="text"
-                    value={editedTitle}
-                    onChange={handleTitleChange}
+                  <textarea
+                    ref={descriptionRef}
+                    value={editedDescription}
+                    onChange={handleDescriptionChange}
                     onKeyDown={handleKeyDown}
-                    onFocus={handleTitleFocus}
+                    onFocus={handleDescriptionFocus}
                     onBlur={handleFieldBlur}
-                    className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-[#10B981] w-full p-1 mb-2"
-                    autoFocus={activeEditField === 'title'}
+                    className="text-gray-500 outline-none bg-gray-50 p-2 rounded w-full resize-none"
+                    placeholder="Describe what your trip is all about..."
+                    rows={2}
+                    autoFocus={activeEditField === 'description'}
                   />
                 ) : (
-                  <h1 
-                    onClick={() => { setIsEditing(true); setActiveEditField('title'); }}
-                    className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-transparent hover:border-gray-200 cursor-pointer transition-colors mb-2"
+                  <div
+                    onClick={() => { setIsEditing(true); setActiveEditField('description'); }}
+                    className="text-gray-500 p-1 rounded hover:bg-gray-50 cursor-pointer"
                   >
-                    {title}
-                  </h1>
-                )}
-              </div>
-              
-              {isEditing ? (
-                <textarea
-                  ref={descriptionRef}
-                  value={editedDescription}
-                  onChange={handleDescriptionChange}
-                  onKeyDown={handleKeyDown}
-                  onFocus={handleDescriptionFocus}
-                  onBlur={handleFieldBlur}
-                  className="text-gray-500 outline-none bg-gray-50 p-2 rounded w-full resize-none"
-                  placeholder="Describe what your trip is all about..."
-                  rows={2}
-                  autoFocus={activeEditField === 'description'}
-                />
-              ) : (
-                <div
-                  onClick={() => { setIsEditing(true); setActiveEditField('description'); }}
-                  className="text-gray-500 p-1 rounded hover:bg-gray-50 cursor-pointer"
-                >
-                  {description ? description : <span className="text-gray-400 italic">Describe what your trip is all about...</span>}
-                </div>
-              )}
-              
-              {/* Lightweight saving indicator */}
-              {isSaving && (
-                <div className="mt-3 text-xs text-gray-500">Saving…</div>
-              )}
-            </div>
-            
-            {/* Collaborators */}
-            <div className="flex items-center">
-              {/* Accepted Collaborators */}
-              <div className="flex -space-x-2">
-                {collaborators
-                  .filter(c => c.status === 'Accepted')
-                  .slice(0, 3)
-                  .map((c, i) => (
-                    <div 
-                      key={c.id}
-                      className={`w-10 h-10 rounded-full ${
-                        ['bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-pink-400', 'bg-indigo-400'][i % 5]
-                      } border-2 border-white flex items-center justify-center text-white`}
-                      title={c.email}
-                    >
-                      {c.email.substring(0, 2).toUpperCase()}
-                    </div>
-                  ))
-                }
-                
-                {/* Additional collaborators count */}
-                {collaborators.filter(c => c.status === 'Accepted').length > 3 && (
-                  <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs">
-                    +{collaborators.filter(c => c.status === 'Accepted').length - 3}
+                    {description ? description : <span className="text-gray-400 italic">Describe what your trip is all about...</span>}
                   </div>
                 )}
                 
-                {/* Add Collaborator Button */}
-                <button 
-                  className="w-10 h-10 rounded-full border-2 border-white bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
-                  onClick={() => setIsCollaboratorModalOpen(true)}
-                  title="Add collaborators"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                  </svg>
-                </button>
+                {/* Lightweight saving indicator */}
+                {isSaving && (
+                  <div className="mt-3 text-xs text-gray-500">Saving…</div>
+                )}
               </div>
               
-              {/* Trip Owner - Shown separately to the right */}
-              {tripOwner && (
-                <div 
-                  className="w-10 h-10 rounded-full bg-purple-500 border-2 border-white flex items-center justify-center text-white ml-2 relative"
-                  title={tripOwner.email}
-                >
-                  {tripOwner.email.substring(0, 2).toUpperCase()}
-                  <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              {/* Collaborators */}
+              <div className="flex items-center">
+                {/* Accepted Collaborators */}
+                <div className="flex -space-x-2">
+                  {collaborators
+                    .filter(c => c.status === 'Accepted')
+                    .slice(0, 3)
+                    .map((c, i) => (
+                      <div 
+                        key={c.id}
+                        className={`w-10 h-10 rounded-full ${
+                          ['bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-pink-400', 'bg-indigo-400'][i % 5]
+                        } border-2 border-white flex items-center justify-center text-white`}
+                        title={c.email}
+                      >
+                        {c.email.substring(0, 2).toUpperCase()}
+                      </div>
+                    ))
+                  }
+                  
+                  {/* Additional collaborators count */}
+                  {collaborators.filter(c => c.status === 'Accepted').length > 3 && (
+                    <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs">
+                      +{collaborators.filter(c => c.status === 'Accepted').length - 3}
+                    </div>
+                  )}
+                  
+                  {/* Add Collaborator Button */}
+                  <button 
+                    className="w-10 h-10 rounded-full border-2 border-gray-700 bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setIsCollaboratorModalOpen(true)}
+                    title="Add collaborators"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                     </svg>
-                  </span>
+                  </button>
                 </div>
-              )}
+                
+                {/* Trip Owner - Shown separately to the right */}
+                {tripOwner && (
+                  <div 
+                    className="w-10 h-10 rounded-full bg-purple-500 border-2 border-white flex items-center justify-center text-white ml-2 relative"
+                    title={tripOwner.email}
+                  >
+                    {tripOwner.email.substring(0, 2).toUpperCase()}
+                    <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -123,8 +123,8 @@ export default function SidebarLayout({ children }) {
   });
 
   return (
-    <div className={`${inter.className} min-h-screen w-full relative ${isPlanPage ? 'bg-gray-100' : 'bg-[#F9FAFB]'}`}>
-      <div className="flex min-h-screen">
+    <div className={`${inter.className} min-h-screen w-full max-w-full overflow-x-hidden relative ${isPlanPage ? 'bg-gray-100' : 'bg-[#F9FAFB]'}`}>
+      <div className="flex min-h-screen w-full max-w-full">
         <aside className={`group bg-white border-r border-gray-200 hidden lg:block lg:fixed left-0 top-0 h-full transition-all duration-300 ${collapsed ? 'lg:w-20' : 'lg:w-64'} z-40`}>
           <button
             onClick={() => setCollapsed((prev) => !prev)}
@@ -234,8 +234,8 @@ export default function SidebarLayout({ children }) {
           </div>
         </aside>
 
-        <div className={`flex-1 transition-all duration-300 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'} pb-20 lg:pb-0 ${isPlanPage ? 'bg-gray-100 min-h-screen' : ''}`}>
-          <div className={`max-w-6xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 md:py-8 lg:py-10 ${isPlanPage ? 'pb-24' : ''}`}>
+        <div className={`flex-1 w-full max-w-full transition-all duration-300 ml-0 ${collapsed ? 'lg:ml-20' : 'lg:ml-64'} pb-20 lg:pb-0 ${isPlanPage ? 'bg-gray-100 min-h-screen' : ''}`}>
+          <div className={`w-full max-w-none sm:max-w-6xl mx-auto px-0 sm:px-0 md:px-6 lg:px-8 py-6 md:py-8 lg:py-10 ${isPlanPage ? 'pb-24' : ''}`}>
             {children}
           </div>
         </div>

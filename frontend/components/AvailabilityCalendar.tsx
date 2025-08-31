@@ -537,7 +537,8 @@ export default function AvailabilityCalendar({
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Availability</h2>
           </div>
-          <div className="flex items-center gap-2">
+          {/* Desktop navigation buttons */}
+          <div className="hidden sm:flex items-center gap-2">
             <button 
               onClick={goToPrevMonth} 
               className="px-2.5 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-50 transition-colors"
@@ -588,6 +589,34 @@ export default function AvailabilityCalendar({
             </div>
           </div>
         )}
+        
+        {/* Mobile navigation buttons - always shown on mobile */}
+        <div className="mt-3 flex sm:hidden items-center justify-center gap-3">
+          <button 
+            onClick={goToPrevMonth} 
+            className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors min-h-[44px] flex items-center justify-center"
+            disabled={loading}
+            aria-label="Previous month"
+          >
+            ← Prev
+          </button>
+          <button 
+            onClick={goToToday} 
+            className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors min-h-[44px] flex items-center justify-center"
+            disabled={loading}
+            aria-label="Go to current month"
+          >
+            Today
+          </button>
+          <button 
+            onClick={goToNextMonth} 
+            className="px-4 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors min-h-[44px] flex items-center justify-center"
+            disabled={loading}
+            aria-label="Next month"
+          >
+            Next →
+          </button>
+        </div>
       </div>
 
       {/* Date range display */}
@@ -707,7 +736,21 @@ export default function AvailabilityCalendar({
                   <tr key={facilityKey} className="hover:bg-gray-50/50" style={{height: '60px'}}>
                     <td className="sticky left-0 bg-white z-10 border-r border-gray-200 p-2.5 text-sm font-medium text-gray-900 align-middle" style={{height: '60px', minHeight: '60px'}}>
                       <div className="flex items-center h-full">
-                        {facility.name || 'Unnamed Facility'}
+                        {facility.facility_id ? (
+                          <a
+                            href={`https://www.recreation.gov/camping/campgrounds/${facility.facility_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
+                            title={`Make reservation at ${facility.name || 'this facility'} on Recreation.gov`}
+                          >
+                            {facility.name || 'Unnamed Facility'}
+                          </a>
+                        ) : (
+                          <span className="text-gray-500" title="Reservation link not available">
+                            {facility.name || 'Unnamed Facility'}
+                          </span>
+                        )}
                       </div>
                     </td>
                     {days.map(d => {

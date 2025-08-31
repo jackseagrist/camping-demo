@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import ExploreMap from '../components/ExploreMap';
+import MobileLegend from '../components/MobileLegend';
 import { Inter } from 'next/font/google';
 import posthog from '../posthog';
 import { useRouter } from 'next/router';
@@ -390,6 +391,7 @@ export default function Explore() {
     <SidebarLayout>
       <Head>
         <title>Explore Campgrounds - BaseLodge</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <style jsx global>{`
           .mapboxgl-popup {
             z-index: 1000;
@@ -408,29 +410,66 @@ export default function Explore() {
             background-color: #ECFDF5 !important;
             box-shadow: 0 0 0 2px #10B981 !important;
           }
+          
+          /* Mobile-specific map styles */
+          @media (max-width: 640px) {
+            .mapboxgl-ctrl-bottom-right {
+              bottom: 10px !important;
+              right: 10px !important;
+            }
+            .mapboxgl-ctrl-bottom-left {
+              bottom: 10px !important;
+              left: 10px !important;
+            }
+            .mapboxgl-popup-content {
+              max-width: calc(100vw - 40px);
+            }
+            
+            /* Ensure no horizontal overflow on mobile */
+            html, body {
+              overflow-x: hidden;
+              width: 100%;
+              max-width: 100%;
+            }
+            
+            /* Prevent any elements from extending beyond viewport */
+            * {
+              max-width: 100%;
+              box-sizing: border-box;
+            }
+            
+            /* Force all containers to respect viewport width */
+            .flex, .flex-col, .bg-white {
+              max-width: 100%;
+            }
+          }
         `}</style>
       </Head>
       
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
+        {/* Back Button */}
+        <div className="mx-4 sm:mx-6 mt-4">
+          <button 
+            onClick={handleBackClick}
+            className="text-gray-600 hover:text-gray-800 mb-6"
+            aria-label="Go back"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
+        </div>
+
         {/* Page Header */}
-        <div className="px-6 mt-4">
-          <div className="bg-white rounded-xl shadow-md border p-4">
+        <div className="mx-4 sm:mx-6 -mt-2">
+          <div className="bg-white rounded-xl shadow-md border p-3 sm:p-4">
             <div className="flex items-center mb-2">
-              <button 
-                onClick={handleBackClick}
-                className="mr-2 p-1 rounded-full hover:bg-gray-100"
-                aria-label="Go back"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-              </button>
-              <h1 className={`text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
+              <h1 className={`text-xl sm:text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className={`text-sm text-gray-600 ${inter.className}`}>Instructions: Use this map to explore other campgrounds. After you&apos;ve found one you like, go back to the trip to update your selection.</p>
-                <p className={`text-sm text-gray-600 mt-1 ${inter.className}`}>Campgrounds load dynamically as you explore the map</p>
+                <p className={`text-xs sm:text-sm text-gray-600 ${inter.className}`}>Use this map to explore other campgrounds and compare availability.</p>
+                <p className={`text-xs sm:text-sm text-gray-600 mt-1 ${inter.className} hidden sm:block`}>Campgrounds load dynamically as you explore the map</p>
               </div>
             </div>
           </div>
@@ -438,8 +477,8 @@ export default function Explore() {
 
         {/* Selected Campgrounds Section */}
         {router.query.trip_id && (
-        <div className="px-6 mt-4">
-          <div className="bg-white rounded-xl shadow-md border p-4">
+        <div className="mx-4 sm:mx-6 mt-4">
+          <div className="bg-white rounded-xl shadow-md border p-3 sm:p-4">
             <div className="mb-3">
                 <h2 className="text-lg font-semibold text-gray-900">Facilities</h2>
                 </div>
@@ -447,12 +486,12 @@ export default function Explore() {
                 <div className="flex flex-wrap gap-2">
                   {/* Trip Facility (always first if exists) */}
                   {tripFacility && (
-                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-sm">
-                      <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                      <span className="font-medium text-emerald-800">
+                    <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 text-xs sm:text-sm min-h-[44px] sm:min-h-auto">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0"></div>
+                      <span className="font-medium text-emerald-800 truncate">
                         {tripFacility.name || 'Trip Campground'}
                       </span>
-                      <span className="text-emerald-600 text-xs">(Trip)</span>
+                      <span className="text-emerald-600 text-xs flex-shrink-0">(Trip)</span>
                     </div>
                   )}
                   
@@ -460,25 +499,25 @@ export default function Explore() {
                   {comparisonCampgrounds.map((facility, index) => (
                                       <div
                     key={facility.id || facility.facility_id || index}
-                    className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm group hover:bg-blue-100 transition-colors cursor-pointer"
+                    className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs sm:text-sm group hover:bg-blue-100 transition-colors cursor-pointer min-h-[44px] sm:min-h-auto"
                     onClick={(e) => showSwitchConfirmation(facility, e)}
                     title="Click to make this your trip facility"
                   >
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span className="font-medium text-blue-800 flex-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                    <span className="font-medium text-blue-800 flex-1 truncate">
                         {facility.name || 'Unnamed Facility'}
                       </span>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {/* Switch to trip button */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           showSwitchConfirmation(facility, e);
                         }}
-                        className="text-blue-600 hover:text-blue-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-blue-600 hover:text-blue-800 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-1 -m-1"
                         title="Make this your trip facility"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
                       </button>
@@ -488,10 +527,10 @@ export default function Explore() {
                           e.stopPropagation();
                           removeFromComparison(facility);
                         }}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 p-1 -m-1"
                         title="Remove from comparison"
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
@@ -518,9 +557,9 @@ export default function Explore() {
         )}
 
         {/* Map (full width card) */}
-        <div className="px-6 mt-4">
+        <div className="mx-4 sm:mx-6 mt-4">
           <div className="bg-white rounded-xl shadow-md border overflow-hidden">
-            <div className="relative h-[560px]">
+            <div className="relative h-[400px] sm:h-[500px] lg:h-[560px]">
               <ExploreMap
               facilities={[]} // No longer needed - viewport loading handles this
               filteredFacilities={[]} // No longer needed
@@ -623,6 +662,11 @@ export default function Explore() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Mobile Legend (only visible on mobile) */}
+        <div className="mx-4 sm:mx-6 mt-4">
+          <MobileLegend displayMode={displayMode} />
         </div>
 
         {/* Availability Calendar (card) */}

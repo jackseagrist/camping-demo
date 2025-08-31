@@ -570,33 +570,8 @@ export default function ExploreMap({
         addTentMarkers();
       }
 
-      // Fit map to show all markers if we have any valid coordinates
-      if (!bounds.isEmpty()) {
-        try {
-          console.log('🔍 Fitting map bounds to show all facilities');
-          map.current.fitBounds(bounds, {
-            padding: 100,
-            maxZoom: 10
-          });
-          console.log('✅ Map bounds adjusted successfully');
-        } catch (error) {
-          console.error('❌ Error fitting bounds:', error);
-          
-          try {
-            // Fallback to center on first facility
-            const firstFacility = facilitiesToShow[0];
-            if (firstFacility && firstFacility.normalizedLon && firstFacility.normalizedLat) {
-              map.current.flyTo({
-                center: [firstFacility.normalizedLon, firstFacility.normalizedLat],
-                zoom: 8
-              });
-              console.log('✅ Fallback centering successful');
-            }
-          } catch (flyError) {
-            console.error('❌ Even fallback centering failed:', flyError);
-          }
-        }
-      }
+      // Note: Removed automatic fitBounds to prevent unwanted zoom changes when loading new facilities
+      // The map will maintain its current zoom level and position when new points are loaded
       
       console.log('✅ Successfully added', points.features.length, 'facilities to clustered map');
       } catch (error) {
@@ -978,15 +953,15 @@ export default function ExploreMap({
       />
       
       {/* Filter Button - Upper Left */}
-      <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
+      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 z-10">
         <button
           onClick={() => setShowFilterModal(true)}
-          className="bg-white rounded-lg shadow-lg px-4 py-2 flex items-center gap-2 hover:bg-gray-50 transition-colors"
+          className="bg-white rounded-lg shadow-lg px-3 sm:px-4 py-2 flex items-center gap-2 hover:bg-gray-50 transition-colors min-h-[44px] sm:min-h-auto"
         >
           <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
           </svg>
-          <span className="text-sm font-medium text-gray-700">Filter</span>
+          <span className="text-xs sm:text-sm font-medium text-gray-700">Filter</span>
           {((filters.demand && filters.demand.length > 0) || (filters.cost && filters.cost.length > 0)) && (
             <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
           )}
@@ -1003,7 +978,7 @@ export default function ExploreMap({
               zoomToSelectedFacilities();
             }
           }}
-          className={`bg-white rounded-lg shadow-lg px-4 py-2 flex items-center gap-2 transition-colors ${
+          className={`bg-white rounded-lg shadow-lg px-3 sm:px-4 py-2 flex items-center gap-2 transition-colors min-h-[44px] sm:min-h-auto ${
             showOnlySelected 
               ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200' 
               : 'hover:bg-gray-50'
@@ -1012,8 +987,11 @@ export default function ExploreMap({
           <svg className={`w-4 h-4 ${showOnlySelected ? 'text-emerald-600' : 'text-gray-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className={`text-sm font-medium ${showOnlySelected ? 'text-emerald-700' : 'text-gray-700'}`}>
+          <span className={`text-xs sm:text-sm font-medium ${showOnlySelected ? 'text-emerald-700' : 'text-gray-700'} hidden sm:inline`}>
             Selected Only
+          </span>
+          <span className={`text-xs font-medium ${showOnlySelected ? 'text-emerald-700' : 'text-gray-700'} sm:hidden`}>
+            Selected
           </span>
           {showOnlySelected && (
             <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
