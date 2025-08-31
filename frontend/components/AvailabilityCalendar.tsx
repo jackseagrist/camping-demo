@@ -57,7 +57,6 @@ export default function AvailabilityCalendar({
   className = "",
   selectedCampsiteIds,
   density = 'compact',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   highlightStreak,
   selectedFacilities = [],
   tripId: tripIdProp,
