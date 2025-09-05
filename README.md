@@ -5,8 +5,9 @@ A modern web application that helps users plan and manage their camping trips wi
 ## 🌟 Features
 
 - 🔐 **User Authentication**: Secure login/signup with Supabase Auth
-- 📱 **Responsive Dashboard**: Toggle between card and list views for trips
+- 📱 **Responsive Dashboard**: Toggle between card and list views for trips (card-only on mobile)
 - 👥 **Trip Collaboration**: Invite others to collaborate on trips via email
+- 🔔 **Notifications**: Real-time notifications for comments and @mentions
 - 🎒 **Smart Packing Lists**: AI-generated packing lists based on trip details
 - 📍 **Trip Management**: Create, view, and manage camping trips
 - 🔒 **Row Level Security**: Secure data access with Supabase RLS policies
@@ -85,6 +86,7 @@ create table trip_collaborators (
   email text not null,
   status text not null check (status in ('Pending', 'Accepted')),
   invited_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  invited_by text,
   constraint unique_trip_collaborator unique (trip_id, email)
 );
 
@@ -114,11 +116,36 @@ create policy "Users can update their own collaboration status"
   using (email = (auth.jwt() ->> 'email'))
   with check (email = (auth.jwt() ->> 'email'));
 
+-- Create comments table for trip discussions
+create table comments (
+  id uuid default gen_random_uuid() primary key,
+  trip_id uuid references trips(id) on delete cascade not null,
+  user_id uuid references auth.users not null,
+  content text not null,
+  mentions jsonb default '[]'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Create notifications table for comment mentions
+create table notifications (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  trip_id uuid references trips(id) on delete cascade not null,
+  comment_id uuid references comments(id) on delete cascade,
+  type text not null check (type in ('mention', 'comment')),
+  seen boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- Create indexes
 create index trips_user_id_idx on trips(user_id);
 create index trips_created_at_idx on trips(created_at desc);
 create index trip_collaborators_trip_id_idx on trip_collaborators(trip_id);
 create index trip_collaborators_email_idx on trip_collaborators(email);
+create index comments_trip_id_idx on comments(trip_id);
+create index notifications_user_id_idx on notifications(user_id);
+create index notifications_trip_id_idx on notifications(trip_id);
+create index notifications_seen_idx on notifications(seen);
 ```
 
 ## 📱 Core Features
@@ -136,6 +163,7 @@ create index trip_collaborators_email_idx on trip_collaborators(email);
 - **Shared Access**: Accepted collaborators can view and edit trip details
 - **Collaborator Management**: See all collaborators with visual avatars
 - **Duplicate Prevention**: Smart deduplication prevents trips appearing twice
+- **Email Visibility**: Collaborators can see each other's emails for easier communication
 
 #### Collaboration Workflow:
 1. **Trip Owner** clicks "Add Collaborators" button on trip detail page
@@ -149,6 +177,13 @@ create index trip_collaborators_email_idx on trip_collaborators(email);
 - **Trip Owners**: Full access - invite/remove collaborators, edit all trip details
 - **Accepted Collaborators**: Can view and edit trip details, see other collaborators
 - **Pending Invitees**: Can only see invitation details and accept/decline
+
+### Notification System
+- **Comment Notifications**: Get notified when someone comments on your trip
+- **@Mention Support**: Tag collaborators in comments with @email format
+- **Real-time Updates**: Notifications appear instantly via Supabase real-time subscriptions
+- **Visual Indicators**: Red notification badge shows count of unseen notifications
+- **Auto-clearing**: Notifications are marked as seen when you open the trip
 
 ### Packing Lists
 - AI-generated packing lists based on:
@@ -177,6 +212,8 @@ create index trip_collaborators_email_idx on trip_collaborators(email);
 ### Current Security Status:
 - ✅ `trip_collaborators` table: Full RLS enabled with proper policies
 - ✅ `trips` table: RLS disabled (recommended for complex collaborative features)
+- ✅ `comments` table: RLS disabled (follows trips table pattern)
+- ✅ `notifications` table: RLS disabled (follows trips table pattern)
 - 🔒 **Security maintained through**: Application-level access control + Auth validation
 
 ### Why RLS is Disabled on Trips Table (Recommended Approach)
@@ -215,18 +252,22 @@ if (tripData.user_id !== session.user.id && (!collaboratorData || collaboratorDa
 
 ## 🎨 UI Components
 
-- `TripCard`: Card view for individual trips
+- `TripCard`: Card view for individual trips with notification badges
 - `TripList`: List view for trips
 - `NewTripModal`: Modal for creating new trips
 - `CollaboratorModal`: Modal for inviting and managing collaborators
+- `TripCommentsSection`: Comment system with @mention support
+- `TripHeader`: Trip details with collaborator information
 - `SidebarLayout`: Consistent layout with navigation
-- Responsive design for all screen sizes
+- Responsive design optimized for mobile and desktop
 
 ## 🔧 Database Schema
 
 ### Tables:
 - **trips**: Core trip data (title, location, dates, description)
 - **trip_collaborators**: Collaboration relationships with email-based invites
+- **comments**: Trip comments with user references and mentions
+- **notifications**: User notifications for comments and @mentions
 
 ### Key Features:
 - UUID primary keys for security
