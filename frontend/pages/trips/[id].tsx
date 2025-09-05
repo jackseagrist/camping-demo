@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../../components/SidebarLayout';
+import TripHeader from '../../components/TripHeader';
+import MobileTripTabs from '../../components/MobileTripTabs';
 import TripNotes from '../../components/TripNotes';
 import TripCommentsSection from '../../components/TripCommentsSection';
 import CollaboratorModal from '../../components/CollaboratorModal';
@@ -16,6 +18,7 @@ import dynamic from 'next/dynamic';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import mapboxgl from 'mapbox-gl';
 import posthog from '../../posthog';
+import { markTripNotificationsAsSeen } from '../../lib/notificationUtils';
 
 // Set Mapbox token to match explore.js
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
@@ -73,6 +76,9 @@ export default function TripDetail() {
           router.push('/login');
           return;
         }
+        
+        // Mark notifications as seen when trip page is opened
+        await markTripNotificationsAsSeen(supabase, id as string, session.user.id);
 
         // Get the trip data with joined facility data
         const { data: tripData, error } = await supabase
@@ -163,6 +169,7 @@ export default function TripDetail() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
+      // Get the trip data with the owner's user_id
       const { data: tripData, error: tripError } = await supabase
         .from('trips')
         .select('user_id')
@@ -178,29 +185,92 @@ export default function TripDetail() {
           email: session.user.email || 'Owner'
         });
       } else {
-        // Try to get the owner's email from trip_collaborators (they might be a collaborator on other trips)
-        const { data: ownerData, error: ownerError } = await supabase
-          .from('trip_collaborators')
-          .select('email')
-          .eq('user_id', tripData.user_id)
-          .limit(1)
-          .single();
-        
-        if (ownerError || !ownerData) {
-          // If we can't find the email, use a generic label with the user ID
+        // Try to get the owner's email using multiple approaches
+        try {
+          // First, try to get the email from the users table if it exists
+          try {
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('email')
+              .eq('id', tripData.user_id)
+              .single();
+            
+            if (!userError && userData && userData.email) {
+              setTripOwner({
+                id: tripData.user_id,
+                email: userData.email
+              });
+              return; // Exit early if we found the email
+            }
+          } catch (userQueryError) {
+            console.log('Users table might not exist:', userQueryError);
+          }
+          
+          // If that didn't work, check if we can get the email from the profiles table
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', tripData.user_id)
+            .single();
+          
+          if (!profileError && profileData && profileData.email) {
+            // Found email in profiles table
+            setTripOwner({
+              id: tripData.user_id,
+              email: profileData.email
+            });
+          } else {
+            // Next, try to find the owner's email in the trip_collaborators table
+            // where they might be a collaborator on other trips
+            const { data: ownerCollabData, error: ownerCollabError } = await supabase
+              .from('trip_collaborators')
+              .select('email')
+              .eq('user_id', tripData.user_id)
+              .limit(1)
+              .single();
+            
+            if (!ownerCollabError && ownerCollabData && ownerCollabData.email) {
+              // Found email in trip_collaborators table
+              setTripOwner({
+                id: tripData.user_id,
+                email: ownerCollabData.email
+              });
+            } else {
+              // Try to find the invited_by field which might contain the owner's email
+              const { data: inviteData } = await supabase
+                .from('trip_collaborators')
+                .select('invited_by')
+                .eq('trip_id', id)
+                .not('invited_by', 'is', null)
+                .limit(1)
+                .single();
+              
+              if (inviteData && inviteData.invited_by) {
+                // Found email in invited_by field
+                setTripOwner({
+                  id: tripData.user_id,
+                  email: inviteData.invited_by
+                });
+              } else {
+                // Last resort: Use a friendly label instead of the UUID
+                setTripOwner({
+                  id: tripData.user_id,
+                  email: 'Trip Owner'
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching owner email:', error);
+          // Fallback to a friendly label
           setTripOwner({
             id: tripData.user_id,
-            email: `User ${tripData.user_id.substring(0, 4)}`
-          });
-        } else {
-          setTripOwner({
-            id: tripData.user_id,
-            email: ownerData.email
+            email: 'Trip Owner'
           });
         }
       }
       
-      // Get collaborators
+      // Get collaborators with their full email addresses
       const { data, error } = await supabase
         .from('trip_collaborators')
         .select('*')
@@ -545,130 +615,49 @@ export default function TripDetail() {
 
   return (
     <SidebarLayout>
+      <style jsx global>{`
+        @media (max-width: 767px) {
+          body {
+            padding-top: 48px;
+          }
+        }
+        
+        @media (min-width: 768px) {
+          body {
+            padding-top: 0;
+          }
+        }
+      `}</style>
+      
+      {/* Mobile Trip Tabs */}
+      <MobileTripTabs 
+        tripId={trip.id}
+        activeTab="trip"
+      />
+      
+      {/* Trip Header with tabs and title/collaborators */}
+      <TripHeader 
+        tripId={trip.id}
+        tripTitle={trip.title}
+        tripDescription={description}
+        activeTab="trip"
+        collaborators={collaborators}
+        tripOwner={tripOwner}
+        isEditing={isEditing}
+        editedTitle={editedTitle}
+        editedDescription={editedDescription}
+        activeEditField={activeEditField}
+        isSaving={isSaving}
+        onTitleChange={setEditedTitle}
+        onDescriptionChange={setEditedDescription}
+        onTitleFocus={handleTitleFocus}
+        onDescriptionFocus={handleDescriptionFocus}
+        onFieldBlur={handleFieldBlur}
+        onKeyDown={handleKeyDown}
+        onOpenCollaboratorModal={() => setIsCollaboratorModalOpen(true)}
+      />
+      
       <div className={`${inter.className} bg-[#F9FAFB] min-h-screen p-8`}>
-        {/* Header with Back Button */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-gray-600 hover:text-gray-800 mb-6"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-          
-          {/* Trip Title & Subtitle with Collaborators Card */}
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 relative">
-                <div className="flex items-center gap-2">
-                  {isEditing ? (
-                    <input
-                      ref={titleRef}
-                      type="text"
-                      value={editedTitle}
-                      onChange={handleTitleChange}
-                      onKeyDown={handleKeyDown}
-                      onFocus={handleTitleFocus}
-                      onBlur={handleFieldBlur}
-                      className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-[#10B981] w-full p-1 mb-2"
-                      autoFocus={activeEditField === 'title'}
-                    />
-                  ) : (
-                    <h1 
-                      onClick={() => { setIsEditing(true); setActiveEditField('title'); }}
-                      className="text-3xl font-bold text-[#111827] outline-none border-b-2 border-transparent hover:border-gray-200 cursor-pointer transition-colors mb-2"
-                    >
-                      {title}
-                    </h1>
-                  )}
-                </div>
-                
-                {isEditing ? (
-                  <textarea
-                    ref={descriptionRef}
-                    value={editedDescription}
-                    onChange={handleDescriptionChange}
-                    onKeyDown={handleKeyDown}
-                    onFocus={handleDescriptionFocus}
-                    onBlur={handleFieldBlur}
-                    className="text-gray-500 outline-none bg-gray-50 p-2 rounded w-full resize-none"
-                    placeholder="Describe what your trip is all about..."
-                    rows={2}
-                    autoFocus={activeEditField === 'description'}
-                  />
-                ) : (
-                  <div
-                    onClick={() => { setIsEditing(true); setActiveEditField('description'); }}
-                    className="text-gray-500 p-1 rounded hover:bg-gray-50 cursor-pointer"
-                  >
-                    {description ? description : <span className="text-gray-400 italic">Describe what your trip is all about...</span>}
-                  </div>
-                )}
-                
-                {/* Lightweight saving indicator */}
-                {isSaving && (
-                  <div className="mt-3 text-xs text-gray-500">Saving…</div>
-                )}
-              </div>
-              
-              {/* Collaborators */}
-              <div className="flex items-center">
-                {/* Accepted Collaborators */}
-                <div className="flex -space-x-2">
-                  {collaborators
-                    .filter(c => c.status === 'Accepted')
-                    .slice(0, 3)
-                    .map((c, i) => (
-                      <div 
-                        key={c.id}
-                        className={`w-10 h-10 rounded-full ${
-                          ['bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-pink-400', 'bg-indigo-400'][i % 5]
-                        } border-2 border-white flex items-center justify-center text-white`}
-                        title={c.email}
-                      >
-                        {c.email.substring(0, 2).toUpperCase()}
-                      </div>
-                    ))
-                  }
-                  
-                  {/* Additional collaborators count */}
-                  {collaborators.filter(c => c.status === 'Accepted').length > 3 && (
-                    <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-gray-600 text-xs">
-                      +{collaborators.filter(c => c.status === 'Accepted').length - 3}
-                    </div>
-                  )}
-                  
-                  {/* Add Collaborator Button */}
-                  <button 
-                    className="w-10 h-10 rounded-full border-2 border-gray-700 bg-white shadow-sm flex items-center justify-center text-gray-400 hover:text-gray-600"
-                    onClick={() => setIsCollaboratorModalOpen(true)}
-                    title="Add collaborators"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {/* Trip Owner - Shown separately to the right */}
-                {tripOwner && (
-                  <div 
-                    className="w-10 h-10 rounded-full bg-purple-500 border-2 border-white flex items-center justify-center text-white ml-2 relative"
-                    title={tripOwner.email}
-                  >
-                    {tripOwner.email.substring(0, 2).toUpperCase()}
-                    <span className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-purple-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
         
         {/* Map Section */}
         <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
@@ -684,15 +673,6 @@ export default function TripDetail() {
               />
             )}
           </div>
-        </div>
-        {/* Explore other sites button (full width, matches map width) */}
-        <div className="mb-6">
-          <button
-            onClick={() => router.push(`/explore?trip_id=${trip.id}`)}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg transition-colors"
-          >
-            Explore other sites
-          </button>
         </div>
         
         {/* Main content - 2 column layout on wide screens */}

@@ -3,6 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Head from 'next/head';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import SidebarLayout from '../components/SidebarLayout';
+import TripHeader from '../components/TripHeader';
+import MobileTripTabs from '../components/MobileTripTabs';
+import CollaboratorModal from '../components/CollaboratorModal';
 import AvailabilityCalendar from '../components/AvailabilityCalendar';
 import ExploreMap from '../components/ExploreMap';
 import MobileLegend from '../components/MobileLegend';
@@ -36,6 +39,16 @@ export default function Explore() {
   const [modalPosition, setModalPosition] = useState({ x: 0, y: 0 });
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [tripTitle, setTripTitle] = useState('');
+  const [tripDescription, setTripDescription] = useState('');
+  const [collaborators, setCollaborators] = useState([]);
+  const [tripOwner, setTripOwner] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [activeEditField, setActiveEditField] = useState(null);
+  const [isCollaboratorModalOpen, setIsCollaboratorModalOpen] = useState(false);
   
   // Reference to the selected facility list item
   const selectedFacilityRef = useRef(null);
@@ -43,6 +56,143 @@ export default function Explore() {
   // Handle back button click
   const handleBackClick = () => {
     router.back();
+  };
+
+  // Fetch collaborators for this trip
+  const fetchCollaborators = async (tripId, tripUserId) => {
+    try {
+      // First, get the current user session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      // Set the trip owner using the current user's info if they're the owner
+      if (session.user.id === tripUserId) {
+        setTripOwner({
+          id: session.user.id,
+          email: session.user.email || 'Owner'
+        });
+      } else {
+        // Try to get the owner's email from trip_collaborators (they might be a collaborator on other trips)
+        const { data: ownerData, error: ownerError } = await supabase
+          .from('trip_collaborators')
+          .select('email')
+          .eq('user_id', tripUserId)
+          .limit(1)
+          .single();
+        
+        if (ownerError || !ownerData) {
+          // If we can't find the email, use a generic label with the user ID
+          setTripOwner({
+            id: tripUserId,
+            email: `User ${tripUserId.substring(0, 4)}`
+          });
+        } else {
+          setTripOwner({
+            id: tripUserId,
+            email: ownerData.email
+          });
+        }
+      }
+      
+      // Get collaborators
+      const { data, error } = await supabase
+        .from('trip_collaborators')
+        .select('*')
+        .eq('trip_id', tripId);
+      
+      if (error) throw error;
+      setCollaborators(data || []);
+    } catch (error) {
+      console.error('Error fetching collaborators:', error);
+    }
+  };
+
+  // Title and description editing handlers
+  const handleTitleFocus = () => {
+    setIsEditing(true);
+    setActiveEditField('title');
+  };
+
+  const handleDescriptionFocus = () => {
+    setIsEditing(true);
+    setActiveEditField('description');
+  };
+
+  const handleTitleChange = (value) => {
+    setEditedTitle(value);
+  };
+
+  const handleDescriptionChange = (value) => {
+    setEditedDescription(value);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      // Revert to last saved values and exit editing
+      setEditedTitle(tripTitle);
+      setEditedDescription(tripDescription);
+      setIsEditing(false);
+      setActiveEditField(null);
+    }
+  };
+
+  // Save only fields that have changed
+  const saveTripFields = async (fields) => {
+    const tripId = router.query.trip_id;
+    if (!tripId) return;
+    if (Object.keys(fields).length === 0) return;
+
+    setIsSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('trips')
+        .update(fields)
+        .eq('id', tripId)
+        .select();
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const updated = data[0];
+        if (typeof updated.title === 'string') {
+          setTripTitle(updated.title);
+        }
+        if (typeof updated.description === 'string' || updated.description === null) {
+          setTripDescription(updated.description || '');
+        }
+      } else {
+        // Fallback to local values
+        if (fields.title !== undefined) setTripTitle(fields.title);
+        if (fields.description !== undefined) setTripDescription(fields.description || '');
+      }
+    } catch (error) {
+      console.error('Error autosaving trip fields:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFieldBlur = (e) => {
+    const next = e.relatedTarget;
+    if (next && (next.name === 'title' || next.name === 'description')) {
+      return;
+    }
+    
+    const tripId = router.query.trip_id;
+    if (!tripId) {
+      setIsEditing(false);
+      setActiveEditField(null);
+      return;
+    }
+    
+    const fieldsToSave = {};
+    if (editedTitle !== tripTitle) fieldsToSave.title = editedTitle;
+    if (editedDescription !== tripDescription) fieldsToSave.description = editedDescription;
+    if (Object.keys(fieldsToSave).length > 0) {
+      saveTripFields(fieldsToSave);
+    }
+    setIsEditing(false);
+    setActiveEditField(null);
   };
 
   // Fetch trip's selected facility (simplified - no longer loads all nearby facilities)
@@ -61,7 +211,7 @@ export default function Explore() {
       try {
         const { data: trip, error } = await supabase
           .from('trips')
-          .select('facility_id, start_date, end_date')
+          .select('facility_id, start_date, end_date, title, description, user_id')
           .eq('id', tripId)
           .single();
 
@@ -73,10 +223,17 @@ export default function Explore() {
         
         console.log('🚩 Found trip:', trip);
         
-        // Set the trip dates from the database
+        // Set the trip dates, title, and description from the database
         setStartDate(trip.start_date || '');
         setEndDate(trip.end_date || '');
+        setTripTitle(trip.title || 'Untitled Trip');
+        setTripDescription(trip.description || '');
+        setEditedTitle(trip.title || 'Untitled Trip');
+        setEditedDescription(trip.description || '');
         console.log('🔍 Loaded trip dates:', { start: trip.start_date, end: trip.end_date });
+
+        // Fetch collaborators and trip owner
+        await fetchCollaborators(tripId, trip.user_id);
 
         // Get the facility_id from the trip
         const facilityId = trip.facility_id;
@@ -118,6 +275,24 @@ export default function Explore() {
 
     fetchTripFacility();
   }, [router.isReady, router.query.trip_id, supabase]);
+
+  // Debounced autosave on edit
+  useEffect(() => {
+    const tripId = router.query.trip_id;
+    if (!tripId) return;
+
+    const fieldsToSave = {};
+    if (editedTitle !== tripTitle) fieldsToSave.title = editedTitle;
+    if (editedDescription !== tripDescription) fieldsToSave.description = editedDescription;
+
+    if (Object.keys(fieldsToSave).length === 0) return;
+
+    const timeoutId = setTimeout(() => {
+      saveTripFields(fieldsToSave);
+    }, 800);
+
+    return () => clearTimeout(timeoutId);
+  }, [editedTitle, editedDescription, tripTitle, tripDescription, router.query.trip_id]);
   
 
   // No longer needed - viewport loading handles facility fetching
@@ -372,7 +547,7 @@ export default function Explore() {
     return (
       <SidebarLayout>
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#F9FAFB] p-6">
-          <div className="text-[#10B981] text-xl font-semibold mb-4">Loading Campgrounds...</div>
+          <div className="text-[#10B981] text-xl font-semibold mb-4">Loading explore page...</div>
           <div className="w-64 h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
             <div className="h-full bg-[#10B981] rounded-full animate-pulse"></div>
       </div>
@@ -442,29 +617,76 @@ export default function Explore() {
             .flex, .flex-col, .bg-white {
               max-width: 100%;
             }
+            
+            /* Add padding for mobile navbar */
+            body {
+              padding-top: 48px;
+            }
+          }
+          
+          @media (min-width: 768px) {
+            body {
+              padding-top: 0;
+            }
           }
         `}</style>
       </Head>
       
+      {/* Mobile Trip Tabs - only show if we have a trip */}
+      {router.query.trip_id && tripTitle && (
+        <MobileTripTabs 
+          tripId={router.query.trip_id}
+          activeTab="explore"
+        />
+      )}
+      
+      {/* Trip Header with tabs - only show if we have a trip */}
+      {router.query.trip_id && tripTitle && (
+        <TripHeader 
+          tripId={router.query.trip_id}
+          tripTitle={tripTitle}
+          tripDescription={tripDescription}
+          activeTab="explore"
+          collaborators={collaborators}
+          tripOwner={tripOwner}
+          isEditing={isEditing}
+          editedTitle={editedTitle}
+          editedDescription={editedDescription}
+          activeEditField={activeEditField}
+          isSaving={isSaving}
+          onTitleChange={handleTitleChange}
+          onDescriptionChange={handleDescriptionChange}
+          onTitleFocus={handleTitleFocus}
+          onDescriptionFocus={handleDescriptionFocus}
+          onFieldBlur={handleFieldBlur}
+          onKeyDown={handleKeyDown}
+          onOpenCollaboratorModal={() => setIsCollaboratorModalOpen(true)}
+        />
+      )}
+      
       <div className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
-        {/* Back Button */}
-        <div className="mx-4 sm:mx-6 mt-4">
-          <button 
-            onClick={handleBackClick}
-            className="text-gray-600 hover:text-gray-800 mb-6"
-            aria-label="Go back"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-        </div>
+        {/* Page Header - only show if no trip context */}
+        {!router.query.trip_id && (
+          <div className="mx-4 sm:mx-6 mt-4">
+            <button 
+              onClick={handleBackClick}
+              className="text-gray-600 hover:text-gray-800 mb-6"
+              aria-label="Go back"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Page Header */}
-        <div className="mx-4 sm:mx-6 -mt-2">
+        <div className={`mx-4 sm:mx-6 ${router.query.trip_id ? 'mt-4' : '-mt-2'}`}>
           <div className="bg-white rounded-xl shadow-md border p-3 sm:p-4">
             <div className="flex items-center mb-2">
-              <h1 className={`text-xl sm:text-2xl font-bold text-gray-900 ${inter.className}`}>Explore Campgrounds</h1>
+              <h1 className={`text-xl sm:text-2xl font-bold text-gray-900 ${inter.className}`}>
+                {router.query.trip_id ? 'Explore Other Campgrounds' : 'Explore Campgrounds'}
+              </h1>
             </div>
             <div className="flex items-center justify-between">
               <div>
@@ -751,6 +973,35 @@ export default function Explore() {
               </div>
             </div>
           </>
+        )}
+        
+        {/* Collaborator Modal */}
+        {router.query.trip_id && (
+          <CollaboratorModal 
+            isOpen={isCollaboratorModalOpen}
+            onClose={() => {
+              setIsCollaboratorModalOpen(false);
+              // Refresh collaborators list when modal is closed
+              if (router.query.trip_id) {
+                const fetchTripData = async () => {
+                  try {
+                    const { data: trip, error } = await supabase
+                      .from('trips')
+                      .select('user_id')
+                      .eq('id', router.query.trip_id)
+                      .single();
+                    if (!error && trip) {
+                      await fetchCollaborators(router.query.trip_id, trip.user_id);
+                    }
+                  } catch (error) {
+                    console.error('Error refreshing collaborators:', error);
+                  }
+                };
+                fetchTripData();
+              }
+            }}
+            tripId={router.query.trip_id}
+          />
         )}
       </div>
     </SidebarLayout>

@@ -395,21 +395,22 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
       });
       
       // Insert the comment
-      const { data, error } = await supabase
+      const { data: commentData, error: commentError } = await supabase
         .from('comments')
         .insert([{
           trip_id: trip.id,
           user_id: currentUser.id,
           content: commentText,
           mentions: mentions
-        }]);
+        }])
+        .select();
       
-      if (error) {
+      if (commentError) {
         console.error('Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
+          code: commentError.code,
+          message: commentError.message,
+          details: commentError.details,
+          hint: commentError.hint
         });
         
         // Remove the optimistic comment if there was an error
@@ -417,7 +418,62 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
           prevComments.filter(comment => comment.id !== optimisticComment.id)
         );
         
-        throw error;
+        throw commentError;
+      }
+      
+      // Manually create notifications for mentions
+      // This is a temporary solution until the SQL trigger can be applied
+      if (mentions.length > 0 && commentData && commentData.length > 0) {
+        const newComment = commentData[0];
+        
+        // Create notifications for each mentioned user
+        for (const mentionedEmail of mentions) {
+          try {
+            // Try to get the user ID for the mentioned email from auth.users
+            // We need to get the user ID directly from the auth system
+            let userId = null;
+            
+            // First try to get from trip_collaborators
+            const { data: collabData, error: collabError } = await supabase
+              .from('trip_collaborators')
+              .select('user_id')
+              .eq('email', mentionedEmail)
+              .eq('trip_id', trip.id)
+              .single();
+              
+            if (!collabError && collabData && collabData.user_id) {
+              userId = collabData.user_id;
+            } else {
+              // Fallback to getting the user ID from the current session if it's the current user's email
+              const { data: { session } } = await supabase.auth.getSession();
+              if (session && session.user && session.user.email === mentionedEmail) {
+                userId = session.user.id;
+              }
+            }
+            
+            if (userId) {
+              // Don't create notifications for self-mentions
+              if (userId === currentUser.id) continue;
+              
+              // Create the notification
+              const { error: notificationError } = await supabase
+                .from('notifications')
+                .insert([{
+                  user_id: userId,
+                  trip_id: trip.id,
+                  comment_id: newComment.id,
+                  type: 'mention',
+                  seen: false
+                }]);
+              
+              if (notificationError) {
+                console.error('Error creating notification:', notificationError);
+              }
+            }
+          } catch (error) {
+            console.error('Error in notification creation:', error);
+          }
+        }
       }
       
       // Track comment added event

@@ -80,6 +80,7 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
   const [collaborators, setCollaborators] = useState([]);
   const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(true);
   const [hasUnseenMentions, setHasUnseenMentions] = useState(false);
+  const [mentionCount, setMentionCount] = useState(0);
   const supabase = createClientComponentClient();
 
   // Find current status or default to 'idea'
@@ -123,7 +124,9 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
         
         if (error) throw error;
         
-        setHasUnseenMentions(data && data.length > 0);
+        const unseenCount = data ? data.length : 0;
+        setHasUnseenMentions(unseenCount > 0);
+        setMentionCount(unseenCount);
       } catch (error) {
         console.error('Error checking notifications:', error);
       }
@@ -182,11 +185,11 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
 
   return (
     <Link href={`/trips/${trip.id}`}>
-      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-200 cursor-pointer relative group h-64 flex flex-col">
+      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 sm:p-6 border border-gray-200 cursor-pointer relative group h-64 flex flex-col">
         {/* Notification Badge */}
         {hasUnseenMentions && (
-          <div className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-            <span className="text-white text-xs">🔔</span>
+          <div className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs font-bold">{mentionCount}</span>
           </div>
         )}
         
@@ -217,17 +220,17 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
         )}
 
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-gray-900 mb-2 pr-8 truncate" title={trip.title}>{trip.title}</h3>
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 pr-8 truncate" title={trip.title}>{trip.title}</h3>
           <div className="space-y-2">
-            <p className="text-gray-600 flex items-center truncate" title={trip.location}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <p className="text-gray-600 flex items-center truncate text-sm" title={trip.location}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               {trip.location || "No location set"}
             </p>
-            <p className="text-gray-600 flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <p className="text-gray-600 flex items-center text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               {trip.start_date ? (
@@ -239,45 +242,45 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
                 <span className="text-gray-400">No dates selected</span>
               )}
             </p>
-            <div className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium ${currentStatus.color}`}>
+            <div className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium ${currentStatus.color}`}>
               <currentStatus.icon />
-              <span className="ml-2">{currentStatus.label}</span>
+              <span className="ml-1 sm:ml-2 truncate">{currentStatus.label}</span>
             </div>
           </div>
         </div>
           
         {/* Collaborator information - always visible */}
-        <div className="mt-4 flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="mt-3 sm:mt-4 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
           
           {isLoadingCollaborators ? (
-            <div className="flex -space-x-2 overflow-hidden">
-              <div className="inline-block h-6 w-6 rounded-full bg-gray-200 animate-pulse"></div>
-              <div className="inline-block h-6 w-6 rounded-full bg-gray-200 animate-pulse"></div>
+            <div className="flex -space-x-1 sm:-space-x-2 overflow-hidden">
+              <div className="inline-block h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-gray-200 animate-pulse"></div>
+              <div className="inline-block h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-gray-200 animate-pulse"></div>
             </div>
           ) : collaborators.length > 0 ? (
-            <div className="flex -space-x-2 overflow-hidden">
+            <div className="flex -space-x-1 sm:-space-x-2 overflow-hidden">
               {collaborators.slice(0, 3).map((collaborator, index) => (
                 <div 
                   key={collaborator.id}
-                  className={`inline-block h-6 w-6 rounded-full ${
+                  className={`inline-block h-5 w-5 sm:h-6 sm:w-6 rounded-full ${
                     ['bg-blue-400', 'bg-green-400', 'bg-purple-400', 'bg-yellow-400', 'bg-pink-400'][index % 5]
-                  } text-xs text-white flex items-center justify-center ring-2 ring-white`}
+                  } text-xs text-white flex items-center justify-center ring-1 sm:ring-2 ring-white`}
                   title={collaborator.email}
                 >
                   {collaborator.email.substring(0, 2).toUpperCase()}
                 </div>
               ))}
               {collaborators.length > 3 && (
-                <div className="inline-block h-6 w-6 rounded-full bg-gray-200 text-xs text-gray-600 flex items-center justify-center ring-2 ring-white">
+                <div className="inline-block h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-gray-200 text-xs text-gray-600 flex items-center justify-center ring-1 sm:ring-2 ring-white">
                   +{collaborators.length - 3}
                 </div>
               )}
             </div>
           ) : (
-            <span className="text-gray-500 text-sm">Just you</span>
+            <span className="text-gray-500 text-xs sm:text-sm">Just you</span>
           )}
         </div>
       </div>

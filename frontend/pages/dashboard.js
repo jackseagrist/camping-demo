@@ -38,6 +38,24 @@ export default function Dashboard() {
     ? trips 
     : trips.filter(trip => trip.status === statusFilter);
 
+  // Force card view on mobile devices
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) { // sm breakpoint
+        setViewType('card');
+      }
+    };
+
+    // Set initial view type
+    handleResize();
+
+    // Add event listener for window resize
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -242,37 +260,40 @@ export default function Dashboard() {
 
   return (
     <SidebarLayout>
-      <div className={`${inter.className}`}>
+      <div className={`${inter.className} px-4 sm:px-0`}>
         {/* Header Section */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-[#111827]">My Trips</h1>
-            <p className="text-[#4B5563] mt-2">Plan and manage your camping adventures</p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#111827] truncate">My Trips</h1>
+            <p className="text-[#4B5563] mt-1 sm:mt-2 text-sm sm:text-base">Plan and manage your camping adventures</p>
           </div>
-          <button
-            onClick={createNewTrip}
-            className="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New Trip
-          </button>
+          <div className="flex-shrink-0">
+            <button
+              onClick={createNewTrip}
+              className="bg-emerald-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-emerald-600 transition-colors flex items-center text-sm sm:text-base w-full sm:w-auto justify-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Trip
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
         <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveTab('my-trips')}
               className={`${
                 activeTab === 'my-trips'
                   ? 'border-emerald-500 text-emerald-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 flex items-center`}
             >
-              Your Trips
-              <span className="ml-2 py-0.5 px-2.5 text-xs rounded-full bg-gray-100">
+              <span className="hidden sm:inline">Your Trips</span>
+              <span className="sm:hidden">Trips</span>
+              <span className="ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2.5 text-xs rounded-full bg-gray-100">
                 {trips.length}
               </span>
             </button>
@@ -282,10 +303,11 @@ export default function Dashboard() {
                 activeTab === 'pending-invites'
                   ? 'border-emerald-500 text-emerald-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              } whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 flex items-center`}
             >
-              Pending Invites
-              <span className="ml-2 py-0.5 px-2.5 text-xs rounded-full bg-gray-100">
+              <span className="hidden sm:inline">Pending Invites</span>
+              <span className="sm:hidden">Invites</span>
+              <span className="ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2.5 text-xs rounded-full bg-gray-100">
                 {pendingInvites.length}
               </span>
             </button>
@@ -294,21 +316,21 @@ export default function Dashboard() {
 
         {/* View Toggle and Filter - Only show for My Trips tab */}
         {activeTab === 'my-trips' && (
-          <div className="flex justify-between items-center mb-6">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center mb-6">
+            <div className="relative flex-1 sm:flex-initial">
               <button
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className="flex items-center px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
+                className="flex items-center px-3 sm:px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors w-full sm:w-auto text-sm"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                <span className="mr-1">
+                <span className="mr-1 truncate flex-1 text-left">
                   {statusFilter === 'all' 
                     ? 'All Statuses' 
                     : statusOptions.find(option => option.value === statusFilter)?.label}
                 </span>
-                <span className="text-lg">
+                <span className="text-base sm:text-lg flex-shrink-0">
                   {statusFilter === 'all' 
                     ? '📋' 
                     : statusOptions.find(option => option.value === statusFilter)?.emoji}
@@ -317,7 +339,7 @@ export default function Dashboard() {
               
               {/* Dropdown menu */}
               {isFilterOpen && (
-                <div className="absolute mt-2 w-64 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                <div className="absolute mt-2 w-full sm:w-64 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                   <div className="py-1 max-h-60 overflow-auto">
                     {statusOptions.map((option) => (
                       <button
@@ -326,13 +348,13 @@ export default function Dashboard() {
                           setStatusFilter(option.value);
                           setIsFilterOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors
+                        className={`w-full text-left px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors text-sm
                                  ${statusFilter === option.value ? 'bg-gray-50' : ''}`}
                       >
-                        <span className="text-xl">{option.emoji}</span>
-                        <span className="font-medium">{option.label}</span>
+                        <span className="text-lg sm:text-xl">{option.emoji}</span>
+                        <span className="font-medium flex-1 truncate">{option.label}</span>
                         {statusFilter === option.value && (
-                          <svg className="h-5 w-5 text-emerald-500 ml-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         )}
@@ -343,28 +365,30 @@ export default function Dashboard() {
               )}
             </div>
             
-            <div className="bg-white rounded-lg border border-gray-200 p-1">
+            <div className="bg-white rounded-lg border border-gray-200 p-1 hidden sm:flex">
               <button
                 onClick={() => setViewType('card')}
-                className={`px-4 py-2 rounded ${
+                className={`px-3 sm:px-4 py-2 rounded flex items-center justify-center ${
                   viewType === 'card'
                     ? 'bg-emerald-500 text-white'
                     : 'text-gray-600 hover:text-gray-800'
                 }`}
+                title="Card View"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                 </svg>
               </button>
               <button
                 onClick={() => setViewType('list')}
-                className={`px-4 py-2 rounded ${
+                className={`px-3 sm:px-4 py-2 rounded flex items-center justify-center ${
                   viewType === 'list'
                     ? 'bg-emerald-500 text-white'
                     : 'text-gray-600 hover:text-gray-800'
                 }`}
+                title="List View"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                 </svg>
               </button>
@@ -406,18 +430,38 @@ export default function Dashboard() {
                   Show All Trips
                 </button>
               </div>
-            ) : viewType === 'card' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredTrips.map((trip) => (
-                  <TripCard 
-                    key={trip.id} 
-                    trip={trip} 
-                    onDelete={() => setTrips(trips.filter(t => t.id !== trip.id))}
-                  />
-                ))}
-              </div>
             ) : (
-              <TripList trips={filteredTrips} />
+              <>
+                {/* Always show card view on mobile, respect viewType on desktop */}
+                <div className="block sm:hidden">
+                  <div className="grid grid-cols-1 gap-4">
+                    {filteredTrips.map((trip) => (
+                      <TripCard 
+                        key={trip.id} 
+                        trip={trip} 
+                        onDelete={() => setTrips(trips.filter(t => t.id !== trip.id))}
+                      />
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Desktop view - respect viewType setting */}
+                <div className="hidden sm:block">
+                  {viewType === 'card' ? (
+                    <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {filteredTrips.map((trip) => (
+                        <TripCard 
+                          key={trip.id} 
+                          trip={trip} 
+                          onDelete={() => setTrips(trips.filter(t => t.id !== trip.id))}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <TripList trips={filteredTrips} />
+                  )}
+                </div>
+              </>
             )}
           </>
         )}
@@ -438,11 +482,11 @@ export default function Dashboard() {
                 <ul className="divide-y divide-gray-200">
                   {pendingInvites.map((invite) => (
                     <li key={invite.id} className="p-4 sm:p-6 hover:bg-gray-50">
-                      <div className="flex flex-col sm:flex-row justify-between">
-                        <div className="mb-4 sm:mb-0">
-                          <h3 className="text-lg font-medium text-gray-900">{invite.trip.title}</h3>
+                      <div className="flex flex-col space-y-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">{invite.trip.title}</h3>
                           <p className="text-gray-500 text-sm mt-1">
-                            Trip to {invite.trip.location}
+                            Trip to {invite.trip.location || 'TBD'}
                             {invite.trip.start_date && (
                               <span> • {new Date(invite.trip.start_date).toLocaleDateString()}</span>
                             )}
@@ -451,16 +495,16 @@ export default function Dashboard() {
                             Invited on {new Date(invite.invited_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <div className="flex space-x-3">
+                        <div className="flex flex-col sm:flex-row gap-3 sm:gap-3">
                           <button
                             onClick={() => acceptInvite(invite.id)}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-500 hover:bg-emerald-600 focus:outline-none"
+                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-emerald-500 hover:bg-emerald-600 focus:outline-none transition-colors"
                           >
                             Accept
                           </button>
                           <button
                             onClick={() => declineInvite(invite.id)}
-                            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                            className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors"
                           >
                             Decline
                           </button>
