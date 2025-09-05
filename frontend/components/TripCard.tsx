@@ -115,6 +115,8 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
         
         if (!user) return;
         
+        console.log(`Checking notifications for trip ${trip.id} and user ${user.id}`);
+        
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
@@ -125,8 +127,20 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
         if (error) throw error;
         
         const unseenCount = data ? data.length : 0;
-        setHasUnseenMentions(unseenCount > 0);
-        setMentionCount(unseenCount);
+        console.log(`Found ${unseenCount} unseen notifications for trip ${trip.id}:`, data);
+        
+        // Force state updates for visibility
+        if (unseenCount > 0) {
+          console.log(`Setting notification badge visible for trip ${trip.id}`);
+          setHasUnseenMentions(true);
+          setMentionCount(unseenCount);
+        } else {
+          setHasUnseenMentions(false);
+          setMentionCount(0);
+        }
+        
+        // Debug info
+        console.log(`Notification state for trip ${trip.id}: hasUnseenMentions=${unseenCount > 0}, mentionCount=${unseenCount}`);
       } catch (error) {
         console.error('Error checking notifications:', error);
       }
@@ -135,19 +149,33 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
     checkNotifications();
     
     // Subscribe to notifications table for real-time updates
+    const channelName = `notifications-channel-${trip.id}`;
+    console.log(`Setting up notification subscription for trip ${trip.id} on channel ${channelName}`);
+    
     const notificationsSubscription = supabase
-      .channel('notifications-channel')
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
         filter: `trip_id=eq.${trip.id}`
       }, (payload) => {
+        console.log(`Received notification update for trip ${trip.id}:`, payload);
         checkNotifications();
       })
       .subscribe();
       
+    console.log(`Notification subscription created for trip ${trip.id}`);
+    
+    // Force check notifications every 2 seconds for better responsiveness
+    const intervalId = setInterval(() => {
+      console.log(`Interval check for trip ${trip.id}`);
+      checkNotifications();
+    }, 2000);
+      
     return () => {
+      console.log(`Cleaning up subscription for trip ${trip.id}`);
+      clearInterval(intervalId);
       supabase.removeChannel(notificationsSubscription);
     };
   }, [trip.id, supabase]);
@@ -185,13 +213,14 @@ export default function TripCard({ trip, onDelete }: TripCardProps) {
 
   return (
     <Link href={`/trips/${trip.id}`}>
-      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 sm:p-6 border border-gray-200 cursor-pointer relative group h-64 flex flex-col">
+      <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 sm:p-6 border border-gray-200 cursor-pointer relative group h-64 flex flex-col overflow-visible">
         {/* Notification Badge */}
         {hasUnseenMentions && (
-          <div className="absolute -top-2 -right-2 h-6 w-6 bg-red-500 rounded-full flex items-center justify-center">
+          <div className="absolute -top-2 -right-2 h-6 w-6 bg-red-600 rounded-full flex items-center justify-center z-50 shadow-lg border-2 border-white animate-pulse">
             <span className="text-white text-xs font-bold">{mentionCount}</span>
           </div>
         )}
+        
         
         {/* Ellipsis Menu Button */}
         <button

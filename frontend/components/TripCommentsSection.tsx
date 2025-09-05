@@ -232,28 +232,89 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
       
       if (tripError) throw tripError;
       
-      // Get the owner's email
-      const { data: ownerData, error: ownerError } = await supabase
-        .from('users')
-        .select('email')
-        .eq('id', tripData.user_id)
-        .single();
+      // Get the owner's email using multiple approaches
+      let ownerEmail = null;
       
-      if (ownerError && ownerError.code !== 'PGRST116') {
-        // PGRST116 is "no rows returned" which might happen if users table doesn't exist
-        console.error('Error fetching owner:', ownerError);
+      // First, check if the current user is the owner
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user && session.user.id === tripData.user_id) {
+        ownerEmail = session.user.email;
+      } else {
+        // Try different approaches to get the owner's email
+        
+        // 1. Try from the profiles table if it exists
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', tripData.user_id)
+            .single();
+          
+          if (!profileError && profileData && profileData.email) {
+            ownerEmail = profileData.email;
+          }
+        } catch (e) {
+          console.log('No profiles table or error:', e);
+        }
+        
+        // 2. Try from the users table if it exists
+        if (!ownerEmail) {
+          try {
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('email')
+              .eq('id', tripData.user_id)
+              .single();
+            
+            if (!userError && userData && userData.email) {
+              ownerEmail = userData.email;
+            }
+          } catch (e) {
+            console.log('No users table or error:', e);
+          }
+        }
+        
+        // 3. Try from trip_collaborators where the owner might be a collaborator on other trips
+        if (!ownerEmail) {
+          const { data: ownerCollabData, error: ownerCollabError } = await supabase
+            .from('trip_collaborators')
+            .select('email')
+            .eq('user_id', tripData.user_id)
+            .limit(1)
+            .single();
+          
+          if (!ownerCollabError && ownerCollabData && ownerCollabData.email) {
+            ownerEmail = ownerCollabData.email;
+          }
+        }
+        
+        // 4. Try from the invited_by field in trip_collaborators
+        if (!ownerEmail) {
+          const { data: inviteData, error: inviteError } = await supabase
+            .from('trip_collaborators')
+            .select('invited_by')
+            .eq('trip_id', trip.id)
+            .not('invited_by', 'is', null)
+            .limit(1)
+            .single();
+          
+          if (!inviteError && inviteData && inviteData.invited_by) {
+            ownerEmail = inviteData.invited_by;
+          }
+        }
       }
       
       // Combine collaborators with owner if found
       let allCollaborators = data || [];
-      if (ownerData) {
+      if (ownerEmail) {
         // Add owner as a "collaborator" for mention purposes
         allCollaborators.push({
           id: 'owner',
           trip_id: trip.id,
-          email: ownerData.email,
+          email: ownerEmail,
           status: 'Accepted',
-          invited_at: new Date().toISOString()
+          invited_at: new Date().toISOString(),
+          is_owner: true // Mark as owner for UI purposes
         });
       }
       
@@ -421,57 +482,109 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
         throw commentError;
       }
       
-      // Manually create notifications for mentions
-      // This is a temporary solution until the SQL trigger can be applied
-      if (mentions.length > 0 && commentData && commentData.length > 0) {
+      // Process the new comment for notifications
+      if (commentData && commentData.length > 0) {
         const newComment = commentData[0];
         
-        // Create notifications for each mentioned user
-        for (const mentionedEmail of mentions) {
-          try {
-            // Try to get the user ID for the mentioned email from auth.users
-            // We need to get the user ID directly from the auth system
-            let userId = null;
+        // Get all collaborators and the trip owner to notify them
+        const { data: tripData, error: tripError } = await supabase
+          .from('trips')
+          .select('user_id')
+          .eq('id', trip.id)
+          .single();
+        
+        if (tripError) {
+          console.error('Error fetching trip owner:', tripError);
+        } else {
+          const ownerId = tripData.user_id;
+          
+          // Get all collaborators
+          const { data: collaboratorsData, error: collaboratorsError } = await supabase
+            .from('trip_collaborators')
+            .select('user_id, email')
+            .eq('trip_id', trip.id)
+            .eq('status', 'Accepted');
+          
+          if (collaboratorsError) {
+            console.error('Error fetching collaborators:', collaboratorsError);
+          } else {
+            // Create a set of all user IDs to notify (owner + collaborators)
+            const userIdsToNotify = new Set<string>();
             
-            // First try to get from trip_collaborators
-            const { data: collabData, error: collabError } = await supabase
-              .from('trip_collaborators')
-              .select('user_id')
-              .eq('email', mentionedEmail)
-              .eq('trip_id', trip.id)
-              .single();
-              
-            if (!collabError && collabData && collabData.user_id) {
-              userId = collabData.user_id;
-            } else {
-              // Fallback to getting the user ID from the current session if it's the current user's email
-              const { data: { session } } = await supabase.auth.getSession();
-              if (session && session.user && session.user.email === mentionedEmail) {
-                userId = session.user.id;
+            // Add owner if it's not the current user
+            if (ownerId !== currentUser.id) {
+              userIdsToNotify.add(ownerId);
+            }
+            
+            // Add collaborators if they're not the current user
+            collaboratorsData?.forEach(collab => {
+              if (collab.user_id && collab.user_id !== currentUser.id) {
+                userIdsToNotify.add(collab.user_id);
+              }
+            });
+            
+            // Process mentions specifically (they might not have user_id in collaborators)
+            if (mentions.length > 0) {
+              // Create notifications for each mentioned user
+              for (const mentionedEmail of mentions) {
+                try {
+                  // Try to get the user ID for the mentioned email
+                  let userId = null;
+                  
+                  // First try to get from trip_collaborators
+                  const mentionedCollab = collaboratorsData?.find(c => c.email === mentionedEmail);
+                  if (mentionedCollab && mentionedCollab.user_id) {
+                    userId = mentionedCollab.user_id;
+                  } else {
+                    // Fallback to getting the user ID from the current session if it's the current user's email
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session && session.user && session.user.email === mentionedEmail) {
+                      userId = session.user.id;
+                    }
+                  }
+                  
+                  if (userId && userId !== currentUser.id) {
+                    userIdsToNotify.add(userId);
+                  }
+                } catch (error) {
+                  console.error('Error processing mention:', error);
+                }
               }
             }
             
-            if (userId) {
-              // Don't create notifications for self-mentions
-              if (userId === currentUser.id) continue;
-              
-              // Create the notification
-              const { error: notificationError } = await supabase
-                .from('notifications')
-                .insert([{
-                  user_id: userId,
-                  trip_id: trip.id,
-                  comment_id: newComment.id,
-                  type: 'mention',
-                  seen: false
-                }]);
-              
-              if (notificationError) {
-                console.error('Error creating notification:', notificationError);
+            // Create notifications for all users to notify
+            for (const userId of userIdsToNotify) {
+              try {
+                // Determine if this is a mention notification
+                const isMention = mentions.some(mention => {
+                  // Check if any collaborator with this user_id has an email that matches a mention
+                  return collaboratorsData?.some(collab => 
+                    collab.user_id === userId && collab.email === mention
+                  ) || false;
+                });
+                
+                // Create the notification
+                console.log(`Creating notification for user ${userId} on trip ${trip.id} (type: ${isMention ? 'mention' : 'comment'})`);
+                const { data: notificationData, error: notificationError } = await supabase
+                  .from('notifications')
+                  .insert([{
+                    user_id: userId,
+                    trip_id: trip.id,
+                    comment_id: newComment.id,
+                    type: isMention ? 'mention' : 'comment',
+                    seen: false
+                  }])
+                  .select();
+                
+                if (notificationError) {
+                  console.error('Error creating notification:', notificationError);
+                } else {
+                  console.log('Notification created successfully:', notificationData);
+                }
+              } catch (error) {
+                console.error('Error in notification creation:', error);
               }
             }
-          } catch (error) {
-            console.error('Error in notification creation:', error);
           }
         }
       }
@@ -608,12 +721,17 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
               <div
                 key={collaborator.id}
                 onClick={() => handleMentionSelect(collaborator.email)}
-                className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center"
+                className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
               >
-                <div className="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center text-white text-xs font-medium mr-2">
-                  {collaborator.email.substring(0, 2).toUpperCase()}
+                <div className="flex items-center">
+                  <div className={`w-6 h-6 rounded-full ${(collaborator as any).is_owner ? 'bg-purple-500' : 'bg-blue-400'} flex items-center justify-center text-white text-xs font-medium mr-2`}>
+                    {collaborator.email.substring(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-sm">{collaborator.email}</span>
                 </div>
-                <span className="text-sm">{collaborator.email}</span>
+                {(collaborator as any).is_owner && (
+                  <span className="bg-purple-500 text-white text-xs px-1.5 py-0.5 rounded ml-1">Owner</span>
+                )}
               </div>
             ))}
           </div>

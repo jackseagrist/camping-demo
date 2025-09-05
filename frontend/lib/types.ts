@@ -44,6 +44,8 @@ export interface Collaborator {
   email: string;
   status: 'Pending' | 'Accepted';
   invited_at: string;
+  is_owner?: boolean;
+  user_id?: string;
 }
 
 export interface Campsite {
