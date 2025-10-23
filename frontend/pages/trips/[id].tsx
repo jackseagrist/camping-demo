@@ -600,10 +600,23 @@ export default function TripDetail() {
   // Handle adding a new location
   const handleAddLocation = (location: TripLocation) => {
     console.log('Adding new location to map:', location);
+    
+    // Update the trip locations state with the new location
     setTripLocations(prev => {
-      const newLocations = [location, ...prev];
-      console.log('Updated locations:', newLocations.length);
-      return newLocations;
+      // Check if the location already exists (might be replacing a temp location)
+      const exists = prev.some(loc => loc.id === location.id);
+      
+      if (exists) {
+        // Replace the existing location
+        const newLocations = prev.map(loc => loc.id === location.id ? location : loc);
+        console.log('Updated existing location, total locations:', newLocations.length);
+        return newLocations;
+      } else {
+        // Add as a new location at the beginning of the array
+        const newLocations = [location, ...prev];
+        console.log('Added new location, total locations:', newLocations.length);
+        return newLocations;
+      }
     });
     
     // Reset any temporary marker when adding a location
@@ -862,33 +875,33 @@ export default function TripDetail() {
               {trip.facility && (
                 <div className="mt-6 pt-4 border-t border-gray-100">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Campsite Information</h4>
-                  <div className="space-y-3 text-sm">
+                  <div className="space-y-3 text-sm text-gray-700 md:text-gray-500">
                     {/* Facility Name */}
                     {trip.facility.name && (
                       <p className="flex">
-                        <span className="font-medium w-20">Name:</span> 
-                        <span>{trip.facility.name}</span>
+                        <span className="font-medium w-20 text-gray-700">Name:</span> 
+                        <span className="text-gray-700">{trip.facility.name}</span>
                       </p>
                     )}
                     
                     {/* Source */}
                     {trip.facility.source && (
                       <p className="flex">
-                        <span className="font-medium w-20">Source:</span> 
-                        <span>{trip.facility.source}</span>
+                        <span className="font-medium w-20 text-gray-700">Source:</span> 
+                        <span className="text-gray-700">{trip.facility.source}</span>
                       </p>
                     )}
                     
                     {/* Phone - with fallback */}
                     <p className="flex">
-                      <span className="font-medium w-20">Phone:</span> 
-                      <span>{trip.facility.phone || 'Not available'}</span>
+                      <span className="font-medium w-20 text-gray-700">Phone:</span> 
+                      <span className="text-gray-700">{trip.facility.phone || 'Not available'}</span>
                     </p>
                     
                     {/* Email - with fallback */}
                     <p className="flex">
-                      <span className="font-medium w-20">Email:</span> 
-                      <span>{trip.facility.email || 'Not available'}</span>
+                      <span className="font-medium w-20 text-gray-700">Email:</span> 
+                      <span className="text-gray-700">{trip.facility.email || 'Not available'}</span>
                     </p>
                   </div>
                 </div>

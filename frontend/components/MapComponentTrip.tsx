@@ -119,12 +119,12 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
   
   // Function to render custom location markers
   const renderLocationMarkers = () => {
-    if (!map.current || !mapLoaded || !locations) {
-      console.log('Cannot render markers: map or locations not ready');
+    if (!map.current || !mapLoaded) {
+      console.log('Cannot render markers: map not ready');
       return;
     }
     
-    console.log('Rendering markers for locations:', locations);
+    console.log('Rendering markers for locations:', locations?.length || 0);
     
     try {
       // Clear existing location markers
@@ -137,6 +137,12 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
       });
       locationMarkers.current = {};
       
+      // If no locations, just return after clearing markers
+      if (!locations || locations.length === 0) {
+        console.log('No locations to render');
+        return;
+      }
+      
       // Add new markers for each location
       locations.forEach(loc => {
         try {
@@ -146,7 +152,7 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
             return;
           }
           
-          console.log('Adding marker for location:', loc.name, loc.lat, loc.lng);
+          console.log('Adding marker for location:', loc.name, loc.lat, loc.lng, 'ID:', loc.id);
           
           // Create a custom element for the marker
           const el = document.createElement('div');
@@ -158,6 +164,24 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
           el.style.border = '2px solid white';
           el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
           el.style.cursor = 'pointer';
+          
+          // Add animation for new markers (temporary IDs start with 'temp-')
+          if (loc.id.toString().startsWith('temp-')) {
+            el.style.animation = 'pulse 1.5s infinite';
+            // Add keyframes for pulse animation if not already present
+            if (!document.getElementById('marker-pulse-animation')) {
+              const style = document.createElement('style');
+              style.id = 'marker-pulse-animation';
+              style.textContent = `
+                @keyframes pulse {
+                  0% { transform: scale(1); }
+                  50% { transform: scale(1.2); }
+                  100% { transform: scale(1); }
+                }
+              `;
+              document.head.appendChild(style);
+            }
+          }
           
           // Create and add the marker
           const newMarker = new mapboxgl.Marker(el)
@@ -182,12 +206,15 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
 
   // Render location markers when locations change or map loads
   useEffect(() => {
-    if (map.current && mapLoaded && locations && locations.length > 0) {
-      console.log('Rendering location markers:', locations.length);
+    if (map.current && mapLoaded) {
+      console.log('Locations changed or map loaded, locations count:', locations?.length);
+      
+      // Always render markers, even if locations array is empty
+      // This ensures markers are cleared when locations are removed
       renderLocationMarkers();
       
-      // Fit map bounds to show all locations if enabled
-      if (fitBoundsOnLocationsChange) {
+      // Fit map bounds to show all locations if enabled and we have locations
+      if (fitBoundsOnLocationsChange && locations && locations.length > 0) {
         setTimeout(() => fitMapBoundsToLocations(), 300);
       }
     }

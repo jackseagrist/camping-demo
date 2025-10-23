@@ -170,13 +170,40 @@ const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
         lng: newLocationLng,
       };
       
+      // Create an optimistic temporary location for immediate display
+      const tempId = `temp-${Date.now()}`;
+      const optimisticLocation: TripLocation = {
+        id: tempId,
+        ...newLocation,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update local state immediately with optimistic location
+      setLocations(prev => [optimisticLocation, ...prev]);
+      
+      // Notify parent component immediately for map update
+      if (onAddLocation) {
+        onAddLocation(optimisticLocation);
+      }
+      
+      // Reset form
+      setNewLocationName('');
+      setNewLocationDescription('');
+      setIsAddingLocation(false);
+      
+      // Then save to database
       const { data, error } = await supabase
         .from('trip_locations')
         .insert(newLocation)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        // If there's an error, remove the optimistic location
+        setLocations(prev => prev.filter(loc => loc.id !== tempId));
+        throw error;
+      }
       
       // Track event
       posthog.capture('location_added', {
@@ -184,14 +211,16 @@ const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
         trip_title: trip.title
       });
       
-      // Reset form
-      setNewLocationName('');
-      setNewLocationDescription('');
-      setIsAddingLocation(false);
-      
-      // Notify parent component
-      if (onAddLocation && data) {
-        onAddLocation(data);
+      // Replace the optimistic location with the real one from the database
+      if (data) {
+        setLocations(prev => prev.map(loc => 
+          loc.id === tempId ? data : loc
+        ));
+        
+        // Update the parent component with the real data
+        if (onAddLocation) {
+          onAddLocation(data);
+        }
       }
       
     } catch (err: any) {
