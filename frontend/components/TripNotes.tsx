@@ -381,8 +381,6 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
-  const [showExportMenu, setShowExportMenu] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastContentRef = useRef<any>(null);
@@ -608,19 +606,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
     }
   };
 
-  // Handle clicking outside the export menu to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showExportMenu && exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-        setShowExportMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showExportMenu]);
+  // Export menu has been replaced with direct copy button
 
   // Handle clicking outside the slash menu to close it
   useEffect(() => {
@@ -815,96 +801,24 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
     }
   };
 
-  // Download notes as text file
-  const downloadAsTextFile = () => {
-    try {
-      const plainText = getPlainTextContent();
-      const fileName = `${trip.title.replace(/\s+/g, '-').toLowerCase()}-notes.txt`;
-      
-      // Create a blob with the text content
-      const blob = new Blob([plainText], { type: 'text/plain' });
-      
-      // Create a URL for the blob
-      const url = URL.createObjectURL(blob);
-      
-      // Create a temporary anchor element
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      
-      // Trigger the download
-      document.body.appendChild(a);
-      a.click();
-      
-      // Clean up
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      // Track the download event
-      posthog.capture('notes_downloaded_as_text', {
-        trip_id: trip.id,
-        content_length: plainText.length
-      });
-    } catch (error) {
-      console.error('Error downloading notes:', error);
-    }
-  };
+  // Download functionality has been removed
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200 mt-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-gray-900">Trip Notes</h2>
         <div className="flex items-center space-x-2">
-          <div className="relative" ref={exportMenuRef}>
-            <button
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded-full flex items-center transition-colors"
-              title="Export options"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-              {copySuccess || 'Export'}
-            </button>
-            
-            {showExportMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      copyToClipboard();
-                      setShowExportMenu(false);
-                    }}
-                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
-                      <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
-                    </svg>
-                    Copy to clipboard
-                  </button>
-                  <button
-                    onClick={() => {
-                      downloadAsTextFile();
-                      setShowExportMenu(false);
-                    }}
-                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                    Download as text file
-                  </button>
-                  <div 
-                    className="px-4 py-2"
-                    onClick={() => setShowExportMenu(false)}
-                  >
-                    <ShareToNotesButton trip={trip} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <button
+            onClick={copyToClipboard}
+            className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-1 px-3 rounded-full flex items-center transition-colors"
+            title="Copy notes to clipboard"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+              <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+            </svg>
+            {copySuccess || 'Copy to clipboard'}
+          </button>
           
           {saveStatus === 'saving' && (
             <span className="text-sm text-gray-500 flex items-center">

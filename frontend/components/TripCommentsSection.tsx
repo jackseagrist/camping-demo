@@ -670,7 +670,7 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
                   </div>
                 </div>
               </div>
-              <div className="text-gray-700 text-sm whitespace-pre-wrap">
+              <div className="text-black text-sm whitespace-pre-wrap">
                 {renderCommentWithMentions(comment.content)}
               </div>
             </div>
@@ -688,7 +688,7 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
             onChange={handleCommentInputChange}
             onKeyDown={handleKeyPress}
             placeholder="Write a comment... (use @ to mention collaborators, press Enter to send)"
-            className="w-full border border-gray-300 rounded-lg p-3 pr-16 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent resize-none min-h-[60px] transition-all duration-200"
+            className="w-full border border-gray-300 rounded-lg p-3 pr-16 focus:outline-none focus:ring-2 focus:ring-[#10B981] focus:border-transparent resize-none min-h-[60px] transition-all duration-200 text-black"
             rows={1}
           />
           

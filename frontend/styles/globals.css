@@ -97,6 +97,23 @@ html, body {
 
 /* Add any other global styles here */
 
+/* Fix for text color on mobile devices */
+@media (max-width: 767px) {
+  input, textarea, .editor p, .editor li, .editor div, .editor span, .ProseMirror, .ProseMirror-content {
+    color: #000000 !important; /* Force black text on mobile */
+  }
+  
+  /* Ensure comment text is also black */
+  .text-gray-700 {
+    color: #000000 !important;
+  }
+  
+  /* Make placeholder text still visible but lighter */
+  ::placeholder {
+    color: #9CA3AF !important;
+  }
+}
+
 /* Hide scrollbar for horizontal scroll areas */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
