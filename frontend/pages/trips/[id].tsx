@@ -69,6 +69,7 @@ export default function TripDetail() {
   const [showTemporaryMarker, setShowTemporaryMarker] = useState(false);
   const [markerLat, setMarkerLat] = useState<number | undefined>(undefined);
   const [markerLng, setMarkerLng] = useState<number | undefined>(undefined);
+  const [markerDescription, setMarkerDescription] = useState<string | undefined>(undefined);
   const [isAddingFromMarker, setIsAddingFromMarker] = useState(false);
   
   const titleRef = useRef<HTMLInputElement>(null);
@@ -652,17 +653,19 @@ export default function TripDetail() {
   const handleToggleTemporaryMarker = (isActive: boolean) => {
     setShowTemporaryMarker(isActive);
     if (!isActive) {
-      // Reset marker coordinates when hiding the marker
+      // Reset marker data when hiding the marker
       setMarkerLat(undefined);
       setMarkerLng(undefined);
+      setMarkerDescription(undefined);
       setIsAddingFromMarker(false);
     }
   };
   
   // Handle adding a location from the marker
-  const handleAddLocationFromMarker = (lat: number, lng: number) => {
+  const handleAddLocationFromMarker = (lat: number, lng: number, description?: string) => {
     setMarkerLat(lat);
     setMarkerLng(lng);
+    setMarkerDescription(description);
     setIsAddingFromMarker(true);
     
     // Scroll to the TripLocationsCard
@@ -838,6 +841,7 @@ export default function TripDetail() {
               mapCenterLng={mapCenterLng || undefined}
               markerLat={markerLat}
               markerLng={markerLng}
+              markerDescription={markerDescription}
               isAddingFromMarker={isAddingFromMarker}
             />
           </div>

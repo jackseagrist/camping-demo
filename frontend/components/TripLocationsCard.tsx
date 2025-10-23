@@ -18,6 +18,7 @@ interface TripLocationsCardProps {
   markerLat?: number;
   markerLng?: number;
   isAddingFromMarker?: boolean;
+  markerDescription?: string;
 }
 
 const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
@@ -30,7 +31,8 @@ const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
   mapCenterLng,
   markerLat,
   markerLng,
-  isAddingFromMarker = false
+  isAddingFromMarker = false,
+  markerDescription
 }) => {
   const supabase = createClientComponentClient();
   const [locations, setLocations] = useState<TripLocation[]>([]);
@@ -145,6 +147,11 @@ const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
       setNewLocationLng(markerLng);
       setUseMapCenter(false);
       
+      // Set description if provided
+      if (markerDescription) {
+        setNewLocationDescription(markerDescription);
+      }
+      
       // Focus on the name field after a short delay
       setTimeout(() => {
         const nameInput = document.getElementById('locationName');
@@ -153,7 +160,7 @@ const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
         }
       }, 100);
     }
-  }, [isAddingFromMarker, markerLat, markerLng]);
+  }, [isAddingFromMarker, markerLat, markerLng, markerDescription]);
 
   const handleAddLocation = async (e: React.FormEvent) => {
     e.preventDefault();

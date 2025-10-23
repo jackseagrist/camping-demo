@@ -20,7 +20,7 @@ interface MapComponentTripProps {
   onCenterChange?: (lat: number, lng: number) => void;
   showTemporaryMarker?: boolean;
   onToggleTemporaryMarker?: (isActive: boolean) => void;
-  onAddLocationFromMarker?: (lat: number, lng: number) => void;
+  onAddLocationFromMarker?: (lat: number, lng: number, description?: string) => void;
   fitBoundsOnLocationsChange?: boolean;
 }
 
@@ -48,6 +48,7 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
   const [tempMarkerCoordinates, setTempMarkerCoordinates] = useState<[number, number] | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<TripLocation | null>(null);
   const [popupCoordinates, setPopupCoordinates] = useState<[number, number] | null>(null);
+  const [locationDescription, setLocationDescription] = useState<string>('');
   const locationMarkers = useRef<{[key: string]: mapboxgl.Marker}>({});
   const popupRef = useRef<HTMLDivElement | null>(null);
 
@@ -523,14 +524,29 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
         </div>
       )}
       
-      {/* Floating button in bottom left corner */}
-      <div className="absolute bottom-9 left-4 z-10">
+      {/* Floating button in bottom left corner for desktop */}
+      <div className="absolute bottom-9 left-4 z-10 md:block hidden">
         <button
           onClick={() => onToggleTemporaryMarker && onToggleTemporaryMarker(!showTemporaryMarker)}
           className={`px-3 py-2 text-xs font-medium rounded-md shadow-md transition-all ${
             showTemporaryMarker 
               ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
               : 'bg-white text-gray-700 hover:bg-gray-50'
+          }`}
+          title={showTemporaryMarker ? 'Hide coordinate marker' : 'Get coordinates by placing a marker'}
+        >
+          {showTemporaryMarker ? 'Hide Coordinates' : 'Get Coordinates'}
+        </button>
+      </div>
+      
+      {/* Button below map for mobile */}
+      <div className="w-full mt-4 md:hidden block">
+        <button
+          onClick={() => onToggleTemporaryMarker && onToggleTemporaryMarker(!showTemporaryMarker)}
+          className={`w-full px-4 py-3 text-sm font-medium rounded-md shadow-sm transition-all ${
+            showTemporaryMarker 
+              ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
           }`}
           title={showTemporaryMarker ? 'Hide coordinate marker' : 'Get coordinates by placing a marker'}
         >
@@ -545,40 +561,94 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
         </div>
       )}
       
-      {/* Coordinates display that appears when temporary marker is active */}
+      {/* Coordinates display that appears when temporary marker is active - Desktop version */}
       {showTemporaryMarker && tempMarkerCoordinates && (
-        <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-md shadow-md z-10">
-          <div className="text-sm font-medium text-gray-800 mb-1">Marker Coordinates</div>
-          <div className="text-sm text-emerald-600 font-mono mb-2">
-            {tempMarkerCoordinates[1].toFixed(5)}, {tempMarkerCoordinates[0].toFixed(5)}
+        <>
+          {/* Desktop version - floating card */}
+          <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-md shadow-md z-10 md:block hidden">
+            <div className="text-sm font-medium text-gray-800 mb-1">Marker Coordinates</div>
+            <div className="text-sm text-emerald-600 font-mono mb-2">
+              {tempMarkerCoordinates[1].toFixed(5)}, {tempMarkerCoordinates[0].toFixed(5)}
+            </div>
+            <button
+              onClick={() => {
+                if (onAddLocationFromMarker && tempMarkerCoordinates) {
+                  onAddLocationFromMarker(tempMarkerCoordinates[1], tempMarkerCoordinates[0]);
+                }
+              }}
+              className="w-full px-2 py-1 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Location
+            </button>
           </div>
-          <button
-            onClick={() => onAddLocationFromMarker && onAddLocationFromMarker(tempMarkerCoordinates[1], tempMarkerCoordinates[0])}
-            className="w-full px-2 py-1 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Location
-          </button>
-        </div>
+          
+          {/* Mobile version - below map */}
+          <div className="w-full mt-2 bg-white rounded-md shadow-sm p-4 md:hidden block">
+            <div className="flex flex-col space-y-3">
+              <div>
+                <div className="text-sm font-medium text-gray-800 mb-1">Marker Coordinates</div>
+                <div className="text-sm text-emerald-600 font-mono">
+                  {tempMarkerCoordinates[1].toFixed(5)}, {tempMarkerCoordinates[0].toFixed(5)}
+                </div>
+              </div>
+              
+              <button
+                onClick={() => {
+                  if (onAddLocationFromMarker && tempMarkerCoordinates) {
+                    onAddLocationFromMarker(
+                      tempMarkerCoordinates[1], 
+                      tempMarkerCoordinates[0]
+                    );
+                    setLocationDescription('');
+                  }
+                }}
+                className="w-full px-3 py-2 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Location
+              </button>
+            </div>
+          </div>
+        </>
       )}
       
-      {/* Instruction text for temporary marker */}
+      {/* Instruction text for temporary marker - desktop only */}
       {showTemporaryMarker && !isCustomMarkerMode && (
-        <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 p-2 rounded-md shadow-md text-xs text-gray-700 max-w-xs">
+        <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 p-2 rounded-md shadow-md text-xs text-gray-700 max-w-xs md:block hidden">
           Drag the green marker to see coordinates at different points. Click &quot;Add Location&quot; to save this point.
         </div>
       )}
       
       {/* Custom marker coordinates */}
       {isCustomMarkerMode && customMarkerCoordinates && (
-        <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-md shadow-md z-10">
-          <div className="text-sm font-medium text-gray-800 mb-1">New Location</div>
-          <div className="text-sm text-blue-600 font-mono">
-            {customMarkerCoordinates[1].toFixed(5)}, {customMarkerCoordinates[0].toFixed(5)}
+        <>
+          {/* Desktop version */}
+          <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-md shadow-md z-10 md:block hidden">
+            <div className="text-sm font-medium text-gray-800 mb-1">New Location</div>
+            <div className="text-sm text-blue-600 font-mono">
+              {customMarkerCoordinates[1].toFixed(5)}, {customMarkerCoordinates[0].toFixed(5)}
+            </div>
           </div>
-        </div>
+          
+          {/* Mobile version - below map */}
+          {isCustomMarkerMode && (
+            <div className="w-full mt-2 bg-white rounded-md shadow-sm p-4 md:hidden block">
+              <div className="flex flex-col space-y-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-800 mb-1">New Location</div>
+                  <div className="text-sm text-blue-600 font-mono">
+                    {customMarkerCoordinates[1].toFixed(5)}, {customMarkerCoordinates[0].toFixed(5)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

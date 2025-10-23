@@ -21,6 +21,8 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null);
+  const [activeCommentMenu, setActiveCommentMenu] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const commentsEndRef = useRef<HTMLDivElement>(null);
@@ -50,11 +52,17 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
     }
   }, [comments]);
 
-  // Handle click outside mention suggestions to close it
+  // Handle click outside mention suggestions and comment menus to close them
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close mention suggestions if clicking outside
       if (mentionSuggestionsRef.current && !mentionSuggestionsRef.current.contains(event.target as Node)) {
         setShowMentionSuggestions(false);
+      }
+      
+      // Close comment menu if clicking outside
+      if (activeCommentMenu && !(event.target as Element).closest('.comment-menu-container')) {
+        setActiveCommentMenu(null);
       }
     };
 
@@ -62,7 +70,7 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [activeCommentMenu]);
 
   // Add this to the useEffect section after the existing effects
   useEffect(() => {
@@ -388,6 +396,38 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
       }
     }
   };
+  
+  const toggleCommentMenu = (e: React.MouseEvent, commentId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveCommentMenu(activeCommentMenu === commentId ? null : commentId);
+  };
+
+  const handleDeleteComment = async (e: React.MouseEvent, commentId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      setIsDeleting(true);
+      try {
+        const { error } = await supabase
+          .from('comments')
+          .delete()
+          .eq('id', commentId);
+
+        if (error) throw error;
+        
+        // Remove the comment from the local state
+        setComments(prevComments => prevComments.filter(comment => comment.id !== commentId));
+        setActiveCommentMenu(null);
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        alert('Failed to delete comment. Please try again.');
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -669,6 +709,35 @@ export default function TripCommentsSection({ trip }: TripCommentsSectionProps) 
                     <p className="text-xs text-gray-500">{formatTimestamp(comment.created_at)}</p>
                   </div>
                 </div>
+                {/* Only show ellipsis menu if the comment belongs to current user */}
+                {currentUser && comment.user_id === currentUser.id && (
+                  <div className="relative comment-menu-container">
+                    <button
+                      onClick={(e) => toggleCommentMenu(e, comment.id)}
+                      className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                      </svg>
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    {activeCommentMenu === comment.id && (
+                      <div className="absolute top-8 right-0 w-32 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                        <button
+                          onClick={(e) => handleDeleteComment(e, comment.id)}
+                          disabled={isDeleting}
+                          className="w-full px-3 py-2 text-left text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50 flex items-center space-x-2 text-sm"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span>{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="text-black text-sm whitespace-pre-wrap">
                 {renderCommentWithMentions(comment.content)}
