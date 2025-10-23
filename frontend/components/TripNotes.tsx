@@ -11,6 +11,7 @@ import OrderedList from '@tiptap/extension-ordered-list';
 import { InputRule } from '@tiptap/core';
 import styles from '../styles/TipTapEditor.module.css';
 import posthog from '../posthog';
+import { ShareToNotesButton } from './ShareToNotesButton';
 
 interface TripNotesProps {
   trip: Trip;
@@ -783,30 +784,7 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
     return plainText.trim();
   };
 
-  // Export notes to iPhone Notes app
-  const exportToiPhoneNotes = () => {
-    try {
-      // Get the plain text content
-      const plainText = getPlainTextContent();
-      
-      // Create a title for the note based on the trip title
-      const noteTitle = `${trip.title} - Trip Notes`;
-      
-      // Create the URL with the notes-specific URL scheme
-      const notesUrl = `notes://x-callback-url/create?text=${encodeURIComponent(plainText)}&name=${encodeURIComponent(noteTitle)}`;
-      
-      // Open the URL which will trigger the Notes app
-      window.open(notesUrl);
-      
-      // Track the export event
-      posthog.capture('notes_exported_to_iphone', {
-        trip_id: trip.id,
-        content_length: plainText.length
-      });
-    } catch (error) {
-      console.error('Error exporting notes:', error);
-    }
-  };
+  // Export functionality has been moved to ShareToNotesButton component
 
   // Copy notes to clipboard
   const copyToClipboard = async () => {
@@ -917,19 +895,12 @@ const TripNotes = ({ trip, onUpdate }: TripNotesProps) => {
                     </svg>
                     Download as text file
                   </button>
-                  <button
-                    onClick={() => {
-                      exportToiPhoneNotes();
-                      setShowExportMenu(false);
-                    }}
-                    className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  <div 
+                    className="px-4 py-2"
+                    onClick={() => setShowExportMenu(false)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                      <path fillRule="evenodd" d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 3a1 1 0 011-1h10a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1V7z" clipRule="evenodd" />
-                    </svg>
-                    Save to iPhone Notes
-                  </button>
+                    <ShareToNotesButton trip={trip} />
+                  </div>
                 </div>
               </div>
             )}

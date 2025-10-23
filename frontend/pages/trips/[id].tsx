@@ -10,7 +10,9 @@ import CollaboratorModal from '../../components/CollaboratorModal';
 import CampsiteModal from '../../components/CampsiteModal';
 import TripStatusDropdown from '../../components/TripStatusDropdown';
 import CampsiteSelector from '../../components/CampsiteSelector';
-import { Trip, Facility as FacilityType } from '../../lib/types';
+import TripLocationsCard from '../../components/TripLocationsCard';
+import { ShareToNotesButton } from '../../components/ShareToNotesButton';
+import { Trip, Facility as FacilityType, TripLocation } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
 import styles from '../../styles/TripDetail.module.css';
@@ -61,9 +63,17 @@ export default function TripDetail() {
   const [tripOwner, setTripOwner] = useState<{id: string; email: string} | null>(null);
   const [isCustomMarkerMode, setIsCustomMarkerMode] = useState(false);
   const [activeEditField, setActiveEditField] = useState<'title' | 'description' | null>(null);
+  const [tripLocations, setTripLocations] = useState<TripLocation[]>([]);
+  const [mapCenterLat, setMapCenterLat] = useState<number | null>(null);
+  const [mapCenterLng, setMapCenterLng] = useState<number | null>(null);
+  const [showTemporaryMarker, setShowTemporaryMarker] = useState(false);
+  const [markerLat, setMarkerLat] = useState<number | undefined>(undefined);
+  const [markerLng, setMarkerLng] = useState<number | undefined>(undefined);
+  const [isAddingFromMarker, setIsAddingFromMarker] = useState(false);
   
   const titleRef = useRef<HTMLInputElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
   
   useEffect(() => {
     const fetchTrip = async () => {
@@ -580,13 +590,138 @@ export default function TripDetail() {
       console.error('Error saving custom facility:', error);
     }
   };
-
-  // Fetch facilities on component mount or when trip changes
-  useEffect(() => {
-    if (trip) {
-      // The CampsiteSelector component handles its own facility fetching
-      // This useEffect is now primarily for the MapComponentTrip
+  
+  // Handle map center change
+  const handleMapCenterChange = (lat: number, lng: number) => {
+    setMapCenterLat(lat);
+    setMapCenterLng(lng);
+  };
+  
+  // Handle adding a new location
+  const handleAddLocation = (location: TripLocation) => {
+    console.log('Adding new location to map:', location);
+    setTripLocations(prev => {
+      const newLocations = [location, ...prev];
+      console.log('Updated locations:', newLocations.length);
+      return newLocations;
+    });
+    
+    // Reset any temporary marker when adding a location
+    if (showTemporaryMarker) {
+      setShowTemporaryMarker(false);
     }
+  };
+  
+  // Handle viewing a location on the map
+  const handleViewLocation = (location: TripLocation) => {
+    if (map.current) {
+      map.current.flyTo({
+        center: [location.lng, location.lat],
+        zoom: 14,
+        essential: true
+      });
+    }
+  };
+  
+  // Handle deleting a location
+  const handleDeleteLocation = (locationId: string) => {
+    setTripLocations(prev => prev.filter(loc => loc.id !== locationId));
+  };
+  
+  // Handle updating a location
+  const handleUpdateLocation = (location: TripLocation) => {
+    setTripLocations(prev => 
+      prev.map(loc => loc.id === location.id ? location : loc)
+    );
+  };
+  
+  // Handle toggling the temporary marker
+  const handleToggleTemporaryMarker = (isActive: boolean) => {
+    setShowTemporaryMarker(isActive);
+    if (!isActive) {
+      // Reset marker coordinates when hiding the marker
+      setMarkerLat(undefined);
+      setMarkerLng(undefined);
+      setIsAddingFromMarker(false);
+    }
+  };
+  
+  // Handle adding a location from the marker
+  const handleAddLocationFromMarker = (lat: number, lng: number) => {
+    setMarkerLat(lat);
+    setMarkerLng(lng);
+    setIsAddingFromMarker(true);
+    
+    // Scroll to the TripLocationsCard
+    setTimeout(() => {
+      const locationsCard = document.getElementById('trip-locations-card');
+      if (locationsCard) {
+        locationsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  // Fetch facilities and locations on component mount or when trip changes
+  useEffect(() => {
+    if (!trip?.id) return;
+    
+    // Fetch trip locations
+    const fetchTripLocations = async () => {
+      try {
+        console.log('Fetching trip locations for trip:', trip.id);
+        const { data, error } = await supabase
+          .from('trip_locations')
+          .select('*')
+          .eq('trip_id', trip.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error fetching trip locations:', error);
+          return;
+        }
+        
+        console.log('Fetched trip locations:', data?.length || 0);
+        if (data && data.length > 0) {
+          setTripLocations(data);
+        }
+      } catch (err) {
+        console.error('Error in fetchTripLocations:', err);
+      }
+    };
+    
+    fetchTripLocations();
+    
+    // Set up real-time subscription for trip locations
+    const channel = supabase
+      .channel(`trip_locations_${trip.id}`)
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'trip_locations',
+          filter: `trip_id=eq.${trip.id}`
+        }, 
+        (payload) => {
+          console.log('Real-time update for trip location:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            setTripLocations(prev => [payload.new as TripLocation, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setTripLocations(prev => 
+              prev.map(loc => loc.id === payload.new.id ? payload.new as TripLocation : loc)
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setTripLocations(prev => 
+              prev.filter(loc => loc.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [trip?.id, supabase]);
 
   // Debug current trip facility
@@ -660,20 +795,40 @@ export default function TripDetail() {
       <div className={`${inter.className} bg-[#F9FAFB] min-h-screen p-8`}>
         
         {/* Map Section */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-          <div className="relative h-80 bg-gray-100">
-            {trip && (
+        <div className="bg-white rounded-xl shadow-md mb-8">
+          {trip && (
               <MapComponentTrip 
                 location={trip.location || ''} 
                 lat={trip.facility?.lat || null} 
                 lon={trip.facility?.lon || null}
                 isCustomMarkerMode={isCustomMarkerMode}
-                locations={[]}
+                locations={tripLocations}
                 onMarkerPlaced={() => {}}
+                onCenterChange={handleMapCenterChange}
+                showTemporaryMarker={showTemporaryMarker}
+                onToggleTemporaryMarker={handleToggleTemporaryMarker}
+                onAddLocationFromMarker={handleAddLocationFromMarker}
               />
-            )}
-          </div>
+          )}
         </div>
+        
+        {/* Trip Locations Card */}
+        {trip && (
+          <div id="trip-locations-card">
+            <TripLocationsCard 
+              trip={trip}
+              onAddLocation={handleAddLocation}
+              onViewLocation={handleViewLocation}
+              onDeleteLocation={handleDeleteLocation}
+              onUpdateLocation={handleUpdateLocation}
+              mapCenterLat={mapCenterLat || undefined}
+              mapCenterLng={mapCenterLng || undefined}
+              markerLat={markerLat}
+              markerLng={markerLng}
+              isAddingFromMarker={isAddingFromMarker}
+            />
+          </div>
+        )}
         
         {/* Main content - 2 column layout on wide screens */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -812,8 +967,8 @@ export default function TripDetail() {
                   </div>
                 </div>
                 
-                {/* Google Calendar Button - Replacing Checklist */}
-                <div className="mt-4">
+                {/* Export Buttons */}
+                <div className="mt-4 space-y-2">
                   <a 
                     href={generateGoogleCalendarUrl(trip)}
                     target="_blank"
@@ -832,6 +987,10 @@ export default function TripDetail() {
                     </svg>
                     Add to Google Calendar
                   </a>
+                  
+                  <div className="w-full">
+                    <ShareToNotesButton trip={trip} />
+                  </div>
                 </div>
               </div>
             </div>

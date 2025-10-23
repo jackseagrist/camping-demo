@@ -4,6 +4,9 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { TripLocation } from '../lib/types';
+import LocationPopup from './LocationPopup';
+import ReactDOM from 'react-dom';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
 
@@ -13,7 +16,12 @@ interface MapComponentTripProps {
   lon?: number | null;
   isCustomMarkerMode?: boolean;
   onMarkerPlaced?: (lng: number, lat: number) => void;
-  locations?: {id: string; name: string; lat: number; lng: number; notes?: string}[];
+  locations?: TripLocation[];
+  onCenterChange?: (lat: number, lng: number) => void;
+  showTemporaryMarker?: boolean;
+  onToggleTemporaryMarker?: (isActive: boolean) => void;
+  onAddLocationFromMarker?: (lat: number, lng: number) => void;
+  fitBoundsOnLocationsChange?: boolean;
 }
 
 const MapComponentTrip: React.FC<MapComponentTripProps> = ({ 
@@ -22,72 +30,168 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
   lon,
   isCustomMarkerMode = false,
   onMarkerPlaced,
-  locations = []
+  locations = [],
+  onCenterChange,
+  showTemporaryMarker = false,
+  onToggleTemporaryMarker,
+  onAddLocationFromMarker,
+  fitBoundsOnLocationsChange = true
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
+  const tempMarker = useRef<mapboxgl.Marker | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [coordinates, setCoordinates] = useState<[number, number] | null>(null);
   const [customMarkerCoordinates, setCustomMarkerCoordinates] = useState<[number, number] | null>(null);
+  const [tempMarkerCoordinates, setTempMarkerCoordinates] = useState<[number, number] | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<TripLocation | null>(null);
+  const [popupCoordinates, setPopupCoordinates] = useState<[number, number] | null>(null);
   const locationMarkers = useRef<{[key: string]: mapboxgl.Marker}>({});
+  const popupRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     console.log('MapComponentTrip mounted with props:', { location, lat, lon, isCustomMarkerMode, locationsCount: locations?.length });
+    
+    // If locations change and the map is already loaded, re-render markers
+    if (map.current && mapLoaded && locations && locations.length > 0) {
+      console.log('Locations changed, re-rendering markers');
+      setTimeout(() => renderLocationMarkers(), 200);
+    }
   }, [location, lat, lon, isCustomMarkerMode, locations]);
 
+  // Function to fit map bounds to show all locations
+  const fitMapBoundsToLocations = () => {
+    if (!map.current || !mapLoaded || !locations || locations.length === 0) return;
+    
+    try {
+      // Create a bounds object
+      const bounds = new mapboxgl.LngLatBounds();
+      
+      // Add all location coordinates to the bounds
+      locations.forEach(loc => {
+        if (typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+          bounds.extend([loc.lng, loc.lat]);
+        }
+      });
+      
+      // Add the main facility location if available
+      if (lat && lon) {
+        bounds.extend([lon, lat]);
+      }
+      
+      // Check if bounds are valid (has coordinates)
+      if (bounds.isEmpty()) return;
+      
+      // Fit the map to the bounds with padding
+      map.current.fitBounds(bounds, {
+        padding: { top: 70, bottom: 70, left: 70, right: 70 },
+        maxZoom: 14,
+        duration: 1000
+      });
+      
+      console.log('Fit map bounds to show all locations');
+    } catch (err) {
+      console.error('Error fitting map bounds:', err);
+    }
+  };
+  
+  // Function to handle marker click
+  const handleMarkerClick = (location: TripLocation, coordinates: [number, number]) => {
+    setSelectedLocation(location);
+    setPopupCoordinates(coordinates);
+    
+    // Create a popup container if it doesn't exist
+    if (!popupRef.current) {
+      const popupContainer = document.createElement('div');
+      popupContainer.className = 'mapboxgl-popup-content-wrapper';
+      document.body.appendChild(popupContainer);
+      popupRef.current = popupContainer;
+    }
+  };
+  
+  // Function to close the popup
+  const handleClosePopup = () => {
+    setSelectedLocation(null);
+    setPopupCoordinates(null);
+  };
+  
   // Function to render custom location markers
   const renderLocationMarkers = () => {
-    if (!map.current || !mapLoaded || !locations) return;
+    if (!map.current || !mapLoaded || !locations) {
+      console.log('Cannot render markers: map or locations not ready');
+      return;
+    }
     
-    // Clear existing location markers
-    Object.values(locationMarkers.current).forEach(marker => marker.remove());
-    locationMarkers.current = {};
+    console.log('Rendering markers for locations:', locations);
     
-    // Add new markers for each location
-    locations.forEach(loc => {
-      // Skip if missing coordinates
-      if (typeof loc.lat !== 'number' || typeof loc.lng !== 'number') return;
+    try {
+      // Clear existing location markers
+      Object.values(locationMarkers.current).forEach(marker => {
+        try {
+          marker.remove();
+        } catch (e) {
+          console.error('Error removing marker:', e);
+        }
+      });
+      locationMarkers.current = {};
       
-      // Create a custom element for the marker
-      const el = document.createElement('div');
-      el.className = 'custom-marker';
-      el.style.width = '24px';
-      el.style.height = '24px';
-      el.style.borderRadius = '50%';
-      el.style.backgroundColor = '#F59E0B'; // Amber color
-      el.style.border = '2px solid white';
-      el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-      el.style.cursor = 'pointer';
-      
-      // Create a popup for this marker
-      const popup = new mapboxgl.Popup({ offset: 25 })
-        .setHTML(`
-          <div style="padding: 8px;">
-            <h3 style="font-weight: 600; margin-bottom: 4px;">${loc.name}</h3>
-            ${loc.notes ? `<p style="font-size: 12px; color: #666;">${loc.notes}</p>` : ''}
-            <div style="font-size: 10px; color: #888; margin-top: 4px;">
-              ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}
-            </div>
-          </div>
-        `);
-      
-      // Create and add the marker
-      const newMarker = new mapboxgl.Marker(el)
-        .setLngLat([loc.lng, loc.lat])
-        .setPopup(popup)
-        .addTo(map.current);
-      
-      // Store reference to marker
-      locationMarkers.current[loc.id] = newMarker;
-    });
+      // Add new markers for each location
+      locations.forEach(loc => {
+        try {
+          // Skip if missing coordinates
+          if (typeof loc.lat !== 'number' || typeof loc.lng !== 'number') {
+            console.log('Skipping location with invalid coordinates:', loc);
+            return;
+          }
+          
+          console.log('Adding marker for location:', loc.name, loc.lat, loc.lng);
+          
+          // Create a custom element for the marker
+          const el = document.createElement('div');
+          el.className = 'custom-marker';
+          el.style.width = '24px';
+          el.style.height = '24px';
+          el.style.borderRadius = '50%';
+          el.style.backgroundColor = '#3B82F6'; // Blue color for trip locations
+          el.style.border = '2px solid white';
+          el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+          el.style.cursor = 'pointer';
+          
+          // Create and add the marker
+          const newMarker = new mapboxgl.Marker(el)
+            .setLngLat([loc.lng, loc.lat])
+            .addTo(map.current);
+            
+          // Add click handler
+          el.addEventListener('click', () => {
+            handleMarkerClick(loc, [loc.lng, loc.lat]);
+          });
+          
+          // Store reference to marker
+          locationMarkers.current[loc.id] = newMarker;
+        } catch (e) {
+          console.error('Error adding marker for location:', loc, e);
+        }
+      });
+    } catch (e) {
+      console.error('Error in renderLocationMarkers:', e);
+    }
   };
 
   // Render location markers when locations change or map loads
   useEffect(() => {
-    renderLocationMarkers();
-  }, [locations, mapLoaded]);
+    if (map.current && mapLoaded && locations && locations.length > 0) {
+      console.log('Rendering location markers:', locations.length);
+      renderLocationMarkers();
+      
+      // Fit map bounds to show all locations if enabled
+      if (fitBoundsOnLocationsChange) {
+        setTimeout(() => fitMapBoundsToLocations(), 300);
+      }
+    }
+  }, [locations, mapLoaded, fitBoundsOnLocationsChange]);
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
@@ -140,11 +244,15 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
         updateMapMarker(mapInstance, lon, lat);
       } else {
         console.warn('Missing lat/lon — cannot place marker.');
-        setError('This trip is missing coordinates. Please update the facility data.');
       }
       
       // Add location markers once map is loaded
       renderLocationMarkers();
+      
+      // If we have locations, fit the map to show all of them
+      if (locations && locations.length > 0) {
+        setTimeout(() => fitMapBoundsToLocations(), 500);
+      }
     });
 
     mapInstance.on('click', (e) => {
@@ -166,17 +274,30 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
       }
     });
 
-    map.current = mapInstance;
+  // Add move end event to track map center
+  mapInstance.on('moveend', () => {
+    const center = mapInstance.getCenter();
+    if (onCenterChange) {
+      onCenterChange(center.lat, center.lng);
+    }
+    
+    // Re-render markers after map movement to ensure they're visible
+    if (locations && locations.length > 0) {
+      setTimeout(() => renderLocationMarkers(), 100);
+    }
+  });
 
-    return () => {
-      console.log('Cleaning up map');
-      // Clean up all markers
-      Object.values(locationMarkers.current).forEach(marker => marker.remove());
-      locationMarkers.current = {};
-      
-      map.current?.remove();
-      map.current = null;
-    };
+  map.current = mapInstance;
+
+  return () => {
+    console.log('Cleaning up map');
+    // Clean up all markers
+    Object.values(locationMarkers.current).forEach(marker => marker.remove());
+    locationMarkers.current = {};
+    
+    map.current?.remove();
+    map.current = null;
+  };
   }, []);
 
   // Handle changes to custom marker mode
@@ -207,6 +328,57 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
       }
     }
   }, [isCustomMarkerMode, mapLoaded]);
+  
+  // Handle temporary marker toggle
+  useEffect(() => {
+    if (!map.current || !mapLoaded) return;
+    
+    if (showTemporaryMarker) {
+      // Get the current center of the map
+      const center = map.current.getCenter();
+      const lngLat: [number, number] = [center.lng, center.lat];
+      
+      // Create a temporary marker if it doesn't exist
+      if (!tempMarker.current) {
+        // Create a custom element for the marker
+        const el = document.createElement('div');
+        el.className = 'temporary-marker';
+        el.style.width = '24px';
+        el.style.height = '24px';
+        el.style.borderRadius = '50%';
+        el.style.backgroundColor = '#10B981'; // Emerald color to match BaseLodge style
+        el.style.border = '2px solid white';
+        el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
+        el.style.cursor = 'grab';
+        
+        tempMarker.current = new mapboxgl.Marker({
+          element: el,
+          draggable: true
+        })
+          .setLngLat(lngLat)
+          .addTo(map.current);
+        
+        // Set initial coordinates
+        setTempMarkerCoordinates(lngLat);
+        
+        // Add drag end event to update coordinates when marker is dragged
+        tempMarker.current.on('dragend', () => {
+          const lngLat = tempMarker.current?.getLngLat();
+          if (lngLat) {
+            const newCoords: [number, number] = [lngLat.lng, lngLat.lat];
+            setTempMarkerCoordinates(newCoords);
+          }
+        });
+      }
+    } else {
+      // Remove temporary marker when toggle is turned off
+      if (tempMarker.current) {
+        tempMarker.current.remove();
+        tempMarker.current = null;
+        setTempMarkerCoordinates(null);
+      }
+    }
+  }, [showTemporaryMarker, mapLoaded]);
 
   useEffect(() => {
     if (map.current && mapLoaded && lat && lon && !isCustomMarkerMode) {
@@ -302,21 +474,83 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
   }
 
   return (
-    <div>
-      <div ref={mapContainer} className="w-full h-96 rounded-md border" />
-      {isCustomMarkerMode && customMarkerCoordinates && (
-        <div className="mt-2 text-sm text-blue-600 font-mono">
-          📍 New Location: {customMarkerCoordinates[1].toFixed(5)}, {customMarkerCoordinates[0].toFixed(5)}
+    <div className="rounded-md overflow-hidden relative">
+      <div ref={mapContainer} className="w-full h-[400px] md:h-[500px] lg:h-[600px]" />
+      
+      {/* Location popup */}
+      {selectedLocation && popupCoordinates && (
+        <div 
+          className="absolute z-20 transform -translate-x-1/2 -translate-y-full"
+          style={{
+            left: map.current ? map.current.project(popupCoordinates).x : 0,
+            top: map.current ? map.current.project(popupCoordinates).y - 15 : 0,
+            filter: 'drop-shadow(0 4px 3px rgb(0 0 0 / 0.07)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.06))'
+          }}
+        >
+          <LocationPopup 
+            location={selectedLocation} 
+            onClose={handleClosePopup}
+          />
+          {/* Triangle pointer */}
+          <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-4 h-4 bg-white"></div>
         </div>
       )}
-      {!isCustomMarkerMode && coordinates && (
-        <div className="mt-2 text-sm text-gray-700 font-mono">
-          📍 Coordinates: {coordinates[1].toFixed(5)}, {coordinates[0].toFixed(5)}
-        </div>
-      )}
+      
+      {/* Floating button in bottom left corner */}
+      <div className="absolute bottom-9 left-4 z-10">
+        <button
+          onClick={() => onToggleTemporaryMarker && onToggleTemporaryMarker(!showTemporaryMarker)}
+          className={`px-3 py-2 text-xs font-medium rounded-md shadow-md transition-all ${
+            showTemporaryMarker 
+              ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+              : 'bg-white text-gray-700 hover:bg-gray-50'
+          }`}
+          title={showTemporaryMarker ? 'Hide coordinate marker' : 'Get coordinates by placing a marker'}
+        >
+          {showTemporaryMarker ? 'Hide Coordinates' : 'Get Coordinates'}
+        </button>
+      </div>
+      
+      {/* Instruction text that appears when in custom marker mode */}
       {isCustomMarkerMode && (
-        <div className="mt-2 text-xs text-gray-500">
+        <div className="absolute bottom-4 left-4 bg-white bg-opacity-90 p-2 rounded-md shadow-md text-xs text-gray-700 max-w-xs">
           Click on the map to place your location marker, or drag the marker to adjust its position.
+        </div>
+      )}
+      
+      {/* Coordinates display that appears when temporary marker is active */}
+      {showTemporaryMarker && tempMarkerCoordinates && (
+        <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-md shadow-md z-10">
+          <div className="text-sm font-medium text-gray-800 mb-1">Marker Coordinates</div>
+          <div className="text-sm text-emerald-600 font-mono mb-2">
+            {tempMarkerCoordinates[1].toFixed(5)}, {tempMarkerCoordinates[0].toFixed(5)}
+          </div>
+          <button
+            onClick={() => onAddLocationFromMarker && onAddLocationFromMarker(tempMarkerCoordinates[1], tempMarkerCoordinates[0])}
+            className="w-full px-2 py-1 text-xs font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center justify-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Location
+          </button>
+        </div>
+      )}
+      
+      {/* Instruction text for temporary marker */}
+      {showTemporaryMarker && !isCustomMarkerMode && (
+        <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 p-2 rounded-md shadow-md text-xs text-gray-700 max-w-xs">
+          Drag the green marker to see coordinates at different points. Click "Add Location" to save this point.
+        </div>
+      )}
+      
+      {/* Custom marker coordinates */}
+      {isCustomMarkerMode && customMarkerCoordinates && (
+        <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-md shadow-md z-10">
+          <div className="text-sm font-medium text-gray-800 mb-1">New Location</div>
+          <div className="text-sm text-blue-600 font-mono">
+            {customMarkerCoordinates[1].toFixed(5)}, {customMarkerCoordinates[0].toFixed(5)}
+          </div>
         </div>
       )}
     </div>

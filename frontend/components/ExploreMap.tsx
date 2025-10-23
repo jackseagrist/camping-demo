@@ -6,6 +6,7 @@ import { useMapBounds } from '../hooks/useMapBounds';
 import FacilityModal from './FacilityModal';
 import FilterModal from './FilterModal';
 import LegendModal from './LegendModal';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -93,6 +94,25 @@ export default function ExploreMap({
       if (value === 'Bargain') return '#3B82F6'; // Blue
       return '#888888'; // Default grey
     }
+  };
+  
+  // Helper function to determine if a facility is a BLM site
+  const isBlmFacility = (facility) => {
+    // Check if facility_id starts with 'blm_' or source is 'blm_ca'
+    const isBlm = (facility.facility_id && facility.facility_id.toString().startsWith('blm_')) || 
+                 (facility.source === 'blm_ca');
+    
+    // Debug log for the first few BLM facilities found
+    if (isBlm) {
+      console.log('🔶 Found BLM facility:', { 
+        id: facility.id, 
+        facility_id: facility.facility_id, 
+        name: facility.name, 
+        source: facility.source 
+      });
+    }
+    
+    return isBlm;
   };
 
   // Debounced function to load facilities based on current viewport
@@ -295,6 +315,9 @@ export default function ExploreMap({
         if (map.current.getLayer('unclustered-point')) {
           map.current.removeLayer('unclustered-point');
         }
+        if (map.current.getLayer('blm-sites')) {
+          map.current.removeLayer('blm-sites');
+        }
         if (map.current.getSource('facilities')) {
           map.current.removeSource('facilities');
         }
@@ -396,6 +419,9 @@ export default function ExploreMap({
               ? (facility.demand_assessment || 'Medium')
               : (facility.cost_assessment_2 || 'Affordable');
               
+            // Determine if this is a BLM facility
+            const isBlm = isBlmFacility(facility);
+            
             return {
               type: 'Feature',
               properties: {
@@ -411,6 +437,7 @@ export default function ExploreMap({
                 isSelected: selectedFacility && 
                   (selectedFacility.facility_id === facility.facility_id || 
                    selectedFacility.id === facility.id),
+                isBlm: isBlm, // Add the BLM indicator
                 // Store facility data as string to retrieve later
                 facilityData: JSON.stringify(facility)
               },
@@ -484,12 +511,83 @@ export default function ExploreMap({
           }
         });
 
-        // Add layer for individual points (not clustered)
+        // Check if we have any BLM sites in the data
+        const blmSites = points.features.filter(f => f.properties.isBlm === true);
+        console.log(`🔶 Found ${blmSites.length} BLM sites to display as squares`);
+        
+        // Add a custom image for squares if it doesn't exist yet
+        if (!map.current.hasImage('square-marker')) {
+          // Create a square marker image
+          const size = 20; // Size of the square in pixels
+          const centerPadding = 2; // Padding around the center
+          const canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          
+          // Draw a square with a white border
+          ctx.fillStyle = '#10B981'; // Default color (will be replaced by data-driven styling)
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 2;
+          
+          // Draw the square
+          ctx.beginPath();
+          ctx.rect(centerPadding, centerPadding, size - 2 * centerPadding, size - 2 * centerPadding);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Add the image to the map
+          map.current.addImage('square-marker', { 
+            data: ctx.getImageData(0, 0, size, size).data, 
+            width: size, 
+            height: size 
+          });
+          
+          console.log('✅ Created custom square marker image');
+        }
+        
+        // Add layer for BLM sites (squares)
+        map.current.addLayer({
+          id: 'blm-sites',
+          type: 'symbol',
+          source: 'facilities',
+          filter: ['all', 
+            ['!', ['has', 'point_count']],
+            ['==', ['get', 'isBlm'], true]
+          ],
+          layout: {
+            'symbol-placement': 'point',
+            'icon-image': 'square-marker',
+            'icon-size': 1,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+          },
+          paint: {
+            'icon-color': ['get', 'color'],
+            'icon-halo-width': [
+              'case',
+              ['get', 'isSelected'],
+              3,
+              1
+            ],
+            'icon-halo-color': [
+              'case',
+              ['get', 'isSelected'],
+              '#000000',
+              '#FFFFFF'
+            ]
+          }
+        });
+
+        // Add layer for regular facilities (circles)
         map.current.addLayer({
           id: 'unclustered-point',
           type: 'circle',
           source: 'facilities',
-          filter: ['!', ['has', 'point_count']],
+          filter: ['all', 
+            ['!', ['has', 'point_count']],
+            ['!=', ['get', 'isBlm'], true]
+          ],
           paint: {
             'circle-color': ['get', 'color'],
             'circle-radius': 8,
@@ -530,8 +628,24 @@ export default function ExploreMap({
             );
           });
           
-          // Handle clicks on individual points
+          // Handle clicks on individual points (circles)
           map.current.on('click', 'unclustered-point', (e) => {
+            // Close any existing popup first
+            closeActivePopup();
+            
+            // Parse the stored facility data
+            const facilityJson = e.features[0].properties.facilityData;
+            const facility = JSON.parse(facilityJson);
+            
+            // Show the modal instead of popup
+            setModalFacility(facility);
+            
+            // Also select the facility
+            onFacilitySelect(facility);
+          });
+          
+          // Handle clicks on BLM sites (squares)
+          map.current.on('click', 'blm-sites', (e) => {
             // Close any existing popup first
             closeActivePopup();
             
@@ -560,6 +674,15 @@ export default function ExploreMap({
       });
       
       map.current.on('mouseleave', 'unclustered-point', () => {
+        map.current.getCanvas().style.cursor = '';
+      });
+      
+      // Hover effects for BLM sites
+      map.current.on('mouseenter', 'blm-sites', () => {
+        map.current.getCanvas().style.cursor = 'pointer';
+      });
+      
+      map.current.on('mouseleave', 'blm-sites', () => {
         map.current.getCanvas().style.cursor = '';
       });
       
@@ -751,6 +874,29 @@ export default function ExploreMap({
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
+    // Check if there are any BLM sites in the database
+    const checkForBlmSites = async () => {
+      try {
+        const supabase = createClientComponentClient();
+        const { data, error } = await supabase
+          .from('facilities')
+          .select('id, facility_id, name, source')
+          .or('facility_id.ilike.blm_%,source.eq.blm_ca')
+          .limit(10);
+        
+        if (error) {
+          console.error('❌ Error checking for BLM sites:', error);
+        } else {
+          console.log(`🔶 Found ${data.length} BLM sites in database:`, data);
+        }
+      } catch (err) {
+        console.error('❌ Unexpected error checking for BLM sites:', err);
+      }
+    };
+    
+    // Run the check
+    checkForBlmSites();
+
     console.log('🔍 Initializing map...');
     try {
       // Initialize map with dynamic center
@@ -911,10 +1057,10 @@ export default function ExploreMap({
     };
   }, []);
 
-  // Fly to facility when selected
+  // Center on facility when selected but maintain current zoom level
   useEffect(() => {
     if (selectedFacility && map.current && mapLoaded) {
-      console.log('Flying to selected facility:', selectedFacility.name);
+      console.log('Centering on selected facility:', selectedFacility.name);
       
       // Make sure we have valid coordinates
       const lat = selectedFacility.normalizedLat || selectedFacility.lat;
@@ -926,13 +1072,17 @@ export default function ExploreMap({
       }
       
       try {
+        // Get current zoom level to maintain it
+        const currentZoom = map.current.getZoom();
+        
+        // Center on the facility but keep the current zoom level
         map.current.flyTo({
           center: [lon, lat],
-          zoom: 13,
-          duration: 1500, // 1.5 seconds animation
+          zoom: currentZoom, // Maintain current zoom level
+          duration: 1000, // 1 second animation
           essential: true // This animation is considered essential for the user experience
         });
-        console.log('Map flyTo initiated');
+        console.log('Map centered on facility without changing zoom level');
       } catch (error) {
         console.error('Error in map.flyTo:', error);
       }

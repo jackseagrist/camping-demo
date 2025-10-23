@@ -1,0 +1,1655 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": 36,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -119.73484315279934,
+          35.09058146699725
+        ]
+      },
+      "properties": {
+        "OBJECTID": 36,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "KCL Campground",
+        "ADM_UNIT_CD": "CAC06900",
+        "ADMIN_ST": "CA",
+        "LAT": 35.09057659,
+        "LONG": -119.73483063,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{E342A815-E5AB-4F32-9261-1BB0F7D6356D}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 51,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -119.84160142858406,
+          35.12772893823435
+        ]
+      },
+      "properties": {
+        "OBJECTID": 51,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Selby Campground",
+        "ADM_UNIT_CD": "CAC06900",
+        "ADMIN_ST": "CA",
+        "LAT": 35.12772406,
+        "LONG": -119.84158889,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{851D5BEC-E1FE-42E6-9A10-40A4DDC5D57E}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 95,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.45682207780918,
+          33.58481901708217
+        ]
+      },
+      "properties": {
+        "OBJECTID": 95,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Pinyon Flat",
+        "ADM_UNIT_CD": "CAD06430",
+        "ADMIN_ST": "CA",
+        "LAT": 33.58737943,
+        "LONG": -116.45217683,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{B02CBA6B-A68E-4C99-ADE3-501A461F29BD}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 96,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.45366676667479,
+          33.57680487240589
+        ]
+      },
+      "properties": {
+        "OBJECTID": 96,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Ribbonwood Equestrian",
+        "ADM_UNIT_CD": "CAD06430",
+        "ADMIN_ST": "CA",
+        "LAT": 33.57312247,
+        "LONG": -116.4524381,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{63718E6A-A972-4284-B605-B0B425C70416}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 115,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.35453121777724,
+          38.99852712605076
+        ]
+      },
+      "properties": {
+        "OBJECTID": 115,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Cowboy Camp",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 38.99852208,
+        "LONG": -122.35451786,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{BD723701-ADE5-4377-B140-515C39CD9257}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 117,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.50867199407783,
+          39.0695951204494
+        ]
+      },
+      "properties": {
+        "OBJECTID": 117,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Blue Oak Camp",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 39.06959008,
+        "LONG": -122.50865861,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{23602BB8-71DD-487E-AF02-B9D978A1F5CA}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 120,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.35661910088523,
+          38.776624142596134
+        ]
+      },
+      "properties": {
+        "OBJECTID": 120,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Campground",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 38.77661911,
+        "LONG": -122.35660577,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{9BEE9399-66C2-48D8-8E4A-0A60CE564969}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 124,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.37466642536609,
+          38.81018354465545
+        ]
+      },
+      "properties": {
+        "OBJECTID": 124,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Hunting Creek camp",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 38.81017851,
+        "LONG": -122.37465309,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{55440837-7C54-4A53-B671-04E7B47CD123}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 136,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.84706395132423,
+          34.0864029388987
+        ]
+      },
+      "properties": {
+        "OBJECTID": 136,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "High Camp",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.086398,
+        "LONG": -116.847052,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{7F836913-5553-4A55-AC22-15D06C4968CF}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 137,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.88774695891627,
+          34.09743593776607
+        ]
+      },
+      "properties": {
+        "OBJECTID": 137,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Dobbs Camp",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.097431,
+        "LONG": -116.887735,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{26020956-1676-4D48-8CF2-06423F9E7A6A}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 138,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.96124297429165,
+          34.12877893738323
+        ]
+      },
+      "properties": {
+        "OBJECTID": 138,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Mountain Home Flat",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.128774,
+        "LONG": -116.961231,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{A6E86FEC-7E29-42F5-B35E-E2255D78F182}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 139,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.94207997141282,
+          34.1359529389779
+        ]
+      },
+      "properties": {
+        "OBJECTID": 139,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Columbine Springs",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.135948,
+        "LONG": -116.942068,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{DC0D9427-B06F-4D75-9AB6-6495BCD0D519}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 140,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.79031994369988,
+          34.12345294623876
+        ]
+      },
+      "properties": {
+        "OBJECTID": 140,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Fish Creek Camp",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.123448,
+        "LONG": -116.790308,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{24D63457-5260-48CA-BF3E-15E84C02CCE1}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 141,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.80871394558757,
+          34.1070199435475
+        ]
+      },
+      "properties": {
+        "OBJECTID": 141,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Mineshaft Flat",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.107015,
+        "LONG": -116.808702,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{E12F3CD7-F7E4-4733-B231-C2E98A7F38D7}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 142,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.80202094510298,
+          34.101785943168935
+        ]
+      },
+      "properties": {
+        "OBJECTID": 142,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Big Tree",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.101781,
+        "LONG": -116.802009,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{A072285D-268F-4B12-93ED-10A74A2ED4F0}",
+        "SMA_ID_ca": 915,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 143,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.61244290300472,
+          34.00065694194793
+        ]
+      },
+      "properties": {
+        "OBJECTID": 143,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Mission Creek Preserve ",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.000652,
+        "LONG": -116.612431,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{70430A86-2ED5-4E7C-BB22-D3878D2572EB}",
+        "SMA_ID_ca": 1,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 144,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.65619790877614,
+          33.9892999381795
+        ]
+      },
+      "properties": {
+        "OBJECTID": 144,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Whitewater Preserve",
+        "ADM_UNIT_CD": "CAD06000",
+        "ADMIN_ST": "CA",
+        "LAT": 33.989295,
+        "LONG": -116.656186,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{9E204B8D-84DE-49CF-9726-E5D55C40790F}",
+        "SMA_ID_ca": 1,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 191,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.83627783618206,
+          34.436514151267815
+        ]
+      },
+      "properties": {
+        "OBJECTID": 191,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Lisa Dawn Camp",
+        "ADM_UNIT_CD": "CAD09000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.43650906,
+        "LONG": -114.83626622,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{A2A9F6AA-FBF3-4F8D-A42F-D90FE8DDA611}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 206,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.82691521121147,
+          34.438878343584285
+        ]
+      },
+      "properties": {
+        "OBJECTID": 206,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Browns Camp",
+        "ADM_UNIT_CD": "CAD09000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.43887325,
+        "LONG": -114.82690359,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{4EBC23D2-3C65-4BEB-8FC4-ED8F902012B6}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 227,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.38217378841165,
+          35.0390546560188
+        ]
+      },
+      "properties": {
+        "OBJECTID": 227,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Afton Canyon Natural Area CG",
+        "ADM_UNIT_CD": "CAD08000",
+        "ADMIN_ST": "CA",
+        "LAT": 35.03904958,
+        "LONG": -116.38216184,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{AB4705C1-5DC4-441D-A69C-B24E375B8125}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 233,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -116.98418145273195,
+          34.66995060972124
+        ]
+      },
+      "properties": {
+        "OBJECTID": 233,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "New Jack City - Sawtooth Canyon Campground",
+        "ADM_UNIT_CD": "CAD08000",
+        "ADMIN_ST": "CA",
+        "LAT": 34.66994561,
+        "LONG": -116.98416943,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{F4550D99-41C9-416A-B651-929736B695FB}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 246,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.37123065786727,
+          38.9277294421474
+        ]
+      },
+      "properties": {
+        "OBJECTID": 246,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Buck Island Campground",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 38.927724,
+        "LONG": -122.371217,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{4DF5CFF9-80B9-4BA9-B1CA-45475DC87E97}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 247,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.99088755719477,
+          38.94720841065256
+        ]
+      },
+      "properties": {
+        "OBJECTID": 247,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Sheldon Creek Campground",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 38.947203,
+        "LONG": -122.990874,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{58C2AEBA-AC11-4BE4-86B4-1233E8228D72}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 248,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -123.03936878345965,
+          39.038378298328595
+        ]
+      },
+      "properties": {
+        "OBJECTID": 248,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Buckhorn Campground",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 39.038373,
+        "LONG": -123.039355,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{B76FB433-8D18-4EDF-BE1F-E996ECEE7F20}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 249,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -123.09121949813014,
+          39.07983499550603
+        ]
+      },
+      "properties": {
+        "OBJECTID": 249,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Red Mountain Campground",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 39.07983,
+        "LONG": -123.091206,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{55355347-B402-479B-BCFD-31A7F6AD88C3}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 250,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -123.09500473032763,
+          39.15839790083551
+        ]
+      },
+      "properties": {
+        "OBJECTID": 250,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Mayacmas Campground",
+        "ADM_UNIT_CD": "CAC05000",
+        "ADMIN_ST": "CA",
+        "LAT": 39.158393,
+        "LONG": -123.094991,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{08423131-1CF8-40FE-BCCB-7B54DC8FB93D}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 682,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.95353533243815,
+          40.64774339783601
+        ]
+      },
+      "properties": {
+        "OBJECTID": 682,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Douglas City",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.64773828,
+        "LONG": -122.95352166,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{7007F562-DCE9-49C8-91AA-F3509E48E0B4}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 683,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.96720783802647,
+          40.65912613082042
+        ]
+      },
+      "properties": {
+        "OBJECTID": 683,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Steiner Flat",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.65912101,
+        "LONG": -122.96719416,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{9BEF7A4E-A605-4A84-A28A-0EF64955EB84}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 684,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.91476442290153,
+          40.67649026999187
+        ]
+      },
+      "properties": {
+        "OBJECTID": 684,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Steel Bridge",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.67648514,
+        "LONG": -122.91475075,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{05EEF445-8DE2-4B0A-A28F-EE5FFFBB3445}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 685,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.43489425276876,
+          40.71269367262812
+        ]
+      },
+      "properties": {
+        "OBJECTID": 685,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Shasta",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.7126885,
+        "LONG": -122.43488065,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{E10787FC-575A-4A2E-AAFC-6F29A256B11D}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 686,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.15168385082352,
+          40.3166932273831
+        ]
+      },
+      "properties": {
+        "OBJECTID": 686,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Massacre Flat",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.31668806,
+        "LONG": -122.15167035,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{4D26927D-5C8C-41B4-8FAB-D03D621C57BD}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 687,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -123.06301523071755,
+          40.746339270723254
+        ]
+      },
+      "properties": {
+        "OBJECTID": 687,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Juntion City",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.74633415,
+        "LONG": -123.06300153,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{3812F380-9238-4BCF-B631-EBB6511D4ADF}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 688,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.19790717471382,
+          40.38642078376154
+        ]
+      },
+      "properties": {
+        "OBJECTID": 688,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Reading Island",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.38641562,
+        "LONG": -122.19789366,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{BA322BF0-12E5-44C1-A905-1D767E64BA5E}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 689,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -121.61141593682233,
+          39.914132242602655
+        ]
+      },
+      "properties": {
+        "OBJECTID": 689,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Forks of Butte Creek",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 39.91412706,
+        "LONG": -121.61140257,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{510D2174-CEBA-4BA5-BF37-89CC71DC0237}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 690,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.48211874955938,
+          40.790083950711164
+        ]
+      },
+      "properties": {
+        "OBJECTID": 690,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Bohemotash",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.79007878,
+        "LONG": -122.48210513,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{A6EA1521-B7A9-46CE-85DD-A7C52B77DEC8}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 817,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.13951942442992,
+          32.942206705687596
+        ]
+      },
+      "properties": {
+        "OBJECTID": 817,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Gecko Campground",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.94220181,
+        "LONG": -115.13950786,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{7F17EF1F-1068-4412-824C-65FBD6CDA4E2}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 818,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.07495217941148,
+          32.99037375702369
+        ]
+      },
+      "properties": {
+        "OBJECTID": 818,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Glamis Flats",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.99036886,
+        "LONG": -115.07494063,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{A64FFDCC-20DA-45A6-97DF-32B7F23401FE}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 819,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.09132468496409,
+          32.99334661228983
+        ]
+      },
+      "properties": {
+        "OBJECTID": 819,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Garbage Flats",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.99334171,
+        "LONG": -115.09131313,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{50790FD2-4C52-46B1-BD01-E72CD42E0C79}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 820,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.05518302007344,
+          32.9808616833128
+        ]
+      },
+      "properties": {
+        "OBJECTID": 820,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "The Washes",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.98085678,
+        "LONG": -115.05517147,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{43BC8E3F-7C3D-4F74-B722-819C9E0467DF}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 823,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.11636476468645,
+          32.91665268258182
+        ]
+      },
+      "properties": {
+        "OBJECTID": 823,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Keyhole Campground",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.91664779,
+        "LONG": -115.11635321,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{019785AE-B7AD-4C90-B1F4-6B2BA771B064}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 824,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.9368123240679,
+          32.72011891125733
+        ]
+      },
+      "properties": {
+        "OBJECTID": 824,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Dune Buggy Flats",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.72011404,
+        "LONG": -114.93680082,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{4D1D5148-A72C-4867-A4E6-8DB480EE861F}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 825,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.91539790783139,
+          32.717532365128925
+        ]
+      },
+      "properties": {
+        "OBJECTID": 825,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Midway Campground",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.71752749,
+        "LONG": -114.91538641,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{34067882-711C-4188-B234-9D8FB7281E19}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 826,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.89417138646124,
+          32.81115397219612
+        ]
+      },
+      "properties": {
+        "OBJECTID": 826,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Ogilbly Camp Area",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.81114908,
+        "LONG": -114.89415988,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{744BE861-CB76-4B59-8271-0A28AC87B142}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 827,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.33034231928515,
+          33.1502484473806
+        ]
+      },
+      "properties": {
+        "OBJECTID": 827,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Mammoth Wash",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 33.15024354,
+        "LONG": -115.33033071,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{3D4F6AD9-D723-40D4-B06A-3C57D7088ED6}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 844,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.93502282474805,
+          32.706027592396225
+        ]
+      },
+      "properties": {
+        "OBJECTID": 844,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Grays Well Camping",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.70602272,
+        "LONG": -114.93501132,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{26E138AA-003B-4F33-9C55-7B70443BE036}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 852,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.11688367193763,
+          32.91077363353348
+        ]
+      },
+      "properties": {
+        "OBJECTID": 852,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Roadrunner Campground",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.91076874,
+        "LONG": -115.11687212,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{84005931-191C-4F0A-A0C7-5875ECD9ED1F}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 854,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.88061420885637,
+          32.73974391116801
+        ]
+      },
+      "properties": {
+        "OBJECTID": 854,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Buttercup Campground",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.73973903,
+        "LONG": -114.88060271,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{E13E344D-592C-492D-A380-D88EBB9CCCC8}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 856,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -115.17811244604323,
+          32.973003345506925
+        ]
+      },
+      "properties": {
+        "OBJECTID": 856,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Cement Flats",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.97299845,
+        "LONG": -115.17810088,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{C8A69458-0288-438D-AF8D-7A8487E4C3C5}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 859,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -114.94013590951585,
+          32.71453983526065
+        ]
+      },
+      "properties": {
+        "OBJECTID": 859,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Dune Buggy Contact Statio",
+        "ADM_UNIT_CD": "CAD07000",
+        "ADMIN_ST": "CA",
+        "LAT": 32.71453496,
+        "LONG": -114.9401244,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "UNK",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{02A29398-E050-49F1-B2B6-AF12DC436236}",
+        "SMA_ID_ca": 2,
+        "last_edited_date": null
+      }
+    },
+    {
+      "type": "Feature",
+      "id": 1587,
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.43349848907779,
+          40.71551089511515
+        ]
+      },
+      "properties": {
+        "OBJECTID": 1587,
+        "FET_TYPE": 10,
+        "FET_SUBTYPE": "Campground",
+        "FET_NAME": "Ohl Olsen",
+        "ADM_UNIT_CD": "CAN06000",
+        "ADMIN_ST": "CA",
+        "LAT": 40.71550572,
+        "LONG": -122.43348489,
+        "WEB_DISPLAY": "YES",
+        "PHOTO_THUMB": null,
+        "DESCRIPTION": null,
+        "UNIT_NAME": null,
+        "WEB_LINK": null,
+        "PHOTO_TEXT": null,
+        "PHOTO_LINK": null,
+        "COORD_SRC_TYPE": "GISO",
+        "ORIG_STATE_FET_TYPE": null,
+        "GlobalID": "{02ED44E5-D307-491A-A9F6-CE4B2D12A914}",
+        "SMA_ID_ca": null,
+        "last_edited_date": null
+      }
+    }
+  ]
+}

@@ -30,10 +30,11 @@ export interface Facility {
 export interface TripLocation {
   id: string;
   trip_id: string;
+  user_email: string;
   name: string;
   lat: number;
   lng: number;
-  notes?: string;
+  description?: string;
   created_at?: string;
   updated_at?: string;
 }

@@ -55,7 +55,6 @@ export default function SidebarLayout({ children }) {
     showLimitModal, 
     setShowLimitModal, 
     limitType,
-    aiSearchesToday,
     totalTrips
   } = useBetaLimits();
 
@@ -93,7 +92,6 @@ export default function SidebarLayout({ children }) {
 
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/plan', label: 'Plan', icon: PlanIcon },
   ];
 
   const handleNavigation = (href) => {
@@ -156,14 +154,6 @@ export default function SidebarLayout({ children }) {
                     <h4 className={`${inter.className} text-xs font-medium text-gray-700 mb-1`}>Beta Limits</h4>
                     <div className="space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className={`${inter.className} text-xs text-gray-600`}>AI Searches:</span>
-                        <span className={`${inter.className} text-xs font-medium`}>
-                          <span className={`${inter.className} ${aiSearchesToday >= 5 ? "text-red-500" : "text-blue-600"}`}>
-                            {aiSearchesToday}
-                          </span>/5 today
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
                         <span className={`${inter.className} text-xs text-gray-600`}>Trips:</span>
                         <span className={`${inter.className} text-xs font-medium`}>
                           <span className={`${inter.className} ${totalTrips >= 5 ? "text-red-500" : "text-blue-600"}`}>
@@ -200,7 +190,6 @@ export default function SidebarLayout({ children }) {
                   >
                     <span className={`${inter.className} bg-blue-500 text-white text-xs font-medium px-2 py-0.5 rounded mb-1`}>BETA</span>
                     <div className={`${inter.className} flex flex-col items-center`}>
-                      <span className={`${inter.className} text-xs text-blue-600 font-medium`}>{aiSearchesToday}/5</span>
                       <span className={`${inter.className} text-xs text-blue-600 font-medium`}>{totalTrips}/5</span>
                     </div>
                   </a>

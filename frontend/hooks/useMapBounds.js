@@ -37,7 +37,7 @@ export function useMapBounds() {
         console.log('🔄 Spatial function failed, using basic bounding box query. Error:', error.message);
         ({ data: facilities, error } = await supabase
           .from('facilities')
-          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2, description, phone, email, reservation_url')
+          .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2, description, phone, email, reservation_url, source')
           .gte('lat', southwest.lat)
           .lte('lat', northeast.lat)
           .gte('lon', southwest.lng)
@@ -59,7 +59,7 @@ export function useMapBounds() {
         try {
           const { data: fallbackFacilities, error: fallbackError } = await supabase
             .from('facilities')
-            .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2')
+            .select('id, facility_id, name, type, city, state, lat, lon, demand_assessment, cost_assessment_2, source')
             .not('lat', 'is', null)
             .not('lon', 'is', null)
             .limit(50);
