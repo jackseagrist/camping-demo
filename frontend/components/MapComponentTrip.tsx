@@ -540,7 +540,7 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
       {/* Instruction text for temporary marker */}
       {showTemporaryMarker && !isCustomMarkerMode && (
         <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 p-2 rounded-md shadow-md text-xs text-gray-700 max-w-xs">
-          Drag the green marker to see coordinates at different points. Click "Add Location" to save this point.
+          Drag the green marker to see coordinates at different points. Click &quot;Add Location&quot; to save this point.
         </div>
       )}
       

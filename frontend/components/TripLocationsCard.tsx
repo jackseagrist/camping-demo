@@ -654,7 +654,7 @@ const TripLocationsCard: React.FC<TripLocationsCardProps> = ({
           </div>
         ) : locations.length === 0 && !isAddingLocation ? (
           <div className="py-4 text-center text-gray-500 text-sm">
-            No custom locations added yet. Click "Add location" to create your first point.
+            No custom locations added yet. Click &quot;Add location&quot; to create your first point.
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
