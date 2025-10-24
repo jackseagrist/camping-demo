@@ -16,7 +16,7 @@ export default function AddToHomeScreenSheet({ urlHint, onClose }: { urlHint: st
       <div className="mx-auto max-w-md space-y-3">
         <div className="text-sm text-neutral-500">Make it one tap from your Home Screen</div>
         <ol className="list-decimal pl-5 space-y-1 text-sm">
-          <li>Tap the <strong>Share</strong> icon in Safari's toolbar.</li>
+          <li>Tap the <strong>Share</strong> icon in Safari&apos;s toolbar.</li>
           <li>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>
         </ol>
         <div className="text-xs text-neutral-500">
