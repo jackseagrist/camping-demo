@@ -12,6 +12,7 @@ import TripStatusDropdown from '../../components/TripStatusDropdown';
 import CampsiteSelector from '../../components/CampsiteSelector';
 import TripLocationsCard from '../../components/TripLocationsCard';
 import { ShareToNotesButton } from '../../components/ShareToNotesButton';
+import { ExportGPXButton, ExportKMLButton } from '../../components/ExportButtons';
 import { Trip, Facility as FacilityType, TripLocation } from '../../lib/types';
 import { Inter } from 'next/font/google';
 import { format } from 'date-fns';
@@ -21,10 +22,6 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import mapboxgl from 'mapbox-gl';
 import posthog from '../../posthog';
 import { markTripNotificationsAsSeen } from '../../lib/notificationUtils';
-import { useServiceWorker } from '../../components/register-sw';
-import DownloadOfflineButton from '../../components/DownloadOfflineButton';
-import DeleteOfflineButton from '../../components/DeleteOfflineButton';
-import { isOfflineReady } from '../../lib/offline';
 
 // Set Mapbox token to match explore.js
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
@@ -39,28 +36,12 @@ const MapComponentTrip = dynamic(() => import('../../components/MapComponentTrip
   )
 });
 
-// Create a Smart Map component that decides between online/offline mode
-const TripMapSmart = dynamic(() => import('../../components/TripMapSmart'), { 
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full flex items-center justify-center bg-gray-100">
-      <div className="text-gray-500">Loading map...</div>
-    </div>
-  )
-});
-
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export default function TripDetail() {
   const router = useRouter();
   const { id } = router.query;
   const supabase = createClientComponentClient();
-  
-  // Register service worker for offline functionality
-  useServiceWorker();
-  
-  // State for offline status
-  const [isOfflineEnabled, setIsOfflineEnabled] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -190,16 +171,6 @@ export default function TripDetail() {
     };
 
     fetchTrip();
-    
-    // Check if offline mode is enabled for this trip
-    const checkOfflineStatus = async () => {
-      if (typeof id === 'string') {
-        const offlineReady = await isOfflineReady(id);
-        setIsOfflineEnabled(offlineReady);
-      }
-    };
-    
-    checkOfflineStatus();
   }, [id, supabase, router]);
 
   const fetchCollaborators = async () => {
@@ -840,35 +811,21 @@ export default function TripDetail() {
       
       <div className={`${inter.className} bg-[#F9FAFB] min-h-screen p-8`}>
         
-        {/* Offline Controls */}
-        {trip && id && (
-          <div className="flex items-center gap-3 mb-4">
-            <DownloadOfflineButton tripId={id as string} />
-            <DeleteOfflineButton tripId={id as string} />
-            {isOfflineEnabled && (
-              <div className="rounded-xl bg-emerald-100 text-emerald-800 px-3 py-1 text-sm">
-                Offline Ready ✓
-              </div>
-            )}
-          </div>
-        )}
-        
         {/* Map Section */}
         <div className="bg-white rounded-xl shadow-md mb-8">
-          {trip && id && (
-            <TripMapSmart
-              tripId={id as string}
-              center={[trip.facility?.lon || -98.5, trip.facility?.lat || 39.8]}
-              zoom={trip.facility ? 10 : 4}
-              locations={tripLocations}
-              isCustomMarkerMode={isCustomMarkerMode}
-              onMarkerPlaced={() => {}}
-              onCenterChange={handleMapCenterChange}
-              showTemporaryMarker={showTemporaryMarker}
-              onToggleTemporaryMarker={handleToggleTemporaryMarker}
-              onAddLocationFromMarker={handleAddLocationFromMarker}
-              fitBoundsOnLocationsChange={true}
-            />
+          {trip && (
+              <MapComponentTrip 
+                location={trip.location || ''} 
+                lat={trip.facility?.lat || null} 
+                lon={trip.facility?.lon || null}
+                isCustomMarkerMode={isCustomMarkerMode}
+                locations={tripLocations}
+                onMarkerPlaced={() => {}}
+                onCenterChange={handleMapCenterChange}
+                showTemporaryMarker={showTemporaryMarker}
+                onToggleTemporaryMarker={handleToggleTemporaryMarker}
+                onAddLocationFromMarker={handleAddLocationFromMarker}
+              />
           )}
         </div>
         
@@ -1051,6 +1008,11 @@ export default function TripDetail() {
                   
                   <div className="w-full">
                     <ShareToNotesButton trip={trip} />
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <ExportGPXButton tripId={trip.id} tripName={trip.title} />
+                    <ExportKMLButton tripId={trip.id} tripName={trip.title} />
                   </div>
                 </div>
               </div>
