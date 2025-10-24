@@ -51,7 +51,7 @@ export function ExportGPXButton({ tripId, tripName }: { tripId: string; tripName
   };
   return (
     <button disabled={busy} onClick={onClick}
-      className="rounded-xl bg-emerald-600 text-white px-3 py-2 disabled:opacity-60">
+      className="rounded-xl bg-gray-200 text-gray-700 px-3 py-2 disabled:opacity-60 w-full flex items-center justify-center">
       {busy ? 'Preparing…' : 'Export GPX (Apple Maps)'}
     </button>
   );
@@ -74,7 +74,7 @@ export function ExportKMLButton({ tripId, tripName }: { tripId: string; tripName
   };
   return (
     <button disabled={busy} onClick={onClick}
-      className="rounded-xl border px-3 py-2 disabled:opacity-60">
+      className="rounded-xl bg-gray-200 text-gray-700 px-3 py-2 disabled:opacity-60 w-full flex items-center justify-center">
       {busy ? 'Preparing…' : 'Export KML'}
     </button>
   );

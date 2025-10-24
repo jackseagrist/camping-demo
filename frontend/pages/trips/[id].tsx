@@ -1010,7 +1010,7 @@ export default function TripDetail() {
                     <ShareToNotesButton trip={trip} />
                   </div>
                   
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="space-y-2 mt-2">
                     <ExportGPXButton tripId={trip.id} tripName={trip.title} />
                     <ExportKMLButton tripId={trip.id} tripName={trip.title} />
                   </div>
