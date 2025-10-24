@@ -539,20 +539,7 @@ const MapComponentTrip: React.FC<MapComponentTripProps> = ({
         </button>
       </div>
       
-      {/* Button below map for mobile */}
-      <div className="w-full mt-4 md:hidden block">
-        <button
-          onClick={() => onToggleTemporaryMarker && onToggleTemporaryMarker(!showTemporaryMarker)}
-          className={`w-full px-4 py-3 text-sm font-medium rounded-md shadow-sm transition-all ${
-            showTemporaryMarker 
-              ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
-              : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-          }`}
-          title={showTemporaryMarker ? 'Hide coordinate marker' : 'Get coordinates by placing a marker'}
-        >
-          {showTemporaryMarker ? 'Hide Coordinates' : 'Get Coordinates'}
-        </button>
-      </div>
+      {/* Button below map for mobile - moved outside the map component */}
       
       {/* Instruction text that appears when in custom marker mode */}
       {isCustomMarkerMode && (

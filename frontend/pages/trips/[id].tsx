@@ -812,7 +812,7 @@ export default function TripDetail() {
       <div className={`${inter.className} bg-[#F9FAFB] min-h-screen p-8`}>
         
         {/* Map Section */}
-        <div className="bg-white rounded-xl shadow-md mb-8">
+        <div className="bg-white rounded-xl shadow-md mb-4">
           {trip && (
               <MapComponentTrip 
                 location={trip.location || ''} 
@@ -827,6 +827,23 @@ export default function TripDetail() {
                 onAddLocationFromMarker={handleAddLocationFromMarker}
               />
           )}
+        </div>
+        
+        {/* Get Coordinates Button Card for mobile */}
+        <div className="bg-white rounded-xl shadow-md mb-8 md:hidden block">
+          <div className="p-4">
+            <button
+              onClick={() => handleToggleTemporaryMarker(!showTemporaryMarker)}
+              className={`w-full px-4 py-3 text-sm font-medium rounded-md shadow-sm transition-all ${
+                showTemporaryMarker 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+              title={showTemporaryMarker ? 'Hide coordinate marker' : 'Get coordinates by placing a marker'}
+            >
+              {showTemporaryMarker ? 'Hide Coordinates' : 'Get Coordinates'}
+            </button>
+          </div>
         </div>
         
         {/* Trip Locations Card */}
